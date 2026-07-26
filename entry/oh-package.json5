@@ -1,0 +1,7 @@
+{
+  "name": "entry",
+  "version": "0.1.0",
+  "description": "SciDAVis Qt application module",
+  "main": "",
+  "dependencies": {}
+}

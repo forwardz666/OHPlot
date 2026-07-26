@@ -1,0 +1,6 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "SciDAVis Qt application" },
+    { "name": "ability_desc", "value": "SciDAVis main ability" }
+  ]
+}

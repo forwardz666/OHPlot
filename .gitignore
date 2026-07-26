@@ -1,0 +1,37 @@
+# IDE / Editor
+.idea/
+.deveco/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+.hvigor/
+entry/.cxx/
+entry/build/
+oh_modules/
+.node/
+.output/
+
+# Qoder / AI tools
+.qoder/
+.appanalyzer/
+.codegenie/
+
+# Native build
+*.o
+*.so.bak
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup directories
+*.backup-*
+
+# Debug/diagnostic artifacts
+hilog_*.txt
+scr*.jpeg
+screen*.jpeg
+*.bak

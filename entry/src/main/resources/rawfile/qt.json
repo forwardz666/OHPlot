@@ -1,0 +1,9 @@
+{
+  "files": [
+    {"source": "libs/arm64-v8a/platforms", "target": "plugins/platforms"},
+    {"source": "libs/arm64-v8a/imageformats", "target": "plugins/imageformats"},
+    {"source": "libs/arm64-v8a/iconengines", "target": "plugins/iconengines"},
+    {"source": "libs/arm64-v8a/sqldrivers", "target": "plugins/sqldrivers"},
+    {"source": "libs/arm64-v8a/styles", "target": "plugins/styles"}
+  ]
+}
