@@ -1,7 +1,5 @@
 {
   "string": [
-    { "name": "module_desc", "value": "SciDAVis Qt application" },
-    { "name": "ability_desc", "value": "SciDAVis main ability" },
     { "name": "menu_file", "value": "File" },
     { "name": "menu_edit", "value": "Edit" },
     { "name": "menu_view", "value": "View" },
