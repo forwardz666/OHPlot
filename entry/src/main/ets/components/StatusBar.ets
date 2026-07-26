@@ -1,7 +1,6 @@
 // ArkSciDAVis Status Bar Component
 @Component
 export struct StatusBar {
-  @Link currentLocale: string;
   statusText: string = '';
 
   build() {

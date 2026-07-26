@@ -1,8 +1,30 @@
 // ArkSciDAVis Main Layout - overlays on top of XComponent (Qt render)
 // Phase 1: XComponent remains visible as backup underneath
+//
+// CRITICAL EVENT FLOW:
+// - MenuBar area: ArkTS handles menu clicks. No event passes to Qt.
+// - Content area: HitTestMode.Transparent - touch events pass through to
+//   the XComponent underneath, where QPA's native callbacks handle them.
+//   Left-button events are also forwarded via NAPI sendMouse().
+// - StatusBar area: ArkTS handles status display.
+// - When a sub-menu is open, a transparent overlay catches external
+//   clicks to close the menu, then passes the event through to Qt.
 import { MenuBar } from '../components/MenuBar';
 import { StatusBar } from '../components/StatusBar';
 import { NoteEditor } from './NoteEditor';
+import hilog from '@ohos.hilog';
+import qohos from 'libqohos.so';
+
+interface QohosInjector {
+  sendMouse(x: number, y: number, button: number, action: number): boolean;
+}
+
+const qtInjector = qohos as QohosInjector;
+
+const DOMAIN: number = 0x0000;
+const TAG: string = 'QtInput';
+
+let leftDown: boolean = false;
 
 interface SubMenuItemData {
   id: string;
@@ -18,7 +40,7 @@ interface MenuItemData {
 
 @Component
 export struct MainLayout {
-  @State currentLocale: string = 'en';
+  @State openMenu: string | null = null;
   @State showNotes: boolean = false;
   @State statusText: string = '';
 
@@ -92,22 +114,65 @@ export struct MainLayout {
   ];
 
   build() {
-    Column() {
-      MenuBar({
-        currentLocale: this.currentLocale,
-        menus: this.menuDefs
-      })
+    Stack() {
+      // Layer 1 (bottom): XComponent lives BELOW this Stack.
+      // This is the Qt rendering surface - events must pass through to it.
 
-      if (this.showNotes) {
-        NoteEditor({ currentLocale: this.currentLocale })
-          .layoutWeight(1)
-      } else {
+      // Layer 2: Main layout with menu bar, content area, status bar
+      Column() {
+        // Menu bar
+        MenuBar({
+          openMenu: this.openMenu,
+          menus: this.menuDefs
+        })
+
+        // Content area: transparent - events pass through to XComponent
         Column()
           .layoutWeight(1)
           .hitTestBehavior(HitTestMode.Transparent)
+          .onTouch((event: TouchEvent) => {
+            // Forward touch events (left-button clicks converted by ArkUI)
+            // as mouse events to Qt via NAPI
+            const changed: TouchObject[] = event.changedTouches;
+            for (let i = 0; i < changed.length; i++) {
+              const t: TouchObject = changed[i];
+              let action: number = -1;
+              if (t.type === TouchType.Down) {
+                action = 0; leftDown = true;
+              } else if (t.type === TouchType.Up) {
+                action = 1; leftDown = false;
+              } else if (t.type === TouchType.Move && leftDown) {
+                action = 2;
+              }
+              if (action >= 0 && action !== 2) {
+                qtInjector.sendMouse(t.x, t.y, 1, action);
+              }
+            }
+          })
+          .onMouse((event: MouseEvent) => {
+            // Forward left-button drag
+            if (event.button === MouseButton.Left && event.action === MouseAction.Move && leftDown) {
+              qtInjector.sendMouse(event.x, event.y, 1, 2);
+            }
+          })
+
+        // Status bar
+        StatusBar({ statusText: this.statusText })
       }
 
-      StatusBar({ currentLocale: this.currentLocale, statusText: this.statusText })
+      // Layer 3 (top): External-click overlay to close sub-menus.
+      // Only shown when a sub-menu is open.
+      // HitTestMode.Transparent: we catch the touch to close the menu,
+      // then let the event pass through to the XComponent (Qt).
+      if (this.openMenu !== null) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .hitTestBehavior(HitTestMode.Transparent)
+          .onTouch(() => {
+            this.openMenu = null;
+          })
+      }
     }
     .width('100%')
     .height('100%')

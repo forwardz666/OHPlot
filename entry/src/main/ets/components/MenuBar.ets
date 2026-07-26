@@ -21,8 +21,7 @@ interface MenuItemData {
 
 @Component
 export struct MenuBar {
-  @State openMenu: string | null = null;
-  @Link currentLocale: string;
+  @Link openMenu: string | null;
   menus: MenuItemData[] = [];
 
   build() {
@@ -52,7 +51,6 @@ export struct MenuBar {
       // Dropdown menu (shown when a menu is open)
       DropdownMenu({ openMenu: this.openMenu, menus: this.menus })
     }
-    .focusable(false)
   }
 }
 
@@ -83,27 +81,36 @@ struct SubMenuItems {
     ForEach(this.menus, (menu: MenuItemData) => {
       if (this.openMenu === menu.id) {
         ForEach(menu.items || [], (subItem: SubMenuItemData) => {
-          Row() {
-            Text(subItem.label)
-              .fontSize(14)
-              .fontColor('#000000')
-              .layoutWeight(1)
-            if (subItem.shortcut) {
-              Text(subItem.shortcut)
-                .fontSize(12)
-                .fontColor('#888888')
-                .margin({ left: 20 })
+          if (subItem.id.startsWith('sep')) {
+            // Separator line
+            Row()
+              .width('100%')
+              .height(1)
+              .backgroundColor('#E0E0E0')
+              .margin({ top: 2, bottom: 2 })
+          } else {
+            Row() {
+              Text(subItem.label)
+                .fontSize(14)
+                .fontColor('#000000')
+                .layoutWeight(1)
+              if (subItem.shortcut) {
+                Text(subItem.shortcut)
+                  .fontSize(12)
+                  .fontColor('#888888')
+                  .margin({ left: 20 })
+              }
             }
+            .width('100%')
+            .height(28)
+            .padding({ left: 24, right: 12 })
+            .alignItems(VerticalAlign.Center)
+            .onHover((hover: boolean) => {
+              if (hover) {
+                hilog.info(DOMAIN, TAG, 'submenu hover: %{public}s', subItem.id);
+              }
+            })
           }
-          .width('100%')
-          .height(28)
-          .padding({ left: 24, right: 12 })
-          .alignItems(VerticalAlign.Center)
-          .onHover((hover: boolean) => {
-            if (hover) {
-              hilog.info(DOMAIN, TAG, 'submenu hover: %{public}s', subItem.id);
-            }
-          })
         })
       }
     })

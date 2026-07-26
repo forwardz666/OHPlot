@@ -73,8 +73,10 @@ static void *qt_thread_func(void *arg) {
   // resolution — clicks land at half the intended position (e.g. press at
   // x=1350 hits widgets at x≈675).  In Qt 5.15 this env var vetoes the
   // application attribute, restoring a 1:1 input↔layout mapping.
-  setenv("QT_ENABLE_HIGHDPI_SCALING", "0", 1);
-  setenv("QT_AUTO_SCREEN_SCALE_FACTOR", "0", 1);
+  // UPDATE: Enable high DPI scaling and set an appropriate scale factor to enlarge UI
+  setenv("QT_ENABLE_HIGHDPI_SCALING", "1", 1);
+  setenv("QT_SCALE_FACTOR", "1.2", 1);  // Increase UI size by 20% - more suitable value
+  setenv("QT_AUTO_SCREEN_SCALE_FACTOR", "1", 1);
   // Log high-DPI factor decisions so we can verify on-device via hilog.
   setenv("QT_LOGGING_RULES", "qt.scaling=true", 1);
 
