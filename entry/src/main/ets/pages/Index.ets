@@ -61,6 +61,11 @@ struct SciDAVisView {
       // Transparent hit-test layer: receives mouse events that the native
       // XComponent swallows before ETS dispatch, and lets everything continue
       // through to the XComponent underneath (HitTestMode.Transparent).
+      //
+      // ArkUI converts left-button Press/Release into touch events
+      // (mousetransEnable=1), so .onMouse only receives Move.  We use
+      // .onTouch to catch the converted touch events whose sourceType is
+      // SourceType.Mouse and forward them as injected mouse Press/Release.
       Column()
         .width('100%')
         .height('100%')
@@ -68,35 +73,58 @@ struct SciDAVisView {
         .hitTestBehavior(HitTestMode.Transparent)
         .focusable(false)
         .onMouse((event: MouseEvent) => {
-          // Right button (and middle etc.) reach Qt natively via the QPA
-          // mouse callback – forward ONLY the left button, which ArkUI
-          // diverts into the (dropped) touch pipeline.  vp -> physical px.
-          if (event.button === MouseButton.Left) {
+          // Mouse Move events (right button, middle button, etc.) still
+          // arrive via onMouse.  Forward left-button drag here.
+          if (event.button === MouseButton.Left && event.action === MouseAction.Move && leftDown) {
             const px: number = vp2px(event.x);
             const py: number = vp2px(event.y);
-            let action: number = -1;
-            if (event.action === MouseAction.Press) {
-              action = 0;
-              leftDown = true;
-            } else if (event.action === MouseAction.Release) {
-              action = 1;
-              leftDown = false;
-            } else if (event.action === MouseAction.Move && leftDown) {
-              action = 2; // drag with left button held
+            const ok: boolean = qtInjector.sendMouse(px, py, 1, 2);
+            if (dbgCount < 200) {
+              dbgCount++;
+              hilog.info(DOMAIN, TAG,
+                'forward drag px=(%{public}d,%{public}d) ok=%{public}s',
+                Math.round(px), Math.round(py), String(ok));
             }
-            if (action >= 0) {
-              const ok: boolean = qtInjector.sendMouse(px, py, 1, action);
-              if (action !== 2 && dbgCount < 100) {
-                dbgCount++;
-                hilog.info(DOMAIN, TAG,
-                  'forward left btn action=%{public}d px=(%{public}d,%{public}d) ok=%{public}s',
-                  action, Math.round(px), Math.round(py), String(ok));
-              }
-            }
-          } else if (dbgCount < 100) {
+          } else if (event.button !== MouseButton.Left && dbgCount < 200) {
             dbgCount++;
             hilog.info(DOMAIN, TAG, 'onMouse action=%{public}d btn=%{public}d x=%{public}d y=%{public}d',
               event.action as number, event.button as number, Math.round(event.x), Math.round(event.y));
+          }
+        })
+        .onTouch((event: TouchEvent) => {
+          // ArkUI converts left-button Press/Release into touch events
+          // (mousetransEnable=1).  The QPA plugin's touchDown is an empty
+          // function, so these touch events are silently dropped.  We
+          // capture them here and re-inject as mouse events via NAPI.
+          //
+          // Note: we forward ALL touch Down/Up events as mouse clicks.
+          // This is safe because QPA touchDown is empty (no double
+          // dispatch), and finger touches will also work as mouse clicks
+          // which is acceptable for a desktop-style application.
+          const changed: TouchObject[] = event.changedTouches;
+          for (let i = 0; i < changed.length; i++) {
+            const t: TouchObject = changed[i];
+            const px: number = vp2px(t.x);
+            const py: number = vp2px(t.y);
+            let action: number = -1;
+            if (t.type === TouchType.Down) {
+              action = 0; // mouse press
+              leftDown = true;
+            } else if (t.type === TouchType.Up) {
+              action = 1; // mouse release
+              leftDown = false;
+            } else if (t.type === TouchType.Move && leftDown) {
+              action = 2; // drag
+            }
+            if (action >= 0 && action !== 2) {
+              const ok: boolean = qtInjector.sendMouse(px, py, 1, action);
+              if (dbgCount < 200) {
+                dbgCount++;
+                hilog.info(DOMAIN, TAG,
+                  'forward touch->mouse action=%{public}d px=(%{public}d,%{public}d) ok=%{public}s',
+                  action, Math.round(px), Math.round(py), String(ok));
+              }
+            }
           }
         })
     }
