@@ -1,6 +1,7 @@
 {
   "string": [
     { "name": "module_desc", "value": "SciDAVis Qt application" },
+    { "name": "read_pasteboard_reason", "value": "Paste data from other apps into tables" },
     { "name": "ability_desc", "value": "SciDAVis main ability" },
     { "name": "menu_file", "value": "File" },
     { "name": "menu_edit", "value": "Edit" },

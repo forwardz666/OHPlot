@@ -101,6 +101,39 @@ struct SubMenuItems {
               .height(1)
               .backgroundColor('#E0E0E0')
               .margin({ top: 2, bottom: 2 })
+          } else if (subItem.id === 'paste' && subItem.enabled !== false) {
+            // Security component: clicking grants a one-shot temporary
+            // READ_PASTEBOARD authorization (the full ACL permission is not
+            // grantable with the debug signing profile).  Label/icon are
+            // system-fixed, styled to blend into the menu.
+            Row() {
+              PasteButton({ icon: PasteIconStyle.LINES, text: PasteDescription.PASTE,
+                buttonType: ButtonType.Normal })
+                .fontSize(14)
+                .fontColor('#000000')
+                .iconSize(14)
+                .iconColor('#000000')
+                .backgroundColor('#FFFFFF')
+                .padding({ left: 0, right: 0, top: 4, bottom: 4 })
+                .onClick((_event: ClickEvent, result: PasteButtonOnClickResult) => {
+                  hilog.info(DOMAIN, TAG, 'PasteButton click result: %{public}d', result);
+                  if (result === PasteButtonOnClickResult.SUCCESS && this.onItemClick) {
+                    this.onItemClick(subItem.id);
+                  }
+                  this.openMenu = null;
+                })
+              Blank()
+              if (subItem.shortcut) {
+                Text(subItem.shortcut)
+                  .fontSize(12)
+                  .fontColor('#888888')
+                  .margin({ left: 20 })
+              }
+            }
+            .width('100%')
+            .height(28)
+            .padding({ left: 24, right: 12 })
+            .alignItems(VerticalAlign.Center)
           } else {
             Row() {
               Text(subItem.checked === true ? '✓ ' + subItem.label : subItem.label)
