@@ -11,6 +11,10 @@ interface SubMenuItemData {
   id: string;
   label: string;
   shortcut?: string;
+  // Menu-state flags driven by getUiState (undo/redo, window list...):
+  // enabled=false renders grey and swallows the tap; checked=true shows ✓.
+  enabled?: boolean;
+  checked?: boolean;
 }
 
 interface MenuItemData {
@@ -22,7 +26,14 @@ interface MenuItemData {
 @Component
 export struct MenuBar {
   @Link openMenu: string | null;
-  menus: MenuItemData[] = [];
+  // @Prop (deep copy) so the bar re-renders when the parent rebuilds the
+  // menu model from getUiState (dynamic window list, undo/redo greying).
+  @Prop menus: MenuItemData[] = [];
+  onItemClick?: (itemId: string) => void;
+  // Reports each menu title's x offset (vp) so the parent can anchor the
+  // floating dropdown under its title (the dropdown lives in the parent
+  // Stack, NOT in this Column, to avoid pushing the content area down).
+  onAnchorChange?: (menuId: string, x: number) => void;
 
   build() {
     Column() {
@@ -55,9 +66,10 @@ export struct MenuBar {
 }
 
 @Component
-struct DropdownMenu {
-  openMenu: string | null = null;
-  menus: MenuItemData[] = [];
+export struct DropdownMenu {
+  @Link openMenu: string | null;
+  @Prop menus: MenuItemData[] = [];
+  onItemClick?: (itemId: string) => void;
 
   build() {
     if (this.openMenu !== null) {
@@ -74,8 +86,9 @@ struct DropdownMenu {
 
 @Component
 struct SubMenuItems {
-  openMenu: string | null = null;
-  menus: MenuItemData[] = [];
+  @Link openMenu: string | null;
+  @Prop menus: MenuItemData[] = [];
+  onItemClick?: (itemId: string) => void;
 
   build() {
     ForEach(this.menus, (menu: MenuItemData) => {
@@ -90,14 +103,14 @@ struct SubMenuItems {
               .margin({ top: 2, bottom: 2 })
           } else {
             Row() {
-              Text(subItem.label)
+              Text(subItem.checked === true ? '✓ ' + subItem.label : subItem.label)
                 .fontSize(14)
-                .fontColor('#000000')
+                .fontColor(subItem.enabled === false ? '#A8A8A8' : '#000000')
                 .layoutWeight(1)
               if (subItem.shortcut) {
                 Text(subItem.shortcut)
                   .fontSize(12)
-                  .fontColor('#888888')
+                  .fontColor(subItem.enabled === false ? '#C8C8C8' : '#888888')
                   .margin({ left: 20 })
               }
             }
@@ -109,6 +122,17 @@ struct SubMenuItems {
               if (hover) {
                 hilog.info(DOMAIN, TAG, 'submenu hover: %{public}s', subItem.id);
               }
+            })
+            .onClick(() => {
+              if (subItem.enabled === false) {
+                hilog.info(DOMAIN, TAG, 'submenu click ignored (disabled): %{public}s', subItem.id);
+                return; // greyed item: keep the menu open, do nothing
+              }
+              hilog.info(DOMAIN, TAG, 'submenu click: %{public}s', subItem.id);
+              if (this.onItemClick) {
+                this.onItemClick(subItem.id);
+              }
+              this.openMenu = null;
             })
           }
         })

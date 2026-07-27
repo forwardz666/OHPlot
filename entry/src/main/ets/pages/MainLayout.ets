@@ -11,6 +11,7 @@
 //   clicks to close the menu, then passes the event through to Qt.
 import { MenuBar } from '../components/MenuBar';
 import { StatusBar } from '../components/StatusBar';
+import { QtEventHost } from '../components/QtEventHost';
 import { NoteEditor } from './NoteEditor';
 import hilog from '@ohos.hilog';
 import qohos from 'libqohos.so';
@@ -30,6 +31,8 @@ interface SubMenuItemData {
   id: string;
   label: string;
   shortcut?: string;
+  enabled?: boolean;
+  checked?: boolean;
 }
 
 interface MenuItemData {
@@ -38,81 +41,274 @@ interface MenuItemData {
   items?: SubMenuItemData[];
 }
 
+// Payload for the generic 'menuAction' fallback command.
+interface MenuActionArgs {
+  itemId: string;
+}
+
+interface ActivateWindowArgs {
+  name: string;
+}
+
+// getUiState payload (see uiStateJson in scidavis/src/main.cpp)
+interface UiWindow {
+  name: string;
+  type: string;
+  label: string;
+  status: number;
+  active: boolean;
+}
+
+interface UiState {
+  activeType: string;
+  activeName: string;
+  windows: UiWindow[];
+  undoEnabled: boolean;
+  redoEnabled: boolean;
+}
+
+interface UiStateResponse {
+  success: boolean;
+  data?: UiState;
+}
+
 @Component
 export struct MainLayout {
   @State openMenu: string | null = null;
   @State showNotes: boolean = false;
   @State statusText: string = '';
+  @State currentView: string = 'default';
+  @State showImportDialog: boolean = false;
+  @State showExportDialog: boolean = false;
+  // x offset (vp) of the floating dropdown, looked up from the anchor map
+  // whenever a menu opens so it appears under its title.
+  @State dropdownX: number = 0;
+  private menuAnchorMap: Map<string, number> = new Map<string, number>();
 
-  private menuDefs: MenuItemData[] = [
-    { id: 'file', label: 'File', items: [
+  onMenuChanged(): void {
+    if (this.openMenu !== null) {
+      this.statusText = '[' + this.openMenu + ' menu open]';
+      const x: number | undefined = this.menuAnchorMap.get(this.openMenu);
+      this.dropdownX = (x !== undefined) ? x : 0;
+      // Refresh backend UI state on every menu-open so greying/checkmarks
+      // and the Windows list are current.  getUiState is a query command:
+      // Qt answers via QueuedConnection with a 3s semaphore fallback, so
+      // worst-case stall is bounded (normally single-digit ms when idle).
+      this.refreshUiState();
+    } else {
+      this.statusText = '';
+    }
+  }
+
+  aboutToAppear(): void {
+    this.rebuildMenus(); // initial static skeleton before Qt is queried
+  }
+
+  private refreshUiState(): void {
+    try {
+      const raw: string = qtInjector.callQtCommand('getUiState', '{}');
+      const resp: UiStateResponse = JSON.parse(raw) as UiStateResponse;
+      if (resp.success && resp.data !== undefined) {
+        this.uiState = resp.data;
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'getUiState failed: %{public}s', (e as Error).message);
+    }
+    this.rebuildMenus();
+  }
+
+  // Menu model is rebuilt from getUiState on every menu-open (desktop
+  // parity: greyed = not yet wired on tablet / not applicable; the fourth
+  // menu switches Table/Matrix/Graph with the active MDI window type).
+  @State menuDefs: MenuItemData[] = [];
+  @State uiState: UiState = {
+    activeType: '', activeName: '', windows: [],
+    undoEnabled: false, redoEnabled: false
+  };
+
+  private rebuildMenus(): void {
+    const st: UiState = this.uiState;
+    const hasWin: boolean = st.activeName !== '';
+    const defs: MenuItemData[] = [];
+
+    defs.push({ id: 'file', label: 'File', items: [
       { id: 'new_project', label: 'New Project' },
       { id: 'new_table', label: 'New Table' },
-      { id: 'new_notes', label: 'New Notes', shortcut: 'Ctrl+N' },
       { id: 'new_matrix', label: 'New Matrix' },
+      { id: 'new_notes', label: 'New Note' },
+      { id: 'new_graph', label: 'New Graph' },
       { id: 'sep1', label: '─' },
-      { id: 'open', label: 'Open...', shortcut: 'Ctrl+O' },
-      { id: 'close', label: 'Close' },
+      { id: 'open', label: 'Open Project...', shortcut: 'Ctrl+O', enabled: false },
+      { id: 'save', label: 'Save Project', shortcut: 'Ctrl+S', enabled: false },
+      { id: 'save_as', label: 'Save Project As...', enabled: false },
       { id: 'sep2', label: '─' },
-      { id: 'save', label: 'Save Project', shortcut: 'Ctrl+S' },
-      { id: 'save_as', label: 'Save Project As...' },
+      { id: 'import', label: 'Import ASCII...' },
+      { id: 'export', label: 'Export ASCII...' },
       { id: 'sep3', label: '─' },
-      { id: 'import', label: 'Import' },
-      { id: 'export', label: 'Export' },
+      { id: 'print', label: 'Print...', shortcut: 'Ctrl+P', enabled: false },
       { id: 'sep4', label: '─' },
-      { id: 'print', label: 'Print...', shortcut: 'Ctrl+P' },
-      { id: 'sep5', label: '─' },
       { id: 'quit', label: 'Quit', shortcut: 'Ctrl+Q' }
-    ]},
-    { id: 'edit', label: 'Edit', items: [
-      { id: 'undo', label: 'Undo', shortcut: 'Ctrl+Z' },
-      { id: 'redo', label: 'Redo', shortcut: 'Ctrl+Y' },
-      { id: 'sep1', label: '─' },
-      { id: 'cut', label: 'Cut', shortcut: 'Ctrl+X' },
-      { id: 'copy', label: 'Copy', shortcut: 'Ctrl+C' },
-      { id: 'paste', label: 'Paste', shortcut: 'Ctrl+V' },
-      { id: 'delete', label: 'Delete' },
-      { id: 'sep2', label: '─' },
-      { id: 'select_all', label: 'Select All', shortcut: 'Ctrl+A' }
-    ]},
-    { id: 'view', label: 'View', items: [
-      { id: 'toolbars', label: 'Toolbars' },
-      { id: 'sep1', label: '─' },
-      { id: 'plots', label: 'Plots' },
-      { id: 'tables', label: 'Tables' },
-      { id: 'notes', label: 'Notes' },
-      { id: 'log', label: 'Log' },
-      { id: 'script_console', label: 'Script Console' }
-    ]},
-    { id: 'table', label: 'Table', items: [
-      { id: 'add_columns', label: 'Add Columns...' },
-      { id: 'set_values', label: 'Set Column Values...' },
-      { id: 'sort', label: 'Sort Table' },
-      { id: 'sep1', label: '─' },
-      { id: 'statistics', label: 'Table Statistics' }
-    ]},
-    { id: 'plot', label: 'Plot', items: [
-      { id: 'add_remove', label: 'Add/Remove Curves...' },
-      { id: 'add_error_bars', label: 'Add Error Bars...' },
-      { id: 'sep1', label: '─' },
-      { id: 'plot_2d', label: '2D Plot' },
-      { id: 'plot_3d', label: '3D Plot' }
-    ]},
-    { id: 'analysis', label: 'Analysis', items: [
-      { id: 'fit', label: 'Fit' },
-      { id: 'fft', label: 'FFT' },
-      { id: 'smooth', label: 'Smooth' },
-      { id: 'sep1', label: '─' },
-      { id: 'integrate', label: 'Integrate' },
-      { id: 'differentiate', label: 'Differentiate' }
-    ]},
-    { id: 'help', label: 'Help', items: [
-      { id: 'help', label: 'Help...' },
-      { id: 'sep1', label: '─' },
-      { id: 'about', label: 'About SciDAVis...' }
-    ]}
-  ];
+    ]});
 
+    defs.push({ id: 'edit', label: 'Edit', items: [
+      { id: 'undo', label: 'Undo', shortcut: 'Ctrl+Z', enabled: st.undoEnabled },
+      { id: 'redo', label: 'Redo', shortcut: 'Ctrl+Y', enabled: st.redoEnabled },
+      { id: 'sep1', label: '─' },
+      { id: 'cut', label: 'Cut Selection', shortcut: 'Ctrl+X', enabled: hasWin },
+      { id: 'copy', label: 'Copy Selection', shortcut: 'Ctrl+C', enabled: hasWin },
+      { id: 'paste', label: 'Paste Selection', shortcut: 'Ctrl+V', enabled: hasWin },
+      { id: 'delete', label: 'Delete Selection', enabled: hasWin },
+      { id: 'sep2', label: '─' },
+      { id: 'preferences', label: 'Preferences...', enabled: false }
+    ]});
+
+    defs.push({ id: 'view', label: 'View', items: [
+      { id: 'plots', label: 'Plot List', checked: this.currentView === 'plots' },
+      { id: 'tables', label: 'Table List', checked: this.currentView === 'tables' },
+      { id: 'notes', label: 'Note Pad', checked: this.showNotes },
+      { id: 'sep1', label: '─' },
+      { id: 'log', label: 'Results Log', enabled: false },
+      { id: 'script_console', label: 'Script Console', enabled: false }
+    ]});
+
+    // Context menu follows the active MDI window type (desktop behaviour).
+    // Entries are greyed until their Phase 2/3 commands land.
+    if (st.activeType === 'Matrix') {
+      defs.push({ id: 'matrix', label: 'Matrix', items: [
+        { id: 'set_dimensions', label: 'Set Dimensions...', enabled: false },
+        { id: 'set_values', label: 'Set Values...', enabled: false },
+        { id: 'sep1', label: '─' },
+        { id: 'transpose', label: 'Transpose', enabled: false },
+        { id: 'invert', label: 'Invert', enabled: false }
+      ]});
+    } else if (st.activeType === 'MultiLayer' || st.activeType === 'Graph3D') {
+      defs.push({ id: 'graph', label: 'Graph', items: [
+        { id: 'add_curve', label: 'Add/Remove Curve...', enabled: false },
+        { id: 'add_error_bars', label: 'Add Error Bars...', enabled: false },
+        { id: 'add_function', label: 'Add Function...', enabled: false },
+        { id: 'sep1', label: '─' },
+        { id: 'rescale', label: 'Rescale To Show All', enabled: false }
+      ]});
+    } else {
+      defs.push({ id: 'table', label: 'Table', items: [
+        { id: 'add_columns', label: 'Add Column', enabled: false },
+        { id: 'set_values', label: 'Set Column Values...', enabled: false },
+        { id: 'sort', label: 'Sort Table...', enabled: false },
+        { id: 'sep1', label: '─' },
+        { id: 'statistics_columns', label: 'Statistics on Columns', enabled: false },
+        { id: 'statistics_rows', label: 'Statistics on Rows', enabled: false }
+      ]});
+    }
+
+    defs.push({ id: 'plot', label: 'Plot', items: [
+      { id: 'plot_line', label: 'Line', enabled: false },
+      { id: 'plot_scatter', label: 'Scatter', enabled: false },
+      { id: 'plot_line_symbol', label: 'Line + Symbol', enabled: false },
+      { id: 'plot_bar', label: 'Vertical Bars', enabled: false },
+      { id: 'plot_histogram', label: 'Histogram', enabled: false },
+      { id: 'plot_pie', label: 'Pie', enabled: false },
+      { id: 'sep1', label: '─' },
+      { id: 'plot_2d', label: 'Plot Explorer (2D)' },
+      { id: 'plot_3d', label: '3D Plot', enabled: false }
+    ]});
+
+    defs.push({ id: 'analysis', label: 'Analysis', items: [
+      { id: 'fit_linear', label: 'Fit Linear', enabled: false },
+      { id: 'fit_poly', label: 'Fit Polynomial...', enabled: false },
+      { id: 'fit_wizard', label: 'Fit Wizard...', enabled: false },
+      { id: 'sep1', label: '─' },
+      { id: 'fft', label: 'FFT...', enabled: false },
+      { id: 'smooth', label: 'Smooth', enabled: false },
+      { id: 'interpolate', label: 'Interpolate...', enabled: false },
+      { id: 'differentiate', label: 'Differentiate', enabled: false },
+      { id: 'integrate', label: 'Integrate...', enabled: false }
+    ]});
+
+    // Windows menu: management commands + live MDI window list from Qt.
+    const winItems: SubMenuItemData[] = [
+      { id: 'cascade', label: 'Cascade' },
+      { id: 'maximize_window', label: 'Maximize Window', enabled: hasWin },
+      { id: 'minimize_window', label: 'Minimize Window', enabled: hasWin },
+      { id: 'close_window', label: 'Close Window', shortcut: 'Ctrl+W', enabled: hasWin }
+    ];
+    if (st.windows.length > 0) {
+      winItems.push({ id: 'sep1', label: '─' });
+      for (let i = 0; i < st.windows.length; i++) {
+        const w: UiWindow = st.windows[i];
+        winItems.push({ id: 'win:' + w.name, label: w.name + ' (' + w.type + ')', checked: w.active });
+      }
+    }
+    defs.push({ id: 'windows', label: 'Windows', items: winItems });
+
+    defs.push({ id: 'help', label: 'Help', items: [
+      { id: 'help', label: 'Help Browser', enabled: false },
+      { id: 'sep1', label: '─' },
+      { id: 'about', label: 'About SciDAVis' }
+    ]});
+
+    this.menuDefs = defs;
+  }
+  
+  // NAPI defensive-programming spec (HARNESS guide §3.3): every callQtCommand
+  // must be wrapped in try-catch — a failed dlsym/route otherwise throws an
+  // uncaught exception that kills the ArkTS UI thread.
+  onMenuItemClick(itemId: string): void {
+    hilog.info(DOMAIN, TAG, 'MainLayout menu click: %{public}s', itemId);
+    try {
+      this.dispatchMenuItem(itemId);
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'menuAction failed for %{public}s: %{public}s',
+        itemId, (e as Error).message);
+    }
+  }
+
+  private dispatchMenuItem(itemId: string): void {
+    // Windows menu dynamic entries: 'win:<name>' activates that subwindow.
+    if (itemId.startsWith('win:')) {
+      const result: string = qtInjector.callQtCommand('activateWindow',
+        JSON.stringify({ name: itemId.substring(4) } as ActivateWindowArgs));
+      hilog.info(DOMAIN, TAG, 'activateWindow result: %{public}s', result);
+      return;
+    }
+    switch (itemId) {
+      case 'new_table': {
+        const result: string = qtInjector.callQtCommand('newTable', '{}');
+        hilog.info(DOMAIN, TAG, 'newTable result: %{public}s', result);
+        break;
+      }
+      case 'import':
+        this.showImportDialog = true;
+        break;
+      case 'export':
+        this.showExportDialog = true;
+        break;
+      case 'tables':
+        this.currentView = (this.currentView === 'tables') ? 'default' : 'tables';
+        break;
+      case 'plots':
+        this.currentView = (this.currentView === 'plots') ? 'default' : 'plots';
+        break;
+      case 'notes':
+        this.showNotes = !this.showNotes;
+        break;
+      case 'plot_2d':
+        this.currentView = 'plots';
+        break;
+      case 'quit':
+        // In offscreen mode, just log
+        hilog.info(DOMAIN, TAG, 'Quit requested - would shut down Qt');
+        break;
+      default: {
+        // Fallback: route unhandled items to Qt so the backend can decide
+        // (HARNESS guide P1 — users expect a real response, not just a log).
+        const result: string = qtInjector.callQtCommand('menuAction',
+          JSON.stringify({ itemId: itemId } as MenuActionArgs));
+        hilog.info(DOMAIN, TAG, 'fallback menuAction(%{public}s): %{public}s', itemId, result);
+        break;
+      }
+    }
+  }
+  
   build() {
     Stack() {
       // Layer 1 (bottom): XComponent lives BELOW this Stack.
@@ -173,6 +369,35 @@ export struct MainLayout {
             this.openMenu = null;
           })
       }
+
+      // Floating dropdown menu: rendered at Stack level (NOT inside the
+      // Column) so opening it does not reflow/push the content area down.
+      // .position() is applied HERE (Stack child) so x/y are relative to
+      // the Stack's top-left, anchoring the panel under its menu title.
+      DropdownMenu({
+        openMenu: this.openMenu,
+        menus: this.menuDefs,
+        onItemClick: (itemId: string) => this.onMenuItemClick(itemId)
+      })
+        .position({ x: this.dropdownX, y: MENUBAR_HEIGHT_VP })
+
+      // Note editor overlay
+      if (this.showNotes) {
+        NoteEditor()
+      }
+
+      // Dialogs
+      ImportDialog({ isVisible: $showImportDialog })
+      ExportDialog({ isVisible: $showExportDialog })
+
+      // Qt backend event host: renders ArkUI replacements for QMessageBox /
+      // context menus / combo popups pushed via scidavis_emit → onQtEvent.
+      // Fully hit-test transparent while no overlay is visible.
+      QtEventHost()
+
+      // No external overlay: touching the content area closes the menu
+      // and forwards events to Qt. The dropdown menu area is handled
+      // directly by the MenuBar component.
     }
     .width('100%')
     .height('100%')
