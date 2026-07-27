@@ -14,6 +14,8 @@
 //   - kind=projectSaved → queued saveProject completed; if a save-as target
 //                         URI is pending (AppStorage 'pendingSaveAsUri'),
 //                         copy the sandbox file out to it
+//   - kind=asciiExported→ queued exportASCII completed; copy the sandbox
+//                         file out to AppStorage 'pendingExportUri'
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 import promptAction from '@ohos.promptAction';
@@ -49,7 +51,7 @@ interface QtEvent {
   // comboRequest
   comboId?: number;
   current?: number;
-  // projectSaved
+  // projectSaved / asciiExported
   ok?: boolean;
   path?: string;
 }
@@ -179,7 +181,10 @@ export struct QtEventHost {
         break;
       }
       case 'projectSaved':
-        this.onProjectSaved(ev.ok === true, ev.path ?? '');
+        this.copyOutPending('pendingSaveAsUri', ev.ok === true, ev.path ?? '', 'Save As');
+        break;
+      case 'asciiExported':
+        this.copyOutPending('pendingExportUri', ev.ok === true, ev.path ?? '', 'Export');
         break;
       default:
         hilog.info(DOMAIN, TAG, 'unhandled event kind: %{public}s', ev.kind);
@@ -187,17 +192,18 @@ export struct QtEventHost {
     }
   }
 
-  // Queued saveProject finished in Qt.  If save-as stashed a picker URI,
-  // export the sandbox file to it now (the copy is safe here: the save is
-  // complete and the JS thread is not blocking Qt).
-  private onProjectSaved(ok: boolean, path: string): void {
-    const pending: string | undefined = AppStorage.get<string>('pendingSaveAsUri');
+  // A queued backend write finished.  If the originating flow stashed a
+  // picker URI under storageKey, export the sandbox file to it now (the
+  // copy is safe here: the write is complete and the JS thread is not
+  // blocking Qt).
+  private copyOutPending(storageKey: string, ok: boolean, path: string, label: string): void {
+    const pending: string | undefined = AppStorage.get<string>(storageKey);
     if (pending === undefined || pending === '') {
-      return; // plain Save — the backend message toast already covers it
+      return; // no copy-out requested — the backend toast already covers it
     }
-    AppStorage.setOrCreate<string>('pendingSaveAsUri', '');
+    AppStorage.setOrCreate<string>(storageKey, '');
     if (!ok || path === '') {
-      this.toast('Save As failed: project could not be saved');
+      this.toast(label + ' failed: backend could not write the file');
       return;
     }
     try {
@@ -205,11 +211,13 @@ export struct QtEventHost {
         fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
       fs.copyFileSync(path, dst.fd);
       fs.closeSync(dst);
-      hilog.info(DOMAIN, TAG, 'save_as exported %{public}s -> %{public}s', path, pending);
-      this.toast('Project exported');
+      hilog.info(DOMAIN, TAG, '%{public}s exported %{public}s -> %{public}s',
+        label, path, pending);
+      this.toast(label + ': file exported');
     } catch (e) {
-      hilog.error(DOMAIN, TAG, 'save_as export failed: %{public}s', (e as Error).message);
-      this.toast('Save As export failed: ' + (e as Error).message);
+      hilog.error(DOMAIN, TAG, '%{public}s export failed: %{public}s',
+        label, (e as Error).message);
+      this.toast(label + ' export failed: ' + (e as Error).message);
     }
   }
 

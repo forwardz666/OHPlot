@@ -527,10 +527,14 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
 
         { "importASCII",
           [](const QJsonObject &args) -> std::string {
+              // Queued command; ArkTS copies the picked file into the sandbox
+              // first.  Completion is announced through the message event.
               if (!g_mainWindow) return jsonError("no mw");
+              QString fn = args["filePath"].toString();
+              if (fn.isEmpty() || !QFile::exists(fn)) return jsonError("file not found");
               QString sep = args["separator"].toString("\t");
               QStringList files;
-              files << args["filePath"].toString();
+              files << fn;
               // Only set locale if explicitly provided
               QLocale locale = QLocale::c();
               if (args.contains("locale"))
@@ -541,16 +545,37 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                                         args["stripSpaces"].toBool(true),
                                         args["simplifySpaces"].toBool(false),
                                         args["convertToNumeric"].toBool(true), locale);
+              QJsonObject p;
+              p["title"] = QObject::tr("Import ASCII");
+              p["text"] = QObject::tr("Imported: ") + QFileInfo(fn).fileName();
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
               return "{\"success\":true,\"data\":" + tableListJson() + "}";
           } },
 
         { "exportASCII",
           [](const QJsonObject &args) -> std::string {
+              // Direct-to-path export (Table::exportASCII); the desktop
+              // ApplicationWindow::exportASCII pops a QFileDialog which the
+              // single-window QPA cannot show.  Queued; the asciiExported
+              // event triggers the ArkTS picker copy-out.
               if (!g_mainWindow) return jsonError("no mw");
-              g_mainWindow->exportASCII(args["tableId"].toString(),
-                                        args["separator"].toString("\t"),
-                                        args["colNames"].toBool(true), false);
-              return "{\"success\":true}";
+              Table *t = g_mainWindow->table(args["tableId"].toString());
+              if (!t) return jsonError("table not found");
+              QString fn = args["path"].toString();
+              if (fn.isEmpty()) return jsonError("no path");
+              bool ok = t->exportASCII(fn, args["separator"].toString("\t"),
+                                       args["colNames"].toBool(true), false);
+              QJsonObject done; done["ok"] = ok; done["path"] = fn;
+              scidavisEmitEvent(QStringLiteral("asciiExported"), done);
+              if (!ok) {
+                  QJsonObject p;
+                  p["title"] = QObject::tr("Export ASCII");
+                  p["text"] = QObject::tr("Failed to export: ") + QFileInfo(fn).fileName();
+                  p["icon"] = QStringLiteral("critical");
+                  scidavisEmitEvent(QStringLiteral("message"), p);
+              }
+              return ok ? std::string("{\"success\":true}") : jsonError("export failed");
           } },
 
         // ArkTS picker result for a blocked QComboBox popup (ohos_bridge).
