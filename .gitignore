@@ -49,3 +49,6 @@ exported_graph*.png
 
 # Git push history
 .git-push-log.txt
+
+# Embedded repositories (independent projects)
+stellarium/
