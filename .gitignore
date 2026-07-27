@@ -52,3 +52,7 @@ exported_graph*.png
 
 # Embedded repositories (independent projects)
 stellarium/
+
+# AI assistant skill packages (not part of this project)
+arkts-skill-extracted/
+arkts-spec-skill/
