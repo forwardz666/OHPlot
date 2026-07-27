@@ -189,6 +189,9 @@ export struct QtEventHost {
       case 'asciiExported':
         this.copyOutPending('pendingExportUri', ev.ok === true, ev.path ?? '', 'Export');
         break;
+      case 'imageExported':
+        this.copyOutPending('pendingImageUri', ev.ok === true, ev.path ?? '', 'Export Image');
+        break;
       case 'clipboardChanged': {
         // Qt → OHOS pasteboard (copy/cut in Qt becomes system-wide).
         const text: string = ev.text ?? '';

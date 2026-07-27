@@ -30,6 +30,8 @@
 #include "globals.h"
 #include "ohos_bridge.h"
 #include "TableStatistics.h"
+#include "Matrix.h"
+#include "future/matrix/MatrixView.h"
 
 #include <QAction>
 #include <QApplication>
@@ -435,6 +437,16 @@ static Table *resolveTable(const QJsonObject &args)
     return qobject_cast<Table *>(g_mainWindow->d_workspace.activeSubWindow());
 }
 
+// Resolve the matrix a command targets (same pattern as resolveTable).
+static Matrix *resolveMatrix(const QJsonObject &args)
+{
+    if (!g_mainWindow) return nullptr;
+    QString id = args["matrixId"].toString();
+    if (!id.isEmpty())
+        return g_mainWindow->matrix(id);
+    return qobject_cast<Matrix *>(g_mainWindow->d_workspace.activeSubWindow());
+}
+
 // UI state for the ArkTS shell: active window, window list, undo/redo
 // availability.  Drives menu enabling/greying and context-menu switching.
 static std::string uiStateJson()
@@ -802,6 +814,112 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               r["success"] = cb != nullptr;
               r["text"] = cb ? cb->text() : QString();
               return QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        // ── Matrix operations (Phase 3) ────────────────────────────
+        // All Matrix slots are dialog-free; invert()'s not-square warning
+        // goes through the QMessageBox interposer (ohos_bridge).
+        { "matrixSetDimensions",
+          [](const QJsonObject &args) -> std::string {
+              Matrix *m = resolveMatrix(args);
+              if (!m) return jsonError("matrix not found");
+              int rows = qBound(1, args["rows"].toInt(m->numRows()), 100000);
+              int cols = qBound(1, args["cols"].toInt(m->numCols()), 10000);
+              m->setDimensions(rows, cols);
+              QJsonObject p;
+              p["title"] = QObject::tr("Matrix");
+              p["text"] = QObject::tr("%1 resized to %2 x %3").arg(m->name()).arg(rows).arg(cols);
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return "{\"success\":true}";
+          } },
+
+        { "matrixSetFormula",
+          [](const QJsonObject &args) -> std::string {
+              // Matrix::recalculate only fills selected cells, so select
+              // everything first (ArkTS has no cell selection to offer).
+              Matrix *m = resolveMatrix(args);
+              if (!m) return jsonError("matrix not found");
+              QString formula = args["formula"].toString();
+              if (formula.isEmpty()) return jsonError("empty formula");
+              m->setFormula(formula);
+              if (auto *view = qobject_cast<MatrixView *>(m->view()))
+                  view->selectAll();
+              bool ok = m->recalculate();
+              QJsonObject p;
+              p["title"] = QObject::tr("Set Matrix Values");
+              p["text"] = ok ? m->name() + " = " + formula
+                             : QObject::tr("Formula error: ") + formula;
+              p["icon"] = ok ? QStringLiteral("information") : QStringLiteral("critical");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return ok ? std::string("{\"success\":true}") : jsonError("recalculate failed");
+          } },
+
+        { "matrixTranspose",
+          [](const QJsonObject &args) -> std::string {
+              Matrix *m = resolveMatrix(args);
+              if (!m) return jsonError("matrix not found");
+              m->transpose();
+              QJsonObject p;
+              p["title"] = QObject::tr("Matrix");
+              p["text"] = QObject::tr("Transposed %1").arg(m->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return "{\"success\":true}";
+          } },
+
+        { "matrixInvert",
+          [](const QJsonObject &args) -> std::string {
+              Matrix *m = resolveMatrix(args);
+              if (!m) return jsonError("matrix not found");
+              if (m->numRows() != m->numCols()) {
+                  QJsonObject p;
+                  p["title"] = QObject::tr("Error");
+                  p["text"] = QObject::tr("Inversion failed, the matrix is not square!");
+                  p["icon"] = QStringLiteral("critical");
+                  scidavisEmitEvent(QStringLiteral("message"), p);
+                  return jsonError("not square");
+              }
+              m->invert();
+              QJsonObject p;
+              p["title"] = QObject::tr("Matrix");
+              p["text"] = QObject::tr("Inverted %1").arg(m->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return "{\"success\":true}";
+          } },
+
+        // ── Graph image export (Phase 3) ──────────────────────────
+        // Renders the MultiLayer to a sandbox PNG; the imageExported event
+        // triggers the ArkTS picker copy-out (same flow as exportASCII).
+        { "exportGraphImage",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              QString id = args["plotId"].toString();
+              MultiLayer *ml = nullptr;
+              if (!id.isEmpty()) {
+                  for (QMdiSubWindow *w : g_mainWindow->d_workspace.subWindowList()) {
+                      auto *cand = qobject_cast<MultiLayer *>(w);
+                      if (cand && cand->name() == id) { ml = cand; break; }
+                  }
+              } else {
+                  ml = qobject_cast<MultiLayer *>(g_mainWindow->d_workspace.activeSubWindow());
+              }
+              if (!ml) return jsonError("plot not found");
+              QString fn = args["path"].toString();
+              if (fn.isEmpty()) return jsonError("no path");
+              ml->exportImage(fn, args["quality"].toInt(-1));
+              bool ok = QFile::exists(fn);
+              QJsonObject done; done["ok"] = ok; done["path"] = fn;
+              scidavisEmitEvent(QStringLiteral("imageExported"), done);
+              if (!ok) {
+                  QJsonObject p;
+                  p["title"] = QObject::tr("Export Image");
+                  p["text"] = QObject::tr("Failed to export: ") + QFileInfo(fn).fileName();
+                  p["icon"] = QStringLiteral("critical");
+                  scidavisEmitEvent(QStringLiteral("message"), p);
+              }
+              return ok ? std::string("{\"success\":true}") : jsonError("export failed");
           } },
 
         // ArkTS picker result for a blocked QComboBox popup (ohos_bridge).

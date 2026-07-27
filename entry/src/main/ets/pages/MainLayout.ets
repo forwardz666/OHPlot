@@ -19,6 +19,7 @@ import { ImportDialog } from './dialogs/ImportDialog';
 import { ExportDialog } from './dialogs/ExportDialog';
 import { AddColumnsDialog, SetColumnValuesDialog, SortTableDialog } from './dialogs/TableOpsDialog';
 import { Plot2DDialog } from './dialogs/Plot2DDialog';
+import { MatrixDimensionsDialog, MatrixValuesDialog } from './dialogs/MatrixOpsDialog';
 import hilog from '@ohos.hilog';
 import qohos from 'libqohos.so';
 import { picker } from '@kit.CoreFileKit';
@@ -65,6 +66,17 @@ interface TableStatisticsArgs {
 // setClipboardText payload (Phase 2 clipboard bridge, OHOS → Qt).
 interface SetClipboardArgs {
   text: string;
+}
+
+// matrixTranspose / matrixInvert payload (Phase 3).
+interface MatrixIdArgs {
+  matrixId: string;
+}
+
+// exportGraphImage payload (Phase 3).
+interface ExportImageArgs {
+  plotId: string;
+  path: string;
 }
 
 interface ActivateWindowArgs {
@@ -117,6 +129,9 @@ export struct MainLayout {
   // from the Plot menu, captured at dispatch time like tableOpsTarget.
   @State showPlotDialog: boolean = false;
   @State plotTypeSel: string = 'line';
+  // Matrix-operation dialogs (Phase 3), same AppStorage target pattern.
+  @State showMatrixDimsDialog: boolean = false;
+  @State showMatrixValuesDialog: boolean = false;
   // Sandbox path of the current project file ('' = untitled).  The picker
   // flows copy external files in/out of the sandbox because Qt can only
   // reach sandbox paths, not content URIs.
@@ -216,14 +231,16 @@ export struct MainLayout {
     // Entries are greyed until their Phase 2/3 commands land.
     if (st.activeType === 'Matrix') {
       defs.push({ id: 'matrix', label: 'Matrix', items: [
-        { id: 'set_dimensions', label: 'Set Dimensions...', enabled: false },
-        { id: 'set_values', label: 'Set Values...', enabled: false },
+        { id: 'set_dimensions', label: 'Set Dimensions...' },
+        { id: 'set_values', label: 'Set Values...' },
         { id: 'sep1', label: '─' },
-        { id: 'transpose', label: 'Transpose', enabled: false },
-        { id: 'invert', label: 'Invert', enabled: false }
+        { id: 'transpose', label: 'Transpose' },
+        { id: 'invert', label: 'Invert' }
       ]});
     } else if (st.activeType === 'MultiLayer' || st.activeType === 'Graph3D') {
       defs.push({ id: 'graph', label: 'Graph', items: [
+        { id: 'export_image', label: 'Export Image...', enabled: st.activeType === 'MultiLayer' },
+        { id: 'sep0', label: '─' },
         { id: 'add_curve', label: 'Add/Remove Curve...', enabled: false },
         { id: 'add_error_bars', label: 'Add Error Bars...', enabled: false },
         { id: 'add_function', label: 'Add Function...', enabled: false },
@@ -353,7 +370,27 @@ export struct MainLayout {
       case 'set_values':
         this.tableOpsTarget = this.uiState.activeName;
         AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
-        this.showSetValuesDialog = true;
+        if (this.uiState.activeType === 'Matrix') {
+          this.showMatrixValuesDialog = true;
+        } else {
+          this.showSetValuesDialog = true;
+        }
+        break;
+      case 'set_dimensions':
+        this.tableOpsTarget = this.uiState.activeName;
+        AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
+        this.showMatrixDimsDialog = true;
+        break;
+      case 'transpose':
+      case 'invert': {
+        const cmd: string = itemId === 'invert' ? 'matrixInvert' : 'matrixTranspose';
+        const result: string = qtInjector.callQtCommand(cmd,
+          JSON.stringify({ matrixId: this.uiState.activeName } as MatrixIdArgs));
+        hilog.info(DOMAIN, TAG, '%{public}s queued: %{public}s', cmd, result);
+        break;
+      }
+      case 'export_image':
+        this.exportImageViaPicker();
         break;
       case 'sort':
         this.tableOpsTarget = this.uiState.activeName;
@@ -446,6 +483,32 @@ export struct MainLayout {
     const result: string = qtInjector.callQtCommand('menuAction',
       JSON.stringify({ itemId: 'paste' } as MenuActionArgs));
     hilog.info(DOMAIN, TAG, 'paste dispatched: %{public}s', result);
+  }
+
+  // ── Graph image export (Phase 3) ──────────────────────────────
+  // Same picker/copy-out pattern as ExportDialog: render into the sandbox,
+  // then the imageExported event copies the file to the picked URI.
+  private async exportImageViaPicker(): Promise<void> {
+    const plotId: string = this.uiState.activeName;
+    if (plotId === '') {
+      return;
+    }
+    try {
+      const docPicker = new picker.DocumentViewPicker();
+      const opts = new picker.DocumentSaveOptions();
+      opts.newFileNames = [plotId + '.png'];
+      const uris: string[] = await docPicker.save(opts);
+      if (uris.length === 0) {
+        return; // user cancelled
+      }
+      AppStorage.setOrCreate<string>('pendingImageUri', uris[0]);
+      const dest: string = this.sandboxProjectDir() + '/' + plotId + '.png';
+      const result: string = qtInjector.callQtCommand('exportGraphImage',
+        JSON.stringify({ plotId: plotId, path: dest } as ExportImageArgs));
+      hilog.info(DOMAIN, TAG, 'exportGraphImage(%{public}s) queued: %{public}s', dest, result);
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'exportImageViaPicker failed: %{public}s', (e as Error).message);
+    }
   }
 
   private sandboxProjectDir(): string {
@@ -603,6 +666,8 @@ export struct MainLayout {
       SetColumnValuesDialog({ isVisible: $showSetValuesDialog, tableId: this.tableOpsTarget })
       SortTableDialog({ isVisible: $showSortDialog, tableId: this.tableOpsTarget })
       Plot2DDialog({ isVisible: $showPlotDialog, tableId: this.tableOpsTarget, plotType: this.plotTypeSel })
+      MatrixDimensionsDialog({ isVisible: $showMatrixDimsDialog, matrixId: this.tableOpsTarget })
+      MatrixValuesDialog({ isVisible: $showMatrixValuesDialog, matrixId: this.tableOpsTarget })
 
       // Qt backend event host: renders ArkUI replacements for QMessageBox /
       // context menus / combo popups pushed via scidavis_emit → onQtEvent.
