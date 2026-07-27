@@ -41,6 +41,8 @@
 #include <QPointer>
 #include <QSemaphore>
 #include <atomic>
+#include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -464,8 +466,8 @@ static std::string jsonError(const std::string &msg)
 // payload; everything else is queued fire-and-forget (deadlock guard).
 static const std::set<std::string> &queryCommands()
 {
-    static const std::set<std::string> q = { "ping", "getTableList", "getTableData",
-                                             "getPlotList", "getPlotData", "getUiState" };
+    static const std::set<std::string> q = { "ping",        "getTableList", "getTableData",
+                                             "getPlotList", "getPlotData",  "getUiState" };
     return q;
 }
 
@@ -579,6 +581,60 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                   }
               }
               return jsonError("window not found");
+          } },
+
+        { "openProject",
+          [](const QJsonObject &args) -> std::string {
+              // ArkTS DocumentViewPicker copies the picked .sciprj into the
+              // app sandbox and hands the path over (queued; result toast
+              // arrives through the event channel).
+              if (!g_mainWindow) return jsonError("no mw");
+              QString fn = args["path"].toString();
+              if (fn.isEmpty() || !QFile::exists(fn)) return jsonError("file not found");
+              bool ok = g_mainWindow->loadProject(fn);
+              QJsonObject p;
+              p["title"] = QObject::tr("Open Project");
+              p["text"] = ok ? QObject::tr("Opened: ") + QFileInfo(fn).fileName()
+                             : QObject::tr("Failed to open: ") + QFileInfo(fn).fileName();
+              p["icon"] = ok ? QStringLiteral("information") : QStringLiteral("critical");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              QJsonObject r;
+              r["success"] = ok;
+              r["path"] = fn;
+              return QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "saveProject",
+          [](const QJsonObject &args) -> std::string {
+              // No-dialog replacement for saveProjectAs(): fix projectname
+              // to a sandbox path first so saveProject() never falls back to
+              // the QFileDialog branch (single-window QPA would SIGSEGV).
+              // Queued command (saving calls back into the JS thread via the
+              // QPA — a blocking query would deadlock); completion is
+              // signalled by the projectSaved event, which also triggers the
+              // ArkTS save-as copy-out to the picker target.
+              if (!g_mainWindow) return jsonError("no mw");
+              QString fn = args["path"].toString();
+              if (fn.isEmpty()) return jsonError("no path");
+              if (!fn.endsWith(".sciprj") && !fn.endsWith(".sciprj.gz"))
+                  fn += ".sciprj";
+              g_mainWindow->projectname = fn;
+              g_mainWindow->saveProject();
+              bool ok = QFile::exists(fn);
+              QJsonObject done;
+              done["ok"] = ok;
+              done["path"] = fn;
+              scidavisEmitEvent(QStringLiteral("projectSaved"), done);
+              QJsonObject p;
+              p["title"] = QObject::tr("Save Project");
+              p["text"] = ok ? QObject::tr("Saved: ") + QFileInfo(fn).fileName()
+                             : QObject::tr("Failed to save: ") + QFileInfo(fn).fileName();
+              p["icon"] = ok ? QStringLiteral("information") : QStringLiteral("critical");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              QJsonObject r;
+              r["success"] = ok;
+              r["path"] = fn;
+              return QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString();
           } },
 
         { "menuAction",

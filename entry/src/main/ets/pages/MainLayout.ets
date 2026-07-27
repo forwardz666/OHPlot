@@ -15,6 +15,9 @@ import { QtEventHost } from '../components/QtEventHost';
 import { NoteEditor } from './NoteEditor';
 import hilog from '@ohos.hilog';
 import qohos from 'libqohos.so';
+import { picker } from '@kit.CoreFileKit';
+import fs from '@ohos.file.fs';
+import common from '@ohos.app.ability.common';
 
 interface QohosInjector {
   sendMouse(x: number, y: number, button: number, action: number): boolean;
@@ -50,6 +53,12 @@ interface ActivateWindowArgs {
   name: string;
 }
 
+// openProject / saveProject command payload (both queued; completion is
+// signalled by the projectSaved event handled in QtEventHost).
+interface ProjectPathArgs {
+  path: string;
+}
+
 // getUiState payload (see uiStateJson in scidavis/src/main.cpp)
 interface UiWindow {
   name: string;
@@ -80,6 +89,10 @@ export struct MainLayout {
   @State currentView: string = 'default';
   @State showImportDialog: boolean = false;
   @State showExportDialog: boolean = false;
+  // Sandbox path of the current project file ('' = untitled).  The picker
+  // flows copy external files in/out of the sandbox because Qt can only
+  // reach sandbox paths, not content URIs.
+  @State projectPath: string = '';
   // x offset (vp) of the floating dropdown, looked up from the anchor map
   // whenever a menu opens so it appears under its title.
   @State dropdownX: number = 0;
@@ -138,9 +151,9 @@ export struct MainLayout {
       { id: 'new_notes', label: 'New Note' },
       { id: 'new_graph', label: 'New Graph' },
       { id: 'sep1', label: '─' },
-      { id: 'open', label: 'Open Project...', shortcut: 'Ctrl+O', enabled: false },
-      { id: 'save', label: 'Save Project', shortcut: 'Ctrl+S', enabled: false },
-      { id: 'save_as', label: 'Save Project As...', enabled: false },
+      { id: 'open', label: 'Open Project...', shortcut: 'Ctrl+O' },
+      { id: 'save', label: 'Save Project', shortcut: 'Ctrl+S' },
+      { id: 'save_as', label: 'Save Project As...' },
       { id: 'sep2', label: '─' },
       { id: 'import', label: 'Import ASCII...' },
       { id: 'export', label: 'Export ASCII...' },
@@ -279,6 +292,15 @@ export struct MainLayout {
       case 'import':
         this.showImportDialog = true;
         break;
+      case 'open':
+        this.openProjectViaPicker();
+        break;
+      case 'save':
+        this.saveProjectToSandbox();
+        break;
+      case 'save_as':
+        this.saveProjectAsViaPicker();
+        break;
       case 'export':
         this.showExportDialog = true;
         break;
@@ -306,6 +328,80 @@ export struct MainLayout {
         hilog.info(DOMAIN, TAG, 'fallback menuAction(%{public}s): %{public}s', itemId, result);
         break;
       }
+    }
+  }
+
+  // ── Project open/save (Phase 2) ──────────────────────────────────────
+  // Qt only reaches sandbox paths, so the pickers copy files in/out.
+
+  private sandboxProjectDir(): string {
+    const ctx = getContext(this) as common.UIAbilityContext;
+    return ctx.filesDir;
+  }
+
+  private async openProjectViaPicker(): Promise<void> {
+    try {
+      const docPicker = new picker.DocumentViewPicker();
+      const opts = new picker.DocumentSelectOptions();
+      opts.maxSelectNumber = 1;
+      opts.fileSuffixFilters = ['.sciprj', '.gz'];
+      const uris: string[] = await docPicker.select(opts);
+      if (uris.length === 0) {
+        return; // user cancelled
+      }
+      const uri: string = uris[0];
+      let name: string = decodeURIComponent(uri.substring(uri.lastIndexOf('/') + 1));
+      if (name === '') {
+        name = 'project.sciprj';
+      }
+      const dest: string = this.sandboxProjectDir() + '/' + name;
+      const src = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+      fs.copyFileSync(src.fd, dest);
+      fs.closeSync(src);
+      this.projectPath = dest;
+      const result: string = qtInjector.callQtCommand('openProject',
+        JSON.stringify({ path: dest } as ProjectPathArgs));
+      hilog.info(DOMAIN, TAG, 'openProject(%{public}s): %{public}s', dest, result);
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'openProjectViaPicker failed: %{public}s', (e as Error).message);
+    }
+  }
+
+  // Save to the current sandbox project file (untitled.sciprj when new).
+  // saveProject is a QUEUED command: saving calls back into the JS thread
+  // via the QPA, so a blocking query would deadlock (device-verified 3s
+  // timeout).  Completion arrives as the 'projectSaved' event, handled in
+  // QtEventHost (which also performs the pending save-as copy-out).
+  private saveProjectToSandbox(): string {
+    const dest: string = this.projectPath !== ''
+      ? this.projectPath
+      : this.sandboxProjectDir() + '/untitled.sciprj';
+    this.projectPath = dest;
+    const result: string = qtInjector.callQtCommand('saveProject',
+      JSON.stringify({ path: dest } as ProjectPathArgs));
+    hilog.info(DOMAIN, TAG, 'saveProject(%{public}s) queued: %{public}s', dest, result);
+    return dest;
+  }
+
+  private async saveProjectAsViaPicker(): Promise<void> {
+    try {
+      const docPicker = new picker.DocumentViewPicker();
+      const opts = new picker.DocumentSaveOptions();
+      const current: string = this.projectPath !== ''
+        ? this.projectPath.substring(this.projectPath.lastIndexOf('/') + 1)
+        : 'untitled.sciprj';
+      opts.newFileNames = [current];
+      const uris: string[] = await docPicker.save(opts);
+      if (uris.length === 0) {
+        return; // user cancelled
+      }
+      // Stash the picker target; QtEventHost copies the sandbox file out
+      // when the queued save completes (projectSaved event with ok=true).
+      AppStorage.setOrCreate<string>('pendingSaveAsUri', uris[0]);
+      const dest: string = this.saveProjectToSandbox();
+      hilog.info(DOMAIN, TAG, 'save_as pending: %{public}s -> %{public}s', dest, uris[0]);
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'saveProjectAsViaPicker failed: %{public}s', (e as Error).message);
     }
   }
   

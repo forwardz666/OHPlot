@@ -11,9 +11,13 @@
 //   - kind=inputDialog / colorDialog / fontDialog → Toast
 //   - kind=contextMenu  → ArkUI menu panel; taps go back via triggerMenu
 //   - kind=comboRequest → ArkUI picker list; taps go back via selectCombo
+//   - kind=projectSaved → queued saveProject completed; if a save-as target
+//                         URI is pending (AppStorage 'pendingSaveAsUri'),
+//                         copy the sandbox file out to it
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 import promptAction from '@ohos.promptAction';
+import fs from '@ohos.file.fs';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'QtEventHost';
@@ -45,6 +49,9 @@ interface QtEvent {
   // comboRequest
   comboId?: number;
   current?: number;
+  // projectSaved
+  ok?: boolean;
+  path?: string;
 }
 
 interface QtMenuItem {
@@ -171,9 +178,38 @@ export struct QtEventHost {
         this.comboVisible = this.comboId >= 0 && this.comboItems.length > 0;
         break;
       }
+      case 'projectSaved':
+        this.onProjectSaved(ev.ok === true, ev.path ?? '');
+        break;
       default:
         hilog.info(DOMAIN, TAG, 'unhandled event kind: %{public}s', ev.kind);
         break;
+    }
+  }
+
+  // Queued saveProject finished in Qt.  If save-as stashed a picker URI,
+  // export the sandbox file to it now (the copy is safe here: the save is
+  // complete and the JS thread is not blocking Qt).
+  private onProjectSaved(ok: boolean, path: string): void {
+    const pending: string | undefined = AppStorage.get<string>('pendingSaveAsUri');
+    if (pending === undefined || pending === '') {
+      return; // plain Save — the backend message toast already covers it
+    }
+    AppStorage.setOrCreate<string>('pendingSaveAsUri', '');
+    if (!ok || path === '') {
+      this.toast('Save As failed: project could not be saved');
+      return;
+    }
+    try {
+      const dst = fs.openSync(pending,
+        fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      fs.copyFileSync(path, dst.fd);
+      fs.closeSync(dst);
+      hilog.info(DOMAIN, TAG, 'save_as exported %{public}s -> %{public}s', path, pending);
+      this.toast('Project exported');
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'save_as export failed: %{public}s', (e as Error).message);
+      this.toast('Save As export failed: ' + (e as Error).message);
     }
   }
 
