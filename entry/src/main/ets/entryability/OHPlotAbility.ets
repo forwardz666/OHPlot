@@ -17,7 +17,7 @@ import { JsInputMethod, QpaInput } from '../native/JsInputMethod';
 import { JsCursor } from '../native/JsCursor';
 
 const DOMAIN: number = 0x0000;
-const TAG: string = 'SciDAVis';
+const TAG: string = 'OHPlot';
 const WINDOW_NAME: string = 'openharmony_qt_mainwindow';
 
 interface QpaModule extends QpaInput {
@@ -120,15 +120,15 @@ function deleteJsObject(name: string): boolean {
   return jsObjectCache.delete(name);
 }
 
-export default class SciDAVisAbility extends UIAbility {
+export default class OHPlotAbility extends UIAbility {
   private heartbeatId: number = -1;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam) {
-    hilog.info(DOMAIN, TAG, 'SciDAVisAbility::onCreate');
+    hilog.info(DOMAIN, TAG, 'OHPlotAbility::onCreate');
   }
 
   onWindowStageCreate(windowStage: window.WindowStage) {
-    hilog.info(DOMAIN, TAG, 'SciDAVisAbility::onWindowStageCreate');
+    hilog.info(DOMAIN, TAG, 'OHPlotAbility::onWindowStageCreate');
     let mainWindow = windowStage.getMainWindowSync();
     mainWindow.setWindowLayoutFullScreen(true);
     mainWindow.setWindowSystemBarEnable([]);

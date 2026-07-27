@@ -1,11 +1,11 @@
-// ArkSciDAVis Menu Bar Component
+// OHPlot Menu Bar Component
 // Implements precise menu interaction logic:
 // - onClick: toggle current menu open/close
 // - onHover: switch to current menu only if another menu is already open
 import hilog from '@ohos.hilog';
 
 const DOMAIN: number = 0x0000;
-const TAG: string = 'ArkSciDAVis';
+const TAG: string = 'OHPlot';
 
 interface SubMenuItemData {
   id: string;

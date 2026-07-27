@@ -1,4 +1,4 @@
-// ArkSciDAVis table-operation dialogs (Phase 2).
+// OHPlot table-operation dialogs (Phase 2).
 // The desktop parameter dialogs (add columns / SetColValuesDialog /
 // SortDialog) cannot be shown on the single-window QPA, so these ArkTS
 // dialogs collect the parameters and dispatch the queued backend
@@ -8,7 +8,7 @@ import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 
 const DOMAIN: number = 0x0000;
-const TAG: string = 'ArkSciDAVis';
+const TAG: string = 'OHPlot';
 
 interface QohosInjector {
   callQtCommand(cmd: string, argsJson: string): string;

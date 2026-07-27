@@ -7,7 +7,7 @@ const TAG: string = 'QtForOpenHarmony';
 
 // NOTE: This QPA plugin (libplugins_platforms_qopenharmony.so) does NOT export
 // attachAbilityStage or getJsAbilityInstanceKey. The Qt bootstrap is performed
-// entirely by SciDAVisAbility.onWindowStageCreate via QPA.startQtApplication.
+// entirely by OHPlotAbility.onWindowStageCreate via QPA.startQtApplication.
 // Do NOT import the QPA .so here — importing it in the AbilityStage context
 // can cause the NAPI module to register with the wrong napi_env, leading to
 // a NULL QOpenHarmonyJsObject and SIGSEGV during Qt locale initialization.

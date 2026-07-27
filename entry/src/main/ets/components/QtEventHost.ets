@@ -1,4 +1,4 @@
-// ArkSciDAVis Qt Event Host
+// OHPlot Qt Event Host
 // Receives JSON events pushed from the Qt backend through the
 // qohos.onQtEvent channel (libentry.so: scidavis_emit → NAPI TSFN) and
 // renders native ArkUI replacements for the popups the single-window QPA

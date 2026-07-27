@@ -11,7 +11,7 @@ const DOMAIN: number = 0x0000;
 const TAG: string = 'JsInputMethod';
 
 /** Minimal QPA interface for input-method forwarding.
- * Exported so QpaModule in SciDAVisAbility can extend it (ArkTS requires
+ * Exported so QpaModule in OHPlotAbility can extend it (ArkTS requires
  * nominal typing – structural typing is not supported). */
 export interface QpaInput {
   insertText(handler: number, text: string): void;

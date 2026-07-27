@@ -1,4 +1,4 @@
-// ArkSciDAVis Main Layout - overlays on top of XComponent (Qt render)
+// OHPlot Main Layout - overlays on top of XComponent (Qt render)
 // Phase 1: XComponent remains visible as backup underneath
 //
 // CRITICAL EVENT FLOW:
@@ -332,7 +332,7 @@ export struct MainLayout {
     defs.push({ id: 'help', label: 'Help', items: [
       { id: 'help', label: 'Help Browser', enabled: false },
       { id: 'sep1', label: '─' },
-      { id: 'about', label: 'About SciDAVis' }
+      { id: 'about', label: 'About OHPlot' }
     ]});
 
     this.menuDefs = defs;

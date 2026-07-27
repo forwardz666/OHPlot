@@ -37,7 +37,7 @@ export class JsPasteBoard {
   }
 
   setClipboardPixelMap(_pixelMap: object): void {
-    // Image clipboard is not needed by SciDAVis; ignore silently.
+    // Image clipboard is not needed by OHPlot; ignore silently.
     hilog.info(DOMAIN, TAG, 'setClipboardPixelMap ignored (unsupported)');
   }
 

@@ -1,4 +1,4 @@
-// ArkSciDAVis 2D plot dialog (Phase 2).
+// OHPlot 2D plot dialog (Phase 2).
 // The desktop Plot menu acts on the current column selection; touch users
 // cannot reliably select columns in the Qt view, so this dialog collects
 // the Y columns and dispatches the queued plot2D backend command
@@ -7,7 +7,7 @@ import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 
 const DOMAIN: number = 0x0000;
-const TAG: string = 'ArkSciDAVis';
+const TAG: string = 'OHPlot';
 
 interface QohosInjector {
   callQtCommand(cmd: string, argsJson: string): string;

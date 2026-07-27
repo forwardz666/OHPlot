@@ -1,4 +1,4 @@
-# SciDAVis OpenHarmony 开发规范
+# OHPlot (SciDAVis) OpenHarmony 开发规范
 
 本文档涵盖本项目 ArkTS / C++ / 构建 / 调试各环节的编码约定与注意事项。
 
@@ -115,7 +115,7 @@ Copy-Item <build-ohos-dir>/scidavis/libentry.so entry/libs/arm64-v8a/ -Force
 
 ### 3.3 libentry.so 位置
 
-- Qt 构建目录（如 `C:\Users\Forwardz\scidavis-ohos\build-ohos`）不在 ohos 工作区内。
+- Qt 构建目录（如 `C:\Users\Forwardz\ohplot-ohos\build-ohos`）不在 ohos 工作区内。
 - 每次 ninja 构建后必须手动（或脚本）复制到 `entry/libs/arm64-v8a/`。
 - 可用 `llvm-nm -D libentry.so` 验证导出符号是否完整。
 
@@ -130,7 +130,7 @@ Copy-Item <build-ohos-dir>/scidavis/libentry.so entry/libs/arm64-v8a/ -Force
 hdc install -r entry/build/default/outputs/default/entry-default-signed.hap
 
 # 2. 强制停止 + 清空日志 + 启动
-hdc shell "aa force-stop org.scidavis.ohos; hilog -r; aa start -a SciDAVisAbility -b org.scidavis.ohos"
+hdc shell "aa force-stop org.ohplot.ohos; hilog -r; aa start -a OHPlotAbility -b org.ohplot.ohos"
 ```
 
 ### 4.2 日志过滤
@@ -139,7 +139,7 @@ hdc shell "aa force-stop org.scidavis.ohos; hilog -r; aa start -a SciDAVisAbilit
 
 | 标签 | 模块 |
 |------|------|
-| `SciDAVis` | Ability 生命周期、JS 桥接 |
+| `OHPlot` | Ability 生命周期、JS 桥接 |
 | `SciDAVisNative` | qohos.cpp NAPI 层 |
 | `InputProbe` | 输入事件探针 (libentry.so 内) |
 | `QtInput` | ETS 侧输入转发日志 |

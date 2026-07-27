@@ -1,4 +1,4 @@
-// ArkSciDAVis analysis dialog (Phase 3).
+// OHPlot analysis dialog (Phase 3).
 // One dialog serves the whole desktop Analysis menu: it lists the active
 // plot's analysable curves (getGraphCurves) and shows the parameter
 // fields the selected operation needs, then dispatches the queued
@@ -8,7 +8,7 @@ import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 
 const DOMAIN: number = 0x0000;
-const TAG: string = 'ArkSciDAVis';
+const TAG: string = 'OHPlot';
 
 interface QohosInjector {
   callQtCommand(cmd: string, argsJson: string): string;

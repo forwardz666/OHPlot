@@ -1,4 +1,4 @@
-// ArkSciDAVis Import Dialog
+// OHPlot Import Dialog
 // Dialog for importing CSV/ASCII data files.
 // DocumentViewPicker copies the picked file into the app sandbox (Qt cannot
 // read content URIs) and triggers the queued importASCII backend command;
@@ -10,7 +10,7 @@ import fs from '@ohos.file.fs';
 import common from '@ohos.app.ability.common';
 
 const DOMAIN: number = 0x0000;
-const TAG: string = 'ArkSciDAVis';
+const TAG: string = 'OHPlot';
 
 interface QohosInjector {
   callQtCommand(cmd: string, argsJson: string): string;

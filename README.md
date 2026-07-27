@@ -1,6 +1,32 @@
-# SciDAVis for OpenHarmony
+# OHPlot for OpenHarmony
 
-**SciDAVis** (Scientific Data Analysis and Visualization) 是一款开源科学数据分析与可视化软件。本仓库包含其在 **OpenHarmony** 平台上的移植适配层，目标设备为华为 MatePad 11.5 平板。
+**OHPlot** 是 [SciDAVis](https://scidavis.org/)（Scientific Data Analysis and Visualization）开源科学数据分析与可视化软件的 **OpenHarmony** 平台适配版本。目标设备为华为 MatePad 11.5 平板。
+
+本仓库包含 ArkTS 前端界面层、NAPI 桥接层及构建配置，底层的 Qt C++ 应用引擎从上游 SciDAVis 源码交叉编译。
+
+---
+
+## 适配状态
+
+| 功能模块 | 状态 | 说明 |
+|----------|------|------|
+| **基础运行环境** | ✅ 完成 | Qt 5.15.12 for OpenHarmony 交叉编译，HAP 构建部署 |
+| **Qt 引擎启动** | ✅ 完成 | 独立 C++ pthread 启动，绕过 NAPI 死锁 |
+| **高 DPI 适配** | ✅ 完成 | 禁用 HighDpi 缩放，1:1 物理像素渲染 |
+| **QPA 插件加载** | ✅ 完成 | require() 动态导入 + 备选路径 + 错误捕获 |
+| **蓝牙鼠标左键** | ✅ 完成 | ETS 覆盖层 + NAPI sendMouse + `scidavis_inject_mouse` 注入通道 |
+| **蓝牙键盘数字键** | ✅ 完成 | KeyTextFixer 事件过滤器合成 text 字段 |
+| **JS 桥接** | ✅ 完成 | 窗口管理、输入法、区域设置、标准路径、光标 5 个对象 |
+| **文件导入对话框** | ✅ 完成 | ArkTS DocumentViewPicker + 沙箱拷贝 + 队列命令 |
+| **表格操作对话框** | ✅ 完成 | 添加列、设置列值、排序（Phase 2） |
+| **2D 绘图对话框** | ✅ 完成 | 选择 Y 列绘图（Phase 2） |
+| **分析操作对话框** | ✅ 完成 | 拟合、FFT、平滑等（Phase 3） |
+| **矩阵操作对话框** | ✅ 完成 | 矩阵维度设置与值编辑（Phase 3） |
+| **ArkTS 菜单栏** | ✅ 完成 | 精确悬停切换 + 点击保持交互逻辑 |
+| **Qt 事件通道** | ✅ 完成 | `scidavis_emit` → NAPI TSFN → ArkUI 弹窗替换 |
+| **粘贴板桥接** | 🔄 进行中 | pasteboard NAPI read/write 集成 |
+| **Shift 组合键** | ⏳ 计划中 | KeyRelease text 补全 |
+| **软键盘唤起** | ⏳ 计划中 | IME attach 链路 |
 
 ---
 
@@ -8,8 +34,9 @@
 
 | 层级 | 技术 |
 |------|------|
-| 应用逻辑 | SciDAVis (C++ / Qt 5.15.12 Widgets) |
-| 平台适配 | ArkTS + C++ NAPI |
+| 应用引擎 | SciDAVis (C++ / Qt 5.15.12 Widgets) |
+| 前端界面 | ArkTS (ArkUI) |
+| 平台适配 | C++ NAPI |
 | 图形层 | Qt for OpenHarmony QPA 插件 (`libplugins_platforms_qopenharmony.so`) |
 | 构建系统 | CMake + Ninja (Qt 层) / hvigor (HAP 层) |
 
@@ -25,7 +52,7 @@ ohos/
 │   └── src/main/
 │       ├── cpp/               # qohos.cpp (NAPI 桥接, Qt 启动器)
 │       ├── ets/               # ArkTS 页面与 Ability
-│       │   ├── entryability/  # SciDAVisAbility.ets (JS 桥接, 窗口管理)
+│       │   ├── entryability/  # OHPlotAbility.ets (JS 桥接, 窗口管理)
 │       │   └── pages/         # Index.ets (XComponent + 输入转发)
 │       └── resources/         # 字符串、颜色、图标等资源
 ├── docs/                      # 开发文档
@@ -86,7 +113,7 @@ Copy-Item <build-ohos-dir>/scidavis/libentry.so entry/libs/arm64-v8a/libentry.so
 
 ```bash
 hdc install -r entry/build/default/outputs/default/entry-default-signed.hap
-hdc shell "aa force-stop org.scidavis.ohos; hilog -r; aa start -a SciDAVisAbility -b org.scidavis.ohos"
+hdc shell "aa force-stop org.ohplot.ohos; hilog -r; aa start -a OHPlotAbility -b org.ohplot.ohos"
 ```
 
 ---
@@ -112,6 +139,6 @@ hdc shell "aa force-stop org.scidavis.ohos; hilog -r; aa start -a SciDAVisAbilit
 
 ## License
 
-SciDAVis 上游项目采用 **GPL-2.0** 许可。本 OpenHarmony 适配层代码跟随上游许可协议。
+上游 SciDAVis 项目采用 **GPL-2.0** 许可。OHPlot 作为其 OpenHarmony 适配版本，遵循相同的 GPL-2.0 许可协议。
 
 详见 [LICENSE](LICENSE) 文件。

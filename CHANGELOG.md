@@ -1,6 +1,6 @@
 # Changelog
 
-SciDAVis OpenHarmony 适配层版本变更记录。
+OHPlot (SciDAVis OpenHarmony 适配层) 版本变更记录。
 
 ---
 
@@ -10,7 +10,7 @@ SciDAVis OpenHarmony 适配层版本变更记录。
 
 - **蓝牙鼠标左键注入通道**: 通过 ETS 透明覆盖层捕获左键事件，经 NAPI `sendMouse` 转发至 libentry.so 的 `scidavis_inject_mouse` 导出函数，绕过 QPA 触摸管线丢弃问题。
 - **蓝牙键盘数字键 KeyTextFixer**: InputProbe 事件过滤器拦截 `spontaneous && text.isEmpty()` 的 KeyPress 事件，按 key + modifier 合成 text 字段后重投递。
-- **应用图标恢复**: 将 1x1 像素占位 PNG 替换为原版 128x128 SciDAVis 图标（entry media + AppScope media）。
+- **应用图标恢复**: 将 1x1 像素占位 PNG 替换为原版 128x128 OHPlot 图标（entry media + AppScope media）。
 - **开发标准化文档**: README、DEVELOPMENT_GUIDE、CHANGELOG、LICENSE 全套文档。
 
 ### Fixed

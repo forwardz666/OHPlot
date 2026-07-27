@@ -1,7 +1,7 @@
 {
   "app": {
-    "bundleName": "org.scidavis.ohos",
-    "vendor": "scidavis",
+    "bundleName": "org.ohplot.ohos",
+    "vendor": "ohplot",
     "versionCode": 1000000,
     "versionName": "0.1.0",
     "icon": "$media:app_icon",

@@ -283,9 +283,9 @@ export class SimpleJsWindowManager {
   private windows: Map<string, SimpleJsWindow> = new Map<string, SimpleJsWindow>();
   private windowStage: window.WindowStage | undefined = undefined;
   private mainWindow: SimpleJsWindow | undefined = undefined;
-  // Callback to notify QPA plugin of geometry changes (set by SciDAVisAbility).
+  // Callback to notify QPA plugin of geometry changes (set by OHPlotAbility).
   onGeometryChange: ((name: string, rect: window.Rect) => void) | undefined = undefined;
-  // Callback to notify QPA plugin of window events (set by SciDAVisAbility).
+  // Callback to notify QPA plugin of window events (set by OHPlotAbility).
   onWindowEvent: ((name: string, type: number) => void) | undefined = undefined;
 
   constructor(windowStage?: window.WindowStage) {

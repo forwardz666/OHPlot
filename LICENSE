@@ -35,8 +35,8 @@ distribute copies of the software, or if you modify it.
 
 ---
 
-SciDAVis is licensed under the GNU General Public License version 2.
-This OpenHarmony adaptation layer follows the upstream license terms.
+The upstream SciDAVis project is licensed under the GNU General Public License version 2.
+OHPlot (this OpenHarmony adaptation layer) follows the upstream license terms.
 
 The QPA plugin for OpenHarmony (`libplugins_platforms_qopenharmony.so`)
 is provided by the Qt for OpenHarmony project and is subject to its

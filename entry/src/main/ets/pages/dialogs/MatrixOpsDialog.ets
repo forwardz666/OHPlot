@@ -1,4 +1,4 @@
-// ArkSciDAVis matrix-operation dialogs (Phase 3).
+// OHPlot matrix-operation dialogs (Phase 3).
 // The desktop MatrixDialog / MatrixValuesDialog cannot be shown on the
 // single-window QPA; these ArkTS dialogs collect the parameters and
 // dispatch the queued backend commands (matrixSetDimensions /
@@ -8,7 +8,7 @@ import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 
 const DOMAIN: number = 0x0000;
-const TAG: string = 'ArkSciDAVis';
+const TAG: string = 'OHPlot';
 
 interface QohosInjector {
   callQtCommand(cmd: string, argsJson: string): string;
