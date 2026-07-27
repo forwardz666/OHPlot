@@ -32,6 +32,14 @@
 #include "TableStatistics.h"
 #include "Matrix.h"
 #include "future/matrix/MatrixView.h"
+#include "Correlation.h"
+#include "Differentiation.h"
+#include "FFT.h"
+#include "FFTFilter.h"
+#include "Integration.h"
+#include "Interpolation.h"
+#include "PolynomialFit.h"
+#include "SmoothFilter.h"
 
 #include <QAction>
 #include <QApplication>
@@ -447,6 +455,22 @@ static Matrix *resolveMatrix(const QJsonObject &args)
     return qobject_cast<Matrix *>(g_mainWindow->d_workspace.activeSubWindow());
 }
 
+// Resolve the MultiLayer a command targets (explicit plotId, else the
+// active MDI subwindow if it is a plot).
+static MultiLayer *resolvePlot(const QJsonObject &args)
+{
+    if (!g_mainWindow) return nullptr;
+    QString id = args["plotId"].toString();
+    if (!id.isEmpty()) {
+        for (QMdiSubWindow *w : g_mainWindow->d_workspace.subWindowList()) {
+            auto *ml = qobject_cast<MultiLayer *>(w);
+            if (ml && ml->name() == id) return ml;
+        }
+        return nullptr;
+    }
+    return qobject_cast<MultiLayer *>(g_mainWindow->d_workspace.activeSubWindow());
+}
+
 // UI state for the ArkTS shell: active window, window list, undo/redo
 // availability.  Drives menu enabling/greying and context-menu switching.
 static std::string uiStateJson()
@@ -493,7 +517,7 @@ static const std::set<std::string> &queryCommands()
 {
     static const std::set<std::string> q = { "ping",        "getTableList", "getTableData",
                                              "getPlotList", "getPlotData",  "getUiState",
-                                             "getClipboardText" };
+                                             "getClipboardText", "getGraphCurves" };
     return q;
 }
 
@@ -920,6 +944,162 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                   scidavisEmitEvent(QStringLiteral("message"), p);
               }
               return ok ? std::string("{\"success\":true}") : jsonError("export failed");
+          } },
+
+        // ── Analysis suite (Phase 3) ───────────────────────────────
+        // One command drives every curve analysis of the desktop Analysis
+        // menu; parameters come from ArkTS dialogs.  Whatever the filter
+        // appends to the results log is re-emitted as a resultsLog event.
+        { "getGraphCurves",
+          [](const QJsonObject &args) -> std::string {
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              QJsonArray arr;
+              for (const QString &c : g->analysableCurvesList())
+                  arr.append(c);
+              QJsonObject r;
+              r["success"] = true;
+              r["curves"] = arr;
+              return QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "analyzeCurve",
+          [](const QJsonObject &args) -> std::string {
+              auto emitErr = [](const QString &text) {
+                  QJsonObject p;
+                  p["title"] = QObject::tr("Analysis");
+                  p["text"] = text;
+                  p["icon"] = QStringLiteral("critical");
+                  scidavisEmitEvent(QStringLiteral("message"), p);
+              };
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g || !g->validCurvesDataSize()) {
+                  emitErr(QObject::tr("No plot with analysable curves is active"));
+                  return jsonError("no graph");
+              }
+              QStringList curves = g->analysableCurvesList();
+              if (curves.isEmpty()) {
+                  emitErr(QObject::tr("The active plot has no analysable curves"));
+                  return jsonError("no curves");
+              }
+              // Default to the most recently added curve (the desktop pops
+              // a DataSetDialog instead, which the QPA cannot show).
+              QString curve = args["curve"].toString();
+              if (curve.isEmpty())
+                  curve = curves.last();
+              else if (!curves.contains(curve)) {
+                  emitErr(QObject::tr("Unknown curve: ") + curve);
+                  return jsonError("curve not found");
+              }
+
+              const QString op = args["op"].toString();
+              const int logBefore = g_mainWindow->logInfo.length();
+              bool ok = true;
+              if (op == "fit_linear" || op == "fit_sigmoidal" || op == "fit_gauss"
+                  || op == "fit_lorentz") {
+                  static const std::map<std::string, QString> whichFit = {
+                      { "fit_linear", QStringLiteral("fitLinear") },
+                      { "fit_sigmoidal", QStringLiteral("fitSigmoidal") },
+                      { "fit_gauss", QStringLiteral("fitGauss") },
+                      { "fit_lorentz", QStringLiteral("fitLorentz") },
+                  };
+                  g_mainWindow->analyzeCurve(g, whichFit.at(op.toStdString()), curve);
+              } else if (op == "fit_poly") {
+                  int order = qBound(2, args["order"].toInt(2), 9);
+                  auto *fit = new PolynomialFit(g_mainWindow, g, order, true);
+                  if ((ok = fit->setDataFromCurve(curve))) {
+                      fit->scaleErrors(g_mainWindow->fit_scale_errors);
+                      fit->setOutputPrecision(g_mainWindow->fit_output_precision);
+                      fit->generateFunction(g_mainWindow->generateUniformFitPoints,
+                                            g_mainWindow->fitPoints);
+                      fit->fit();
+                  }
+                  delete fit;
+              } else if (op == "differentiate") {
+                  auto *d = new Differentiation(g_mainWindow, g, curve);
+                  d->run();
+                  delete d;
+              } else if (op == "integrate") {
+                  auto *i = new Integration(g_mainWindow, g, curve);
+                  i->run();
+                  delete i;
+              } else if (op == "fft") {
+                  auto *f = new FFT(g_mainWindow, g, curve);
+                  f->run();
+                  delete f;
+              } else if (op == "smooth") {
+                  // method: 1 = Savitzky-Golay, 2 = FFT, 3 = moving average
+                  int method = qBound(1, args["method"].toInt(3), 3);
+                  auto *s = new SmoothFilter(g_mainWindow, g, curve, method);
+                  s->setSmoothPoints(qBound(2, args["points"].toInt(5), 1000));
+                  if (method == SmoothFilter::SavitzkyGolay)
+                      s->setPolynomOrder(qBound(0, args["order"].toInt(2), 9));
+                  ok = s->run();
+                  delete s;
+              } else if (op == "interpolate") {
+                  // method: 0 = linear, 1 = cubic, 2 = Akima
+                  int method = qBound(0, args["method"].toInt(0), 2);
+                  auto *i = new Interpolation(g_mainWindow, g, curve, method);
+                  i->setOutputPoints(qBound(3, args["points"].toInt(1000), 100000));
+                  ok = i->run();
+                  delete i;
+              } else if (op == "fft_filter") {
+                  // filterType: 1 low pass, 2 high pass, 3 band pass, 4 band block
+                  int type = qBound(1, args["filterType"].toInt(1), 4);
+                  auto *f = new FFTFilter(g_mainWindow, g, curve, type);
+                  if (type <= FFTFilter::HighPass)
+                      f->setCutoff(args["freq"].toDouble(0.0));
+                  else
+                      f->setBand(args["freq"].toDouble(0.0), args["freq2"].toDouble(0.0));
+                  ok = f->run();
+                  delete f;
+              } else {
+                  return jsonError("unknown op");
+              }
+
+              QString logDelta = g_mainWindow->logInfo.mid(logBefore).trimmed();
+              QJsonObject p;
+              p["title"] = QObject::tr("Analysis");
+              p["text"] = ok ? op + QObject::tr(" done on ") + curve
+                             : QObject::tr("%1 failed on %2").arg(op, curve);
+              p["icon"] = ok ? QStringLiteral("information") : QStringLiteral("critical");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              if (!logDelta.isEmpty()) {
+                  QJsonObject l;
+                  l["text"] = logDelta;
+                  scidavisEmitEvent(QStringLiteral("resultsLog"), l);
+              }
+              return ok ? std::string("{\"success\":true}") : jsonError("analysis failed");
+          } },
+
+        { "correlate",
+          [](const QJsonObject &args) -> std::string {
+              // (Auto)correlation of two table columns; the desktop takes
+              // the two selected columns, ArkTS passes indices instead.
+              Table *t = resolveTable(args);
+              if (!t) return jsonError("table not found");
+              int c1 = args["col1"].toInt(-1);
+              int c2 = args["col2"].toInt(c1);
+              if (c1 < 0 || c1 >= t->numCols() || c2 < 0 || c2 >= t->numCols())
+                  return jsonError("invalid columns");
+              const int logBefore = g_mainWindow->logInfo.length();
+              auto *cor = new Correlation(g_mainWindow, t, t->colName(c1), t->colName(c2));
+              cor->run();
+              delete cor;
+              QString logDelta = g_mainWindow->logInfo.mid(logBefore).trimmed();
+              QJsonObject p;
+              p["title"] = QObject::tr("Correlation");
+              p["text"] = QObject::tr("Correlated %1 and %2").arg(t->colName(c1), t->colName(c2));
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              if (!logDelta.isEmpty()) {
+                  QJsonObject l;
+                  l["text"] = logDelta;
+                  scidavisEmitEvent(QStringLiteral("resultsLog"), l);
+              }
+              return "{\"success\":true}";
           } },
 
         // ArkTS picker result for a blocked QComboBox popup (ohos_bridge).

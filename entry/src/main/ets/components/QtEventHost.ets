@@ -192,6 +192,13 @@ export struct QtEventHost {
       case 'imageExported':
         this.copyOutPending('pendingImageUri', ev.ok === true, ev.path ?? '', 'Export Image');
         break;
+      case 'resultsLog': {
+        // Analysis output: append to the shared log that the ArkTS
+        // Results Log panel (View menu) renders from AppStorage.
+        const prev: string = AppStorage.get<string>('resultsLog') ?? '';
+        AppStorage.setOrCreate<string>('resultsLog', prev + (ev.text ?? '') + '\n');
+        break;
+      }
       case 'clipboardChanged': {
         // Qt → OHOS pasteboard (copy/cut in Qt becomes system-wide).
         const text: string = ev.text ?? '';

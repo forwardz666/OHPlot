@@ -20,6 +20,7 @@ import { ExportDialog } from './dialogs/ExportDialog';
 import { AddColumnsDialog, SetColumnValuesDialog, SortTableDialog } from './dialogs/TableOpsDialog';
 import { Plot2DDialog } from './dialogs/Plot2DDialog';
 import { MatrixDimensionsDialog, MatrixValuesDialog } from './dialogs/MatrixOpsDialog';
+import { AnalysisDialog, CorrelateDialog } from './dialogs/AnalysisDialog';
 import hilog from '@ohos.hilog';
 import qohos from 'libqohos.so';
 import { picker } from '@kit.CoreFileKit';
@@ -132,6 +133,15 @@ export struct MainLayout {
   // Matrix-operation dialogs (Phase 3), same AppStorage target pattern.
   @State showMatrixDimsDialog: boolean = false;
   @State showMatrixValuesDialog: boolean = false;
+  // Analysis dialogs (Phase 3): analysisOpSel is the analyzeCurve op the
+  // menu picked (also mirrored to AppStorage for the @Prop-timing gap).
+  @State showAnalysisDialog: boolean = false;
+  @State analysisOpSel: string = 'fit_linear';
+  @State showCorrelateDialog: boolean = false;
+  // Results Log panel (View menu): text accumulated from resultsLog
+  // events by QtEventHost via AppStorage.
+  @State showResultsLog: boolean = false;
+  @StorageProp('resultsLog') resultsLogText: string = '';
   // Sandbox path of the current project file ('' = untitled).  The picker
   // flows copy external files in/out of the sandbox because Qt can only
   // reach sandbox paths, not content URIs.
@@ -223,7 +233,7 @@ export struct MainLayout {
       { id: 'tables', label: 'Table List', checked: this.currentView === 'tables' },
       { id: 'notes', label: 'Note Pad', checked: this.showNotes },
       { id: 'sep1', label: '─' },
-      { id: 'log', label: 'Results Log', enabled: false },
+      { id: 'log', label: 'Results Log', checked: this.showResultsLog },
       { id: 'script_console', label: 'Script Console', enabled: false }
     ]});
 
@@ -283,16 +293,24 @@ export struct MainLayout {
       { id: 'plot_3d', label: '3D Plot', enabled: false }
     ]});
 
+    // Analysis menu mirrors the desktop: curve analyses need an active
+    // 2D plot, correlation runs on a table's columns.
+    const isPlotWin: boolean = st.activeType === 'MultiLayer';
     defs.push({ id: 'analysis', label: 'Analysis', items: [
-      { id: 'fit_linear', label: 'Fit Linear', enabled: false },
-      { id: 'fit_poly', label: 'Fit Polynomial...', enabled: false },
-      { id: 'fit_wizard', label: 'Fit Wizard...', enabled: false },
+      { id: 'an_fit_linear', label: 'Fit Linear', enabled: isPlotWin },
+      { id: 'an_fit_poly', label: 'Fit Polynomial...', enabled: isPlotWin },
+      { id: 'an_fit_gauss', label: 'Fit Gaussian', enabled: isPlotWin },
+      { id: 'an_fit_lorentz', label: 'Fit Lorentzian', enabled: isPlotWin },
+      { id: 'an_fit_sigmoidal', label: 'Fit Boltzmann (Sigmoidal)', enabled: isPlotWin },
       { id: 'sep1', label: '─' },
-      { id: 'fft', label: 'FFT...', enabled: false },
-      { id: 'smooth', label: 'Smooth', enabled: false },
-      { id: 'interpolate', label: 'Interpolate...', enabled: false },
-      { id: 'differentiate', label: 'Differentiate', enabled: false },
-      { id: 'integrate', label: 'Integrate...', enabled: false }
+      { id: 'an_fft', label: 'FFT...', enabled: isPlotWin },
+      { id: 'an_fft_filter', label: 'FFT Filter...', enabled: isPlotWin },
+      { id: 'an_smooth', label: 'Smooth...', enabled: isPlotWin },
+      { id: 'an_interpolate', label: 'Interpolate...', enabled: isPlotWin },
+      { id: 'an_differentiate', label: 'Differentiate', enabled: isPlotWin },
+      { id: 'an_integrate', label: 'Integrate', enabled: isPlotWin },
+      { id: 'sep2', label: '─' },
+      { id: 'correlate', label: 'Correlate...', enabled: st.activeType === 'Table' }
     ]});
 
     // Windows menu: management commands + live MDI window list from Qt.
@@ -417,6 +435,9 @@ export struct MainLayout {
       case 'notes':
         this.showNotes = !this.showNotes;
         break;
+      case 'log':
+        this.showResultsLog = !this.showResultsLog;
+        break;
       case 'plot_2d':
         this.currentView = 'plots';
         break;
@@ -442,6 +463,29 @@ export struct MainLayout {
         this.showPlotDialog = true;
         break;
       }
+      case 'an_fit_linear':
+      case 'an_fit_poly':
+      case 'an_fit_gauss':
+      case 'an_fit_lorentz':
+      case 'an_fit_sigmoidal':
+      case 'an_fft':
+      case 'an_fft_filter':
+      case 'an_smooth':
+      case 'an_interpolate':
+      case 'an_differentiate':
+      case 'an_integrate': {
+        // One dialog for the whole Analysis menu: curve picker + the
+        // parameters the chosen op needs (analyzeCurve backend command).
+        this.analysisOpSel = itemId.substring(3); // strip 'an_'
+        AppStorage.setOrCreate<string>('analysisOp', this.analysisOpSel);
+        this.showAnalysisDialog = true;
+        break;
+      }
+      case 'correlate':
+        this.tableOpsTarget = this.uiState.activeName;
+        AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
+        this.showCorrelateDialog = true;
+        break;
       case 'paste':
         // Clipboard bridge: pull the OHOS system pasteboard into the Qt
         // clipboard first, then dispatch the paste (both queued → FIFO
@@ -659,6 +703,50 @@ export struct MainLayout {
         NoteEditor()
       }
 
+      // Results Log panel (View menu): analysis output from resultsLog events.
+      if (this.showResultsLog) {
+        Column() {
+          Row() {
+            Text('Results Log')
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#333333')
+              .layoutWeight(1)
+            Button('Clear')
+              .fontSize(12).height(26)
+              .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
+              .margin({ right: 8 })
+              .onClick(() => { AppStorage.setOrCreate<string>('resultsLog', ''); })
+            Button('✕')
+              .fontSize(12).height(26)
+              .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
+              .onClick(() => { this.showResultsLog = false; })
+          }
+          .width('100%')
+          .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+
+          Scroll() {
+            Text(this.resultsLogText === '' ? '(empty)' : this.resultsLogText)
+              .fontSize(11)
+              .fontColor('#444444')
+              .fontFamily('monospace')
+              .textAlign(TextAlign.Start)
+              .width('100%')
+              .padding({ left: 12, right: 12, bottom: 12 })
+          }
+          .layoutWeight(1)
+          .width('100%')
+          .align(Alignment.TopStart)
+        }
+        .width('46%')
+        .height('60%')
+        .position({ x: '52%', y: MENUBAR_HEIGHT_VP + 8 })
+        .backgroundColor('#F8F8F8')
+        .borderRadius(8)
+        .border({ width: 1, color: '#C0C0C0' })
+        .shadow({ radius: 10, color: '#50000000', offsetX: 2, offsetY: 2 })
+      }
+
       // Dialogs
       ImportDialog({ isVisible: $showImportDialog })
       ExportDialog({ isVisible: $showExportDialog })
@@ -668,6 +756,8 @@ export struct MainLayout {
       Plot2DDialog({ isVisible: $showPlotDialog, tableId: this.tableOpsTarget, plotType: this.plotTypeSel })
       MatrixDimensionsDialog({ isVisible: $showMatrixDimsDialog, matrixId: this.tableOpsTarget })
       MatrixValuesDialog({ isVisible: $showMatrixValuesDialog, matrixId: this.tableOpsTarget })
+      AnalysisDialog({ isVisible: $showAnalysisDialog, op: this.analysisOpSel })
+      CorrelateDialog({ isVisible: $showCorrelateDialog, tableId: this.tableOpsTarget })
 
       // Qt backend event host: renders ArkUI replacements for QMessageBox /
       // context menus / combo popups pushed via scidavis_emit → onQtEvent.
