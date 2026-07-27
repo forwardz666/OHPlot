@@ -35,3 +35,17 @@ hilog_*.txt
 scr*.jpeg
 screen*.jpeg
 *.bak
+
+# Screenshot images (debug/test captures)
+*.jpeg
+
+# Crash/fault/freeze logs
+crash*.txt
+faultlist*.txt
+freeze*.txt
+
+# Exported graph captures
+exported_graph*.png
+
+# Git push history
+.git-push-log.txt
