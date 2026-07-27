@@ -16,10 +16,13 @@
 //                         copy the sandbox file out to it
 //   - kind=asciiExported→ queued exportASCII completed; copy the sandbox
 //                         file out to AppStorage 'pendingExportUri'
+//   - kind=clipboardChanged → mirror the Qt clipboard into the OHOS system
+//                         pasteboard (Phase 2 clipboard bridge)
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 import promptAction from '@ohos.promptAction';
 import fs from '@ohos.file.fs';
+import pasteboard from '@ohos.pasteboard';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'QtEventHost';
@@ -186,6 +189,23 @@ export struct QtEventHost {
       case 'asciiExported':
         this.copyOutPending('pendingExportUri', ev.ok === true, ev.path ?? '', 'Export');
         break;
+      case 'clipboardChanged': {
+        // Qt → OHOS pasteboard (copy/cut in Qt becomes system-wide).
+        const text: string = ev.text ?? '';
+        if (text !== '') {
+          const data: pasteboard.PasteData =
+            pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
+          pasteboard.getSystemPasteboard().setData(data)
+            .then(() => {
+              hilog.info(DOMAIN, TAG, 'clipboard mirrored to pasteboard (%{public}d chars)',
+                text.length);
+            })
+            .catch((e: Error) => {
+              hilog.error(DOMAIN, TAG, 'pasteboard setData failed: %{public}s', e.message);
+            });
+        }
+        break;
+      }
       default:
         hilog.info(DOMAIN, TAG, 'unhandled event kind: %{public}s', ev.kind);
         break;

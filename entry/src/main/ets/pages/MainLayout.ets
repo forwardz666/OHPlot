@@ -13,10 +13,17 @@ import { MenuBar } from '../components/MenuBar';
 import { StatusBar } from '../components/StatusBar';
 import { QtEventHost } from '../components/QtEventHost';
 import { NoteEditor } from './NoteEditor';
+import { TablePage } from './TablePage';
+import { PlotPage } from './PlotPage';
+import { ImportDialog } from './dialogs/ImportDialog';
+import { ExportDialog } from './dialogs/ExportDialog';
+import { AddColumnsDialog, SetColumnValuesDialog, SortTableDialog } from './dialogs/TableOpsDialog';
+import { Plot2DDialog } from './dialogs/Plot2DDialog';
 import hilog from '@ohos.hilog';
 import qohos from 'libqohos.so';
 import { picker } from '@kit.CoreFileKit';
 import fs from '@ohos.file.fs';
+import pasteboard from '@ohos.pasteboard';
 import common from '@ohos.app.ability.common';
 
 interface QohosInjector {
@@ -47,6 +54,17 @@ interface MenuItemData {
 // Payload for the generic 'menuAction' fallback command.
 interface MenuActionArgs {
   itemId: string;
+}
+
+// tableStatistics command payload (queued; result toast via event channel).
+interface TableStatisticsArgs {
+  tableId: string;
+  type: string;
+}
+
+// setClipboardText payload (Phase 2 clipboard bridge, OHOS → Qt).
+interface SetClipboardArgs {
+  text: string;
 }
 
 interface ActivateWindowArgs {
@@ -89,6 +107,16 @@ export struct MainLayout {
   @State currentView: string = 'default';
   @State showImportDialog: boolean = false;
   @State showExportDialog: boolean = false;
+  // Table-operation dialogs (Phase 2); tableOpsTarget is the active table
+  // captured at menu-dispatch time (uiState refreshes on every menu-open).
+  @State showAddColsDialog: boolean = false;
+  @State showSetValuesDialog: boolean = false;
+  @State showSortDialog: boolean = false;
+  @State tableOpsTarget: string = '';
+  // 2D plot dialog (Phase 2): plotTypeSel is the plot2D type id chosen
+  // from the Plot menu, captured at dispatch time like tableOpsTarget.
+  @State showPlotDialog: boolean = false;
+  @State plotTypeSel: string = 'line';
   // Sandbox path of the current project file ('' = untitled).  The picker
   // flows copy external files in/out of the sandbox because Qt can only
   // reach sandbox paths, not content URIs.
@@ -203,23 +231,36 @@ export struct MainLayout {
         { id: 'rescale', label: 'Rescale To Show All', enabled: false }
       ]});
     } else {
+      const isTable: boolean = st.activeType === 'Table';
       defs.push({ id: 'table', label: 'Table', items: [
-        { id: 'add_columns', label: 'Add Column', enabled: false },
-        { id: 'set_values', label: 'Set Column Values...', enabled: false },
-        { id: 'sort', label: 'Sort Table...', enabled: false },
+        { id: 'add_columns', label: 'Add Columns...', enabled: isTable },
+        { id: 'set_values', label: 'Set Column Values...', enabled: isTable },
+        { id: 'sort', label: 'Sort Table...', enabled: isTable },
         { id: 'sep1', label: '─' },
-        { id: 'statistics_columns', label: 'Statistics on Columns', enabled: false },
-        { id: 'statistics_rows', label: 'Statistics on Rows', enabled: false }
+        { id: 'statistics_columns', label: 'Statistics on Columns', enabled: isTable },
+        { id: 'statistics_rows', label: 'Statistics on Rows', enabled: isTable }
       ]});
     }
 
+    // Plot menu mirrors the desktop 2D types; every entry funnels into the
+    // Plot2DDialog (column picker) → queued plot2D backend command.
+    const isTablePlot: boolean = st.activeType === 'Table';
     defs.push({ id: 'plot', label: 'Plot', items: [
-      { id: 'plot_line', label: 'Line', enabled: false },
-      { id: 'plot_scatter', label: 'Scatter', enabled: false },
-      { id: 'plot_line_symbol', label: 'Line + Symbol', enabled: false },
-      { id: 'plot_bar', label: 'Vertical Bars', enabled: false },
-      { id: 'plot_histogram', label: 'Histogram', enabled: false },
-      { id: 'plot_pie', label: 'Pie', enabled: false },
+      { id: 'plot_line', label: 'Line', enabled: isTablePlot },
+      { id: 'plot_scatter', label: 'Scatter', enabled: isTablePlot },
+      { id: 'plot_line_symbol', label: 'Line + Symbol', enabled: isTablePlot },
+      { id: 'plot_vertical_bars', label: 'Vertical Bars', enabled: isTablePlot },
+      { id: 'plot_horizontal_bars', label: 'Horizontal Bars', enabled: isTablePlot },
+      { id: 'plot_area', label: 'Area', enabled: isTablePlot },
+      { id: 'plot_pie', label: 'Pie', enabled: isTablePlot },
+      { id: 'sep0', label: '─' },
+      { id: 'plot_drop_lines', label: 'Vertical Drop Lines', enabled: isTablePlot },
+      { id: 'plot_spline', label: 'Spline', enabled: isTablePlot },
+      { id: 'plot_vertical_steps', label: 'Vertical Steps', enabled: isTablePlot },
+      { id: 'plot_horizontal_steps', label: 'Horizontal Steps', enabled: isTablePlot },
+      { id: 'sep0b', label: '─' },
+      { id: 'plot_histogram', label: 'Histogram', enabled: isTablePlot },
+      { id: 'plot_box', label: 'Box Plot', enabled: isTablePlot },
       { id: 'sep1', label: '─' },
       { id: 'plot_2d', label: 'Plot Explorer (2D)' },
       { id: 'plot_3d', label: '3D Plot', enabled: false }
@@ -304,6 +345,32 @@ export struct MainLayout {
       case 'export':
         this.showExportDialog = true;
         break;
+      case 'add_columns':
+        this.tableOpsTarget = this.uiState.activeName;
+        AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
+        this.showAddColsDialog = true;
+        break;
+      case 'set_values':
+        this.tableOpsTarget = this.uiState.activeName;
+        AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
+        this.showSetValuesDialog = true;
+        break;
+      case 'sort':
+        this.tableOpsTarget = this.uiState.activeName;
+        AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
+        this.showSortDialog = true;
+        break;
+      case 'statistics_columns':
+      case 'statistics_rows': {
+        // No parameters needed; queued command, result toast via events.
+        const result: string = qtInjector.callQtCommand('tableStatistics',
+          JSON.stringify({
+            tableId: this.uiState.activeName,
+            type: itemId === 'statistics_rows' ? 'rows' : 'columns'
+          } as TableStatisticsArgs));
+        hilog.info(DOMAIN, TAG, '%{public}s queued: %{public}s', itemId, result);
+        break;
+      }
       case 'tables':
         this.currentView = (this.currentView === 'tables') ? 'default' : 'tables';
         break;
@@ -315,6 +382,34 @@ export struct MainLayout {
         break;
       case 'plot_2d':
         this.currentView = 'plots';
+        break;
+      case 'plot_line':
+      case 'plot_scatter':
+      case 'plot_line_symbol':
+      case 'plot_vertical_bars':
+      case 'plot_horizontal_bars':
+      case 'plot_area':
+      case 'plot_pie':
+      case 'plot_drop_lines':
+      case 'plot_spline':
+      case 'plot_vertical_steps':
+      case 'plot_horizontal_steps':
+      case 'plot_histogram':
+      case 'plot_box': {
+        // Same @Prop-timing workaround as the table-ops dialogs: store
+        // target/type in AppStorage synchronously before opening.
+        this.tableOpsTarget = this.uiState.activeName;
+        this.plotTypeSel = itemId.substring(5); // strip 'plot_'
+        AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
+        AppStorage.setOrCreate<string>('plotType', this.plotTypeSel);
+        this.showPlotDialog = true;
+        break;
+      }
+      case 'paste':
+        // Clipboard bridge: pull the OHOS system pasteboard into the Qt
+        // clipboard first, then dispatch the paste (both queued → FIFO
+        // order on the Qt thread is guaranteed).
+        this.pasteWithSystemClipboard();
         break;
       case 'quit':
         // In offscreen mode, just log
@@ -333,6 +428,25 @@ export struct MainLayout {
 
   // ── Project open/save (Phase 2) ──────────────────────────────────────
   // Qt only reaches sandbox paths, so the pickers copy files in/out.
+
+  // ── Clipboard bridge (Phase 2) ─────────────────────────────────
+  // Qt → OHOS runs through the clipboardChanged event (QtEventHost).
+  private async pasteWithSystemClipboard(): Promise<void> {
+    try {
+      const data: pasteboard.PasteData = await pasteboard.getSystemPasteboard().getData();
+      const text: string = data.getPrimaryText();
+      if (text !== null && text !== undefined && text !== '') {
+        qtInjector.callQtCommand('setClipboardText',
+          JSON.stringify({ text: text } as SetClipboardArgs));
+      }
+    } catch (e) {
+      // Empty/non-text pasteboard throws — fall through to Qt's own clipboard.
+      hilog.info(DOMAIN, TAG, 'pasteboard read skipped: %{public}s', (e as Error).message);
+    }
+    const result: string = qtInjector.callQtCommand('menuAction',
+      JSON.stringify({ itemId: 'paste' } as MenuActionArgs));
+    hilog.info(DOMAIN, TAG, 'paste dispatched: %{public}s', result);
+  }
 
   private sandboxProjectDir(): string {
     const ctx = getContext(this) as common.UIAbilityContext;
@@ -485,6 +599,10 @@ export struct MainLayout {
       // Dialogs
       ImportDialog({ isVisible: $showImportDialog })
       ExportDialog({ isVisible: $showExportDialog })
+      AddColumnsDialog({ isVisible: $showAddColsDialog, tableId: this.tableOpsTarget })
+      SetColumnValuesDialog({ isVisible: $showSetValuesDialog, tableId: this.tableOpsTarget })
+      SortTableDialog({ isVisible: $showSortDialog, tableId: this.tableOpsTarget })
+      Plot2DDialog({ isVisible: $showPlotDialog, tableId: this.tableOpsTarget, plotType: this.plotTypeSel })
 
       // Qt backend event host: renders ArkUI replacements for QMessageBox /
       // context menus / combo popups pushed via scidavis_emit → onQtEvent.

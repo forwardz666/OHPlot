@@ -29,9 +29,11 @@
 #include "ApplicationWindow.h"
 #include "globals.h"
 #include "ohos_bridge.h"
+#include "TableStatistics.h"
 
 #include <QAction>
 #include <QApplication>
+#include <QClipboard>
 #include <QElapsedTimer>
 #include <QMouseEvent>
 #include <QMdiSubWindow>
@@ -422,6 +424,17 @@ static std::string tableDataJson(const QString &tableName)
     return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
 }
 
+// Resolve the table a command targets: explicit tableId, else the active
+// MDI subwindow if it is a Table.
+static Table *resolveTable(const QJsonObject &args)
+{
+    if (!g_mainWindow) return nullptr;
+    QString id = args["tableId"].toString();
+    if (!id.isEmpty())
+        return g_mainWindow->table(id);
+    return qobject_cast<Table *>(g_mainWindow->d_workspace.activeSubWindow());
+}
+
 // UI state for the ArkTS shell: active window, window list, undo/redo
 // availability.  Drives menu enabling/greying and context-menu switching.
 static std::string uiStateJson()
@@ -467,7 +480,8 @@ static std::string jsonError(const std::string &msg)
 static const std::set<std::string> &queryCommands()
 {
     static const std::set<std::string> q = { "ping",        "getTableList", "getTableData",
-                                             "getPlotList", "getPlotData",  "getUiState" };
+                                             "getPlotList", "getPlotData",  "getUiState",
+                                             "getClipboardText" };
     return q;
 }
 
@@ -484,8 +498,14 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
 
         { "getTableData",
           [](const QJsonObject &args) -> std::string {
-              return "{\"success\":true,\"data\":" + tableDataJson(args["tableId"].toString())
-                      + "}";
+              // Empty tableId falls back to the active table (the ArkTS
+              // @Prop may not have propagated yet when a dialog opens).
+              QString id = args["tableId"].toString();
+              if (id.isEmpty()) {
+                  Table *t = resolveTable(args);
+                  if (t) id = t->name();
+              }
+              return "{\"success\":true,\"data\":" + tableDataJson(id) + "}";
           } },
 
         { "getUiState",
@@ -576,6 +596,212 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                   scidavisEmitEvent(QStringLiteral("message"), p);
               }
               return ok ? std::string("{\"success\":true}") : jsonError("export failed");
+          } },
+
+        // ── Table operations (Phase 2) ─────────────────────────────────
+        // All queued (mutations); results are announced via the message
+        // event so the ArkTS shell can toast them.  The desktop dialogs
+        // (SetColValuesDialog/SortDialog/...) cannot be shown on the
+        // single-window QPA, so ArkTS dialogs supply the parameters.
+        { "addTableColumns",
+          [](const QJsonObject &args) -> std::string {
+              Table *t = resolveTable(args);
+              if (!t) return jsonError("table not found");
+              int count = qBound(1, args["count"].toInt(1), 100);
+              for (int i = 0; i < count; i++)
+                  t->addCol();
+              QJsonObject p;
+              p["title"] = QObject::tr("Add Columns");
+              p["text"] = QObject::tr("Added %1 column(s) to %2").arg(count).arg(t->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return "{\"success\":true}";
+          } },
+
+        { "setColumnValues",
+          [](const QJsonObject &args) -> std::string {
+              // muParser formula, whole column (desktop SetColValuesDialog).
+              Table *t = resolveTable(args);
+              if (!t) return jsonError("table not found");
+              int col = args["col"].toInt(-1);
+              if (col < 0 || col >= t->numCols()) return jsonError("invalid column");
+              QString formula = args["formula"].toString();
+              if (formula.isEmpty()) return jsonError("empty formula");
+              t->setCommand(col, formula);
+              bool ok = t->recalculate(col, false);
+              QJsonObject p;
+              p["title"] = QObject::tr("Set Column Values");
+              p["text"] = ok ? t->colName(col) + " = " + formula
+                             : QObject::tr("Formula error: ") + formula;
+              p["icon"] = ok ? QStringLiteral("information") : QStringLiteral("critical");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return ok ? std::string("{\"success\":true}") : jsonError("recalculate failed");
+          } },
+
+        { "sortTable",
+          [](const QJsonObject &args) -> std::string {
+              // future::Table::sortColumns — no-dialog core of SortDialog.
+              // leading < 0 sorts every column separately.
+              Table *t = resolveTable(args);
+              if (!t || !t->d_future_table) return jsonError("table not found");
+              bool asc = args["ascending"].toBool(true);
+              int leadIdx = args["leading"].toInt(-1);
+              QList<Column *> cols;
+              for (int i = 0; i < t->numCols(); i++)
+                  cols << t->column(i);
+              Column *leading =
+                      (leadIdx >= 0 && leadIdx < t->numCols()) ? t->column(leadIdx) : nullptr;
+              t->d_future_table->sortColumns(leading, cols, asc);
+              QJsonObject p;
+              p["title"] = QObject::tr("Sort Table");
+              p["text"] = QObject::tr("Sorted %1 (%2)").arg(t->name())
+                      .arg(asc ? QObject::tr("ascending") : QObject::tr("descending"));
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return "{\"success\":true}";
+          } },
+
+        { "tableStatistics",
+          [](const QJsonObject &args) -> std::string {
+              // Column/row statistics table (desktop acts on the selection;
+              // ArkTS has no selection info, so default to all).
+              Table *t = resolveTable(args);
+              if (!t) return jsonError("table not found");
+              bool onRows = args["type"].toString() == "rows";
+              QList<int> targets;
+              if (args["targets"].isArray()) {
+                  for (const QJsonValue &v : args["targets"].toArray())
+                      targets << v.toInt();
+              } else {
+                  int n = onRows ? t->numRows() : t->numCols();
+                  for (int i = 0; i < n; i++)
+                      targets << i;
+              }
+              if (targets.isEmpty()) return jsonError("no targets");
+              TableStatistics *s = g_mainWindow->newTableStatistics(
+                      t, onRows ? TableStatistics::StatRow : TableStatistics::StatColumn,
+                      targets);
+              if (!s) return jsonError("failed");
+              s->showNormal();
+              QJsonObject p;
+              p["title"] = QObject::tr("Statistics");
+              p["text"] = QObject::tr("Created %1").arg(s->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return "{\"success\":true}";
+          } },
+
+        // ── 2D plotting (Phase 2) ──────────────────────────────────────
+        // No-dialog core of the desktop Plot menu: multilayerPlot(table,
+        // colList, style, ...) never pops a dialog.  Validation that the
+        // desktop does via QMessageBox is re-done here with message events.
+        { "plot2D",
+          [](const QJsonObject &args) -> std::string {
+              static const std::map<std::string, int> styles = {
+                  { "line", Graph::Line },
+                  { "scatter", Graph::Scatter },
+                  { "line_symbol", Graph::LineSymbols },
+                  { "vertical_bars", Graph::VerticalBars },
+                  { "horizontal_bars", Graph::HorizontalBars },
+                  { "area", Graph::Area },
+                  { "pie", Graph::Pie },
+                  { "drop_lines", Graph::VerticalDropLines },
+                  { "spline", Graph::Spline },
+                  { "vertical_steps", Graph::VerticalSteps },
+                  { "horizontal_steps", Graph::HorizontalSteps },
+                  { "histogram", Graph::Histogram },
+                  { "box", Graph::Box },
+              };
+              auto emitPlotError = [](const QString &text) {
+                  QJsonObject p;
+                  p["title"] = QObject::tr("Plot error");
+                  p["text"] = text;
+                  p["icon"] = QStringLiteral("critical");
+                  scidavisEmitEvent(QStringLiteral("message"), p);
+              };
+              Table *t = resolveTable(args);
+              if (!t) {
+                  emitPlotError(QObject::tr("No table to plot from"));
+                  return jsonError("table not found");
+              }
+              auto it = styles.find(args["type"].toString().toStdString());
+              if (it == styles.end()) return jsonError("unknown plot type");
+              const int style = it->second;
+
+              // Column list: explicit indices from the ArkTS dialog, else
+              // the current Qt selection, else every Y column.
+              QStringList colList;
+              if (args["cols"].isArray()) {
+                  for (const QJsonValue &v : args["cols"].toArray()) {
+                      int idx = v.toInt(-1);
+                      if (idx >= 0 && idx < t->numCols())
+                          colList << t->colName(idx);
+                  }
+              }
+              if (colList.isEmpty())
+                  colList = t->selectedColumns();
+              if (colList.isEmpty()) {
+                  for (int i = 0; i < t->numCols(); i++)
+                      if (t->colPlotDesignation(i) == SciDAVis::Y)
+                          colList << t->colName(i);
+              }
+
+              // Desktop validFor2DPlot()/plotPie() minus the QMessageBox popups.
+              if (style == Graph::Pie) {
+                  if (colList.count() != 1) {
+                      emitPlotError(QObject::tr("Select exactly one column for a pie plot"));
+                      return jsonError("pie needs 1 column");
+                  }
+                  if (t->noXColumn()) {
+                      emitPlotError(QObject::tr("Please set a default X column for this table, first!"));
+                      return jsonError("no X column");
+                  }
+              } else if (style != Graph::Histogram && style != Graph::Box) {
+                  if (t->numCols() < 2) {
+                      emitPlotError(QObject::tr("You need at least two columns for this operation!"));
+                      return jsonError("need 2 columns");
+                  }
+                  if (t->noXColumn()) {
+                      emitPlotError(QObject::tr("Please set a default X column for this table, first!"));
+                      return jsonError("no X column");
+                  }
+              }
+              if (colList.isEmpty()) {
+                  emitPlotError(QObject::tr("Please select a column to plot!"));
+                  return jsonError("no columns");
+              }
+
+              int startRow = args["startRow"].toInt(0);
+              int endRow = args["endRow"].toInt(t->numRows() - 1);
+              auto *ml = g_mainWindow->multilayerPlot(t, colList, style, startRow, endRow);
+              if (!ml) return jsonError("plot failed");
+              QJsonObject p;
+              p["title"] = QObject::tr("Plot");
+              p["text"] = QObject::tr("Created plot from %1").arg(colList.join(", "));
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return "{\"success\":true}";
+          } },
+
+        // ── Clipboard bridge (Phase 2) ──────────────────────────────
+        // OHOS pasteboard ↔ QClipboard.  ArkTS pushes the system pasteboard
+        // text in before dispatching a paste; Qt-side changes are emitted
+        // through the clipboardChanged event (connected in main()).
+        { "setClipboardText",
+          [](const QJsonObject &args) -> std::string {
+              QClipboard *cb = QApplication::clipboard();
+              if (!cb) return jsonError("no clipboard");
+              cb->setText(args["text"].toString());
+              return "{\"success\":true}";
+          } },
+
+        { "getClipboardText",
+          [](const QJsonObject &) -> std::string {
+              QClipboard *cb = QApplication::clipboard();
+              QJsonObject r;
+              r["success"] = cb != nullptr;
+              r["text"] = cb ? cb->text() : QString();
+              return QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString();
           } },
 
         // ArkTS picker result for a blocked QComboBox popup (ohos_bridge).
@@ -825,6 +1051,23 @@ int main(int argc, char **argv)
     } else {
         ApplicationWindow *mw = new ApplicationWindow;
         g_mainWindow = mw;
+        // Clipboard bridge (Phase 2): mirror Qt-side clipboard changes to
+        // ArkTS, which writes them into the OHOS system pasteboard.  Large
+        // payloads are truncated — the NAPI event channel is not meant for
+        // multi-megabyte transfers.
+        QObject::connect(QApplication::clipboard(), &QClipboard::dataChanged, mw, []() {
+            QClipboard *cb = QApplication::clipboard();
+            if (!cb)
+                return;
+            QString text = cb->text();
+            if (text.isEmpty())
+                return;
+            if (text.size() > 512 * 1024)
+                text.truncate(512 * 1024);
+            QJsonObject p;
+            p["text"] = text;
+            scidavisEmitEvent(QStringLiteral("clipboardChanged"), p);
+        });
         mw->applyUserSettings();
         mw->newTable();
         mw->activateSubWindow();
