@@ -1,5 +1,8 @@
 {
   "string": [
+    { "name": "module_desc", "value": "OHPlot Qt application" },
+    { "name": "read_pasteboard_reason", "value": "Paste data from other apps into tables" },
+    { "name": "ability_desc", "value": "OHPlot main ability" },
     { "name": "menu_file", "value": "File" },
     { "name": "menu_edit", "value": "Edit" },
     { "name": "menu_view", "value": "View" },
@@ -46,13 +49,13 @@
     { "name": "analysis_integrate", "value": "Integrate" },
     { "name": "analysis_differentiate", "value": "Differentiate" },
     { "name": "help_help", "value": "Help..." },
-    { "name": "help_about", "value": "About SciDAVis..." },
+    { "name": "help_about", "value": "About OHPlot..." },
     { "name": "notes_title", "value": "Notes" },
     { "name": "status_ready", "value": "Ready" },
-    { "name": "about_title", "value": "About SciDAVis" },
-    { "name": "about_version", "value": "SciDAVis 2.0.0" },
+    { "name": "about_title", "value": "About OHPlot" },
+    { "name": "about_version", "value": "OHPlot 2.0.0" },
     { "name": "about_desc", "value": "Scientific Data Analysis and Visualization" },
-    { "name": "about_copyright", "value": "Copyright (C) 2024 SciDAVis Team" },
+    { "name": "about_copyright", "value": "Copyright (C) 2024 SciDAVis Team — OHPlot OpenHarmony port" },
     { "name": "about_close", "value": "Close" }
   ]
 }
