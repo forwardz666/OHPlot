@@ -1297,8 +1297,23 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                   g_mainWindow->newNote();
               else if (itemId == "new_matrix")
                   g_mainWindow->newMatrix();
-              else if (itemId == "new_project")
-                  g_mainWindow->newProject();
+              else if (itemId == "new_project") {
+                  // Cannot call newProject() — it creates a second
+                  // ApplicationWindow which SIGSEGVs on the single-window QPA.
+                  // Instead, clear the existing project in-place.
+                  for (MyWidget *w : g_mainWindow->windowsList()) {
+                      w->askOnCloseEvent(false);
+                      w->close();
+                  }
+                  g_mainWindow->projectname = "untitled";
+                  g_mainWindow->newTable();
+                  g_mainWindow->savedProject();
+                  QJsonObject p;
+                  p["title"] = QObject::tr("New Project");
+                  p["text"] = QObject::tr("Project cleared");
+                  p["icon"] = QStringLiteral("information");
+                  scidavisEmitEvent(QStringLiteral("message"), p);
+              }
               else if (itemId == "new_graph")
                   g_mainWindow->newGraph();
               else if (itemId == "cascade")
@@ -1307,8 +1322,14 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                   g_mainWindow->maximizeWindow();
               else if (itemId == "minimize_window")
                   g_mainWindow->minimizeWindow();
-              else if (itemId == "close_window")
+              else if (itemId == "close_window") {
+                  // Suppress confirmation dialogs — the single-window QPA
+                  // cannot show a QMessageBox (never let the close path
+                  // pop a QMessageBox).
+                  for (MyWidget *w : g_mainWindow->windowsList())
+                      w->askOnCloseEvent(false);
                   g_mainWindow->closeActiveWindow();
+              }
               else if (itemId == "about") {
                   // SciDAVis::about() spins up a bare QDialog whose vtable
                   // lives in libQt5Widgets.so, so the exec() interposer can't

@@ -403,6 +403,29 @@ export struct MainLayout {
       return;
     }
     switch (itemId) {
+      case 'new_project': {
+        const self = this;
+        this.getUIContext().showAlertDialog({
+          title: 'New Project',
+          message: '当前项目中未保存的内容将丢失。确定新建项目？',
+          primaryButton: {
+            value: '取消',
+            action: () => {}
+          },
+          secondaryButton: {
+            value: '确定',
+            fontColor: Color.Red,
+            action: () => {
+              const result: string = qtInjector.callQtCommand('menuAction',
+                JSON.stringify({ itemId: 'new_project' } as MenuActionArgs));
+              hilog.info(DOMAIN, TAG, 'new_project result: %{public}s', result);
+              self.projectPath = '';
+              self.refreshUiState();
+            }
+          }
+        });
+        break;
+      }
       case 'new_table': {
         const result: string = qtInjector.callQtCommand('newTable', '{}');
         hilog.info(DOMAIN, TAG, 'newTable result: %{public}s', result);
