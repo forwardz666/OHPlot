@@ -52,6 +52,7 @@
 #include <QWindow>
 #include <QPointer>
 #include <QSemaphore>
+#include <QSet>
 #include <atomic>
 #include <QFile>
 #include <QFileInfo>
@@ -482,7 +483,15 @@ static std::string uiStateJson()
     root["activeType"] = aw ? QString::fromLatin1(aw->metaObject()->className()) : QString();
     root["activeName"] = aw ? aw->name() : QString();
     QJsonArray wins;
+    // windowsList() concatenates the folder-tree windows with the
+    // hiddenWindows/outWindows lists; analysis result tables created via
+    // newHiddenTable() sit in BOTH (initTable adds them to the folder,
+    // hideWindow appends to hiddenWindows), so dedupe by pointer here or
+    // the Windows menu shows Smoothed1/Derivative1/... twice.
+    QSet<MyWidget *> seen;
     for (MyWidget *w : g_mainWindow->windowsList()) {
+        if (seen.contains(w)) continue;
+        seen.insert(w);
         QJsonObject o;
         o["name"] = w->name();
         o["type"] = QString::fromLatin1(w->metaObject()->className());
