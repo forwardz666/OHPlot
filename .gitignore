@@ -17,6 +17,12 @@ oh_modules/
 .qoder/
 .appanalyzer/
 .codegenie/
+.cache/
+
+# Delegation working files (scripts are tracked; patches/backups are not)
+tools/delegate/*.patch
+tools/delegate/backup/
+tools/shots/
 
 # Native build
 *.o
