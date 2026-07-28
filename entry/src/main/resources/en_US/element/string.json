@@ -56,6 +56,18 @@
     { "name": "about_version", "value": "OHPlot 2.0.0" },
     { "name": "about_desc", "value": "Scientific Data Analysis and Visualization" },
     { "name": "about_copyright", "value": "Copyright (C) 2024 SciDAVis Team — OHPlot OpenHarmony port" },
-    { "name": "about_close", "value": "Close" }
+    { "name": "about_close", "value": "Close" },
+    { "name": "toolbar_new_table", "value": "New Table" },
+    { "name": "toolbar_open", "value": "Open Project" },
+    { "name": "toolbar_save", "value": "Save Project" },
+    { "name": "toolbar_import", "value": "Import ASCII" },
+    { "name": "toolbar_export", "value": "Export ASCII" },
+    { "name": "toolbar_cut", "value": "Cut" },
+    { "name": "toolbar_copy", "value": "Copy" },
+    { "name": "toolbar_paste", "value": "Paste" },
+    { "name": "toolbar_undo", "value": "Undo" },
+    { "name": "toolbar_redo", "value": "Redo" },
+    { "name": "toolbar_plot_line", "value": "Plot Line" },
+    { "name": "toolbar_plot_scatter", "value": "Plot Scatter" }
   ]
 }

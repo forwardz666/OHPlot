@@ -56,6 +56,18 @@
     { "name": "about_version", "value": "OHPlot 2.0.0" },
     { "name": "about_desc", "value": "科学数据分析和可视化软件" },
     { "name": "about_copyright", "value": "版权所有 (C) 2024 SciDAVis 开发团队 — OHPlot OpenHarmony 移植" },
-    { "name": "about_close", "value": "关闭" }
+    { "name": "about_close", "value": "关闭" },
+    { "name": "toolbar_new_table", "value": "新建表格" },
+    { "name": "toolbar_open", "value": "打开项目" },
+    { "name": "toolbar_save", "value": "保存项目" },
+    { "name": "toolbar_import", "value": "导入 ASCII" },
+    { "name": "toolbar_export", "value": "导出 ASCII" },
+    { "name": "toolbar_cut", "value": "剪切" },
+    { "name": "toolbar_copy", "value": "复制" },
+    { "name": "toolbar_paste", "value": "粘贴" },
+    { "name": "toolbar_undo", "value": "撤消" },
+    { "name": "toolbar_redo", "value": "重做" },
+    { "name": "toolbar_plot_line", "value": "折线图" },
+    { "name": "toolbar_plot_scatter", "value": "散点图" }
   ]
 }
