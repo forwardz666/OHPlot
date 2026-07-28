@@ -60,6 +60,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocale>
+#include <algorithm>
 #include <functional>
 #include <map>
 #include <memory>
@@ -1168,6 +1169,63 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                   }
               }
               return jsonError("window not found");
+          } },
+
+        { "setGraphTitle",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              g->setTitle(args["title"].toString());
+              g->replot();
+              return "{\"success\":true}";
+          } },
+
+        { "setAxisTitle",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              int axis = args["axis"].toInt(0);
+              if (axis < 0 || axis > 3) return jsonError("bad axis");
+              g->setAxisTitle(axis, args["text"].toString());
+              g->replot();
+              return "{\"success\":true}";
+          } },
+
+        { "setAxisScale",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              int axis = args["axis"].toInt(0);
+              if (axis < 0 || axis > 3) return jsonError("bad axis");
+              const QwtScaleDiv *scDiv = g->plotWidget()->axisScaleDiv(axis);
+              double start = std::min(scDiv->lowerBound(), scDiv->upperBound());
+              double end = std::max(scDiv->lowerBound(), scDiv->upperBound());
+              int type = (args["scale"].toString() == "log") ? 1 : 0;
+              if (type == 1 && start <= 0)
+                  start = 1e-3;
+              g->setScale(axis, start, end, 0.0, 5, 5, type, false);
+              g->replot();
+              return "{\"success\":true}";
+          } },
+
+        { "toggleLegend",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              if (g->hasLegend())
+                  g->removeLegend();
+              else
+                  (void)g->newLegend();
+              g->replot();
+              return "{\"success\":true}";
           } },
 
         { "openProject",

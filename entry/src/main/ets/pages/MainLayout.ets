@@ -31,6 +31,7 @@ import { MatrixDimensionsDialog, MatrixValuesDialog } from './dialogs/MatrixOpsD
 import { AnalysisDialog, CorrelateDialog } from './dialogs/AnalysisDialog';
 import { PreferencesDialog } from './dialogs/PreferencesDialog';
 import { ScriptConsoleDialog } from './dialogs/ScriptConsoleDialog';
+import { GraphPropsDialog } from './dialogs/GraphPropsDialog';
 import { ProjectTree } from '../components/ProjectTree';
 import hilog from '@ohos.hilog';
 import qohos from 'libqohos.so';
@@ -176,6 +177,9 @@ export struct MainLayout {
   private scriptConsoleCtl: CustomDialogController = new CustomDialogController({
     builder: ScriptConsoleDialog(), autoCancel: true
   });
+  private graphPropsCtl: CustomDialogController = new CustomDialogController({
+    builder: GraphPropsDialog(), autoCancel: true
+  });
   // Sandbox path of the current project file ('' = untitled).  The picker
   // flows copy external files in/out of the sandbox because Qt can only
   // reach sandbox paths, not content URIs.
@@ -287,6 +291,7 @@ export struct MainLayout {
       ]});
     } else if (st.activeType === 'MultiLayer' || st.activeType === 'Graph3D') {
       defs.push({ id: 'graph', label: 'Graph', items: [
+        { id: 'graph_props', label: 'Properties...', enabled: st.activeType === 'MultiLayer' },
         { id: 'export_image', label: 'Export Image...', enabled: st.activeType === 'MultiLayer' },
         { id: 'sep0', label: '─' },
         { id: 'add_curve', label: 'Add/Remove Curve...', enabled: false },
@@ -487,6 +492,9 @@ export struct MainLayout {
         break;
       case 'script_console':
         this.scriptConsoleCtl.open();
+        break;
+      case 'graph_props':
+        this.graphPropsCtl.open();
         break;
       case 'plot_2d':
         this.currentView = 'plots';
