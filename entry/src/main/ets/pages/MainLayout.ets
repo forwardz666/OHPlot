@@ -31,6 +31,7 @@ import { MatrixDimensionsDialog, MatrixValuesDialog } from './dialogs/MatrixOpsD
 import { AnalysisDialog, CorrelateDialog } from './dialogs/AnalysisDialog';
 import { PreferencesDialog } from './dialogs/PreferencesDialog';
 import { ScriptConsoleDialog } from './dialogs/ScriptConsoleDialog';
+import { ProjectTree } from '../components/ProjectTree';
 import hilog from '@ohos.hilog';
 import qohos from 'libqohos.so';
 import { picker } from '@kit.CoreFileKit';
@@ -163,6 +164,10 @@ export struct MainLayout {
   // events by QtEventHost via AppStorage.
   @State showResultsLog: boolean = false;
   @StorageProp('resultsLog') resultsLogText: string = '';
+  // Project browser sidebar (Phase 3): tree from getProjectTree; the tick
+  // bumps on every uiState refresh so the tree stays current.
+  @State showProjectTree: boolean = false;
+  @State projectTreeTick: number = 0;
   // Phase 3 dialogs living outside the isVisible pattern: these are
   // @CustomDialog structs, driven by controllers.
   private prefsDialogCtl: CustomDialogController = new CustomDialogController({
@@ -190,6 +195,9 @@ export struct MainLayout {
       // Qt answers via QueuedConnection with a 3s semaphore fallback, so
       // worst-case stall is bounded (normally single-digit ms when idle).
       this.refreshUiState();
+      if (this.showProjectTree) {
+        this.projectTreeTick++; // keep the sidebar tree in sync
+      }
     } else {
       this.statusText = '';
     }
@@ -258,6 +266,7 @@ export struct MainLayout {
     ]});
 
     defs.push({ id: 'view', label: 'View', items: [
+      { id: 'project_browser', label: 'Project Browser', checked: this.showProjectTree },
       { id: 'plots', label: 'Plot List', checked: this.currentView === 'plots' },
       { id: 'tables', label: 'Table List', checked: this.currentView === 'tables' },
       { id: 'notes', label: 'Note Pad', checked: this.showNotes },
@@ -466,6 +475,12 @@ export struct MainLayout {
         break;
       case 'log':
         this.showResultsLog = !this.showResultsLog;
+        break;
+      case 'project_browser':
+        this.showProjectTree = !this.showProjectTree;
+        if (this.showProjectTree) {
+          this.projectTreeTick++;
+        }
         break;
       case 'preferences':
         this.prefsDialogCtl.open();
@@ -746,6 +761,36 @@ export struct MainLayout {
       // Note editor overlay
       if (this.showNotes) {
         NoteEditor()
+      }
+
+      // Project browser sidebar (View menu): tree from getProjectTree,
+      // double-tap activates the MDI window (activateWindow command).
+      if (this.showProjectTree) {
+        Column() {
+          ProjectTree({
+            refreshTick: this.projectTreeTick,
+            activeName: this.uiState.activeName,
+            onActivate: (name: string) => {
+              try {
+                const result: string = qtInjector.callQtCommand('activateWindow',
+                  JSON.stringify({ name: name } as ActivateWindowArgs));
+                hilog.info(DOMAIN, TAG, 'tree activateWindow(%{public}s): %{public}s', name, result);
+                this.refreshUiState();
+                this.projectTreeTick++;
+              } catch (e) {
+                hilog.error(DOMAIN, TAG, 'tree activate failed: %{public}s', (e as Error).message);
+              }
+            }
+          })
+        }
+        .width('22%')
+        .height('70%')
+        .position({ x: 8, y: MENUBAR_HEIGHT_VP + 8 })
+        .backgroundColor('#F8F8F8')
+        .borderRadius(8)
+        .border({ width: 1, color: '#C0C0C0' })
+        .shadow({ radius: 10, color: '#50000000', offsetX: 2, offsetY: 2 })
+        .clip(true)
       }
 
       // Results Log panel (View menu): analysis output from resultsLog events.

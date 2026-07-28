@@ -64,6 +64,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include "Folder.h"
 #include "MultiLayer.h"
 #include "Graph.h"
 #include "PlotCurve.h"
@@ -508,6 +509,25 @@ static std::string uiStateJson()
     return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
 }
 
+static QJsonObject projectTreeJson(Folder *f)
+{
+    QJsonObject node;
+    node["name"] = f->name();
+    node["type"] = QStringLiteral("Folder");
+    QJsonArray children;
+    for (MyWidget *w : f->windowsList()) {
+        QJsonObject wn;
+        wn["name"] = w->name();
+        wn["type"] = QString::fromLatin1(w->metaObject()->className());
+        wn["children"] = QJsonArray();
+        children.append(wn);
+    }
+    for (Folder *sub : f->folders())
+        children.append(projectTreeJson(sub));
+    node["children"] = children;
+    return node;
+}
+
 // --- Command registry -------------------------------------------------------
 // Every scidavis_call command is one entry here; handlers always run on the
 // Qt GUI thread (queued from scidavis_call).  Adding a command = adding an
@@ -526,7 +546,7 @@ static const std::set<std::string> &queryCommands()
 {
     static const std::set<std::string> q = { "ping",        "getTableList", "getTableData",
                                              "getPlotList", "getPlotData",  "getUiState",
-                                             "getClipboardText", "getGraphCurves" };
+                                             "getClipboardText", "getGraphCurves", "getProjectTree" };
     return q;
 }
 
@@ -556,6 +576,15 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
         { "getUiState",
           [](const QJsonObject &) -> std::string {
               return "{\"success\":true,\"data\":" + uiStateJson() + "}";
+          } },
+
+        { "getProjectTree",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              QJsonObject root;
+              root["success"] = true;
+              root["data"] = projectTreeJson(g_mainWindow->projectFolder());
+              return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
           } },
 
         { "newTable",
