@@ -81,6 +81,12 @@ interface MenuActionArgs {
   itemId: string;
 }
 
+// Result envelope returned by callQtCommand for menuAction.
+interface CmdResult {
+  success: boolean;
+  error?: string;
+}
+
 // tableStatistics command payload (queued; result toast via event channel).
 interface TableStatisticsArgs {
   tableId: string;
@@ -574,8 +580,8 @@ export struct MainLayout {
         this.pasteWithSystemClipboard();
         break;
       case 'quit':
-        // In offscreen mode, just log
-        hilog.info(DOMAIN, TAG, 'Quit requested - would shut down Qt');
+        hilog.info(DOMAIN, TAG, 'Quit requested - terminating ability');
+        (getContext(this) as common.UIAbilityContext).terminateSelf();
         break;
       default: {
         // Fallback: route unhandled items to Qt so the backend can decide
@@ -583,6 +589,17 @@ export struct MainLayout {
         const result: string = qtInjector.callQtCommand('menuAction',
           JSON.stringify({ itemId: itemId } as MenuActionArgs));
         hilog.info(DOMAIN, TAG, 'fallback menuAction(%{public}s): %{public}s', itemId, result);
+        try {
+          const resp: CmdResult = JSON.parse(result) as CmdResult;
+          if (resp.success === false) {
+            this.getUIContext().getPromptAction().showToast({
+              message: '功能开发中',
+              duration: 2000
+            });
+          }
+        } catch (e) {
+          hilog.error(DOMAIN, TAG, 'fallback parse failed: %{public}s', (e as Error).message);
+        }
         break;
       }
     }
