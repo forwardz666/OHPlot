@@ -1,11 +1,11 @@
-// OHPlot Menu Bar Component
+// ArkSciDAVis Menu Bar Component
 // Implements precise menu interaction logic:
 // - onClick: toggle current menu open/close
 // - onHover: switch to current menu only if another menu is already open
 import hilog from '@ohos.hilog';
 
 const DOMAIN: number = 0x0000;
-const TAG: string = 'OHPlot';
+const TAG: string = 'ArkSciDAVis';
 
 interface SubMenuItemData {
   id: string;
@@ -43,6 +43,11 @@ export struct MenuBar {
             .fontSize(14)
             .fontColor(this.openMenu === menu.id ? '#000000' : '#333333')
             .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+            .onAreaChange((_old: Area, area: Area) => {
+              if (this.onAnchorChange) {
+                this.onAnchorChange(menu.id, Number(area.position.x));
+              }
+            })
             .onClick(() => {
               this.openMenu = this.openMenu === menu.id ? null : menu.id;
             })
@@ -52,19 +57,30 @@ export struct MenuBar {
               }
             })
         })
+        // Blank filler: closes an open menu when the empty menu-bar area is
+        // tapped.  NOTE: this must NOT be an onTouch on the whole Row — that
+        // fires before the menu Texts' onClick and breaks the toggle (the
+        // menu would always reopen instead of closing).
+        Blank()
+          .onClick(() => {
+            if (this.openMenu !== null) {
+              this.openMenu = null;
+            }
+          })
       }
       .width('100%')
       .height(28)
       .backgroundColor('#F0F0F0')
       .padding({ left: 2 })
       .border({ width: { bottom: 1 }, color: '#CCCCCC' })
-
-      // Dropdown menu (shown when a menu is open)
-      DropdownMenu({ openMenu: this.openMenu, menus: this.menus })
     }
+    .alignItems(HorizontalAlign.Start)
   }
 }
 
+// Floating dropdown panel.  The PARENT Stack renders it above the content
+// area and positions it with .position() so opening a menu does not reflow
+// the layout underneath.
 @Component
 export struct DropdownMenu {
   @Link openMenu: string | null;
@@ -74,7 +90,7 @@ export struct DropdownMenu {
   build() {
     if (this.openMenu !== null) {
       Column() {
-        SubMenuItems({ openMenu: this.openMenu, menus: this.menus })
+        SubMenuItems({ openMenu: $openMenu, menus: this.menus, onItemClick: this.onItemClick })
       }
       .width(200)
       .backgroundColor('#FFFFFF')
@@ -101,39 +117,6 @@ struct SubMenuItems {
               .height(1)
               .backgroundColor('#E0E0E0')
               .margin({ top: 2, bottom: 2 })
-          } else if (subItem.id === 'paste' && subItem.enabled !== false) {
-            // Security component: clicking grants a one-shot temporary
-            // READ_PASTEBOARD authorization (the full ACL permission is not
-            // grantable with the debug signing profile).  Label/icon are
-            // system-fixed, styled to blend into the menu.
-            Row() {
-              PasteButton({ icon: PasteIconStyle.LINES, text: PasteDescription.PASTE,
-                buttonType: ButtonType.Normal })
-                .fontSize(14)
-                .fontColor('#000000')
-                .iconSize(14)
-                .iconColor('#000000')
-                .backgroundColor('#FFFFFF')
-                .padding({ left: 0, right: 0, top: 4, bottom: 4 })
-                .onClick((_event: ClickEvent, result: PasteButtonOnClickResult) => {
-                  hilog.info(DOMAIN, TAG, 'PasteButton click result: %{public}d', result);
-                  if (result === PasteButtonOnClickResult.SUCCESS && this.onItemClick) {
-                    this.onItemClick(subItem.id);
-                  }
-                  this.openMenu = null;
-                })
-              Blank()
-              if (subItem.shortcut) {
-                Text(subItem.shortcut)
-                  .fontSize(12)
-                  .fontColor('#888888')
-                  .margin({ left: 20 })
-              }
-            }
-            .width('100%')
-            .height(28)
-            .padding({ left: 24, right: 12 })
-            .alignItems(VerticalAlign.Center)
           } else {
             Row() {
               Text(subItem.checked === true ? '✓ ' + subItem.label : subItem.label)

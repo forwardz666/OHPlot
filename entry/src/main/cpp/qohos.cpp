@@ -13,6 +13,7 @@
 #include <cstring>
 #include <string>
 #include <hilog/log.h>
+#include <mutex>
 
 #undef LOG_TAG
 #define LOG_TAG "SciDAVisNative"
@@ -23,6 +24,7 @@
 typedef void (*inject_mouse_fn_t)(float, float, int, int);
 static void *g_appHandle = nullptr;              // dlopen handle of libentry.so
 static inject_mouse_fn_t g_injectMouse = nullptr;
+static std::mutex g_injectMutex;
 
 // ── Qt → ArkTS event channel ─────────────────────────────────────────────
 // libentry.so exports scidavis_set_event_sink(cb); Qt code pushes JSON
@@ -118,16 +120,12 @@ static void *qt_thread_func(void *arg) {
   setenv("QT_NO_SYNTHESIZED_ITALIC", "1", 1);
   // Point Qt at the system font directory so FreeType can find fonts.
   setenv("QT_QPA_FONTDIR", "/system/fonts", 1);
-  // INPUT FIX: SciDAVis main() sets AA_EnableHighDpiScaling.  The QPA screen
-  // reports a pixel density of 2, so QHighDpiScaling divides all incoming
-  // native mouse coordinates by 2 while the UI is laid out at full native
-  // resolution — clicks land at half the intended position (e.g. press at
-  // x=1350 hits widgets at x≈675).  In Qt 5.15 this env var vetoes the
-  // application attribute, restoring a 1:1 input↔layout mapping.
-  // UPDATE: Enable high DPI scaling and set an appropriate scale factor to enlarge UI
-  setenv("QT_ENABLE_HIGHDPI_SCALING", "1", 1);
-  setenv("QT_SCALE_FACTOR", "1.2", 1);  // Increase UI size by 20% - more suitable value
-  setenv("QT_AUTO_SCREEN_SCALE_FACTOR", "1", 1);
+  // CRITICAL: Disable Qt HighDpi scaling so that ETS onTouch coordinates
+  // (delivered in vp units) map 1:1 to Qt's internal coordinate space.
+  // When HighDpiScaling is active with QT_SCALE_FACTOR=N, Qt divides
+  // incoming mouse coordinates by N, causing cursor offset because ETS
+  // coordinates are already in device-independent pixels.
+  setenv("QT_ENABLE_HIGHDPI_SCALING", "0", 1);
   // Log high-DPI factor decisions so we can verify on-device via hilog.
   setenv("QT_LOGGING_RULES", "qt.scaling=true", 1);
 
@@ -212,30 +210,35 @@ static napi_value SendMouse(napi_env env, napi_callback_info info) {
   napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
 
   napi_value result;
-  if (argc < 4 || !g_appHandle) {
-    napi_get_boolean(env, false, &result);
-    return result;
-  }
-
-  if (!g_injectMouse) {
-    g_injectMouse = reinterpret_cast<inject_mouse_fn_t>(
-        dlsym(g_appHandle, "scidavis_inject_mouse"));
-    if (!g_injectMouse) {
+  {
+    std::lock_guard<std::mutex> lock(g_injectMutex);
+    if (argc < 4 || !g_appHandle) {
       OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, LOG_TAG,
-                   "sendMouse: dlsym scidavis_inject_mouse failed: %{public}s", dlerror());
+                   "sendMouse: FAIL g_appHandle=%{public}p argc=%{public}zu", g_appHandle, argc);
       napi_get_boolean(env, false, &result);
       return result;
     }
+
+    if (!g_injectMouse) {
+      g_injectMouse = reinterpret_cast<inject_mouse_fn_t>(
+          dlsym(g_appHandle, "scidavis_inject_mouse"));
+      if (!g_injectMouse) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, LOG_TAG,
+                     "sendMouse: dlsym scidavis_inject_mouse failed: %{public}s", dlerror());
+        napi_get_boolean(env, false, &result);
+        return result;
+      }
+    }
+
+    double x = 0, y = 0, button = 0, action = 0;
+    napi_get_value_double(env, argv[0], &x);
+    napi_get_value_double(env, argv[1], &y);
+    napi_get_value_double(env, argv[2], &button);
+    napi_get_value_double(env, argv[3], &action);
+
+    g_injectMouse(static_cast<float>(x), static_cast<float>(y),
+                  static_cast<int>(button), static_cast<int>(action));
   }
-
-  double x = 0, y = 0, button = 0, action = 0;
-  napi_get_value_double(env, argv[0], &x);
-  napi_get_value_double(env, argv[1], &y);
-  napi_get_value_double(env, argv[2], &button);
-  napi_get_value_double(env, argv[3], &action);
-
-  g_injectMouse(static_cast<float>(x), static_cast<float>(y),
-                static_cast<int>(button), static_cast<int>(action));
   napi_get_boolean(env, true, &result);
   return result;
 }

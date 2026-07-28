@@ -1,7 +1,7 @@
 // ArkSciDAVis Note Editor Component
 @Component
 export struct NoteEditor {
-  @Link currentLocale: string;
+  currentLocale?: string = '';
   @State noteText: string = '';
 
   build() {

@@ -1,15 +1,23 @@
 // OHPlot Main Layout - overlays on top of XComponent (Qt render)
 // Phase 1: XComponent remains visible as backup underneath
 //
-// CRITICAL EVENT FLOW:
-// - MenuBar area: ArkTS handles menu clicks. No event passes to Qt.
-// - Content area: HitTestMode.Transparent - touch events pass through to
-//   the XComponent underneath, where QPA's native callbacks handle them.
-//   Left-button events are also forwarded via NAPI sendMouse().
+// CRITICAL EVENT FLOW (device-verified 2026-07-27 via InputProbe src= field):
+// - Finger touches: the QPA touch pipeline delivers them natively and Qt
+//   synthesizes mouse events itself (src=2).  The overlay ALSO forwards
+//   them (src=3) because TouchEvent.source/sourceTool cannot distinguish
+//   finger from mouse-converted touches (both report TouchScreen/Finger).
+//   The resulting double delivery is deduplicated in Qt (InputProbe).
+// - Bluetooth LEFT clicks: ArkUI re-routes them into the touch pipeline;
+//   the QPA plugin drops them, so only the forwarded copy reaches Qt.
+// - Bluetooth RIGHT/MIDDLE clicks: ArkUI onMouse on the outer Stack catches
+//   these and forwards via sendMouse → scidavis_inject_mouse → Qt.
+// - MenuBar area: ArkTS handles all menu UI natively.
+// - Content area: HitTestMode.Transparent lets events pass through to
+//   the XComponent underneath for native QPA processing.
 // - StatusBar area: ArkTS handles status display.
-// - When a sub-menu is open, a transparent overlay catches external
-//   clicks to close the menu, then passes the event through to Qt.
-import { MenuBar } from '../components/MenuBar';
+// - WARNING: Do NOT forward touch events via sendMouse — the QPA plugin
+//   already handles them natively.  Forwarding duplicates causes crashes.
+import { MenuBar, DropdownMenu } from '../components/MenuBar';
 import { StatusBar } from '../components/StatusBar';
 import { QtEventHost } from '../components/QtEventHost';
 import { NoteEditor } from './NoteEditor';
@@ -30,6 +38,7 @@ import common from '@ohos.app.ability.common';
 
 interface QohosInjector {
   sendMouse(x: number, y: number, button: number, action: number): boolean;
+  callQtCommand(cmd: string, argsJson: string): string;
 }
 
 const qtInjector = qohos as QohosInjector;
@@ -37,7 +46,17 @@ const qtInjector = qohos as QohosInjector;
 const DOMAIN: number = 0x0000;
 const TAG: string = 'QtInput';
 
+// ArkTS chrome bands that must NOT be forwarded to Qt (vp).  A forwarded
+// tap on the Qt menu bar (hidden underneath the ArkTS one) makes Qt call
+// QMenu::popup() → QPA window creation → SIGSEGV: the alpha_v6 plugin
+// supports only the single main XComponent window (device crash log
+// cppcrash-...-20260727151314, QOpenHarmonyJsObject::getJsFunction).
+const MENUBAR_HEIGHT_VP: number = 28;
+const STATUSBAR_HEIGHT_VP: number = 24;
+
 let leftDown: boolean = false;
+
+let dbgCount: number = 0;
 
 interface SubMenuItemData {
   id: string;
@@ -114,7 +133,7 @@ interface UiStateResponse {
 
 @Component
 export struct MainLayout {
-  @State openMenu: string | null = null;
+  @State @Watch('onMenuChanged') openMenu: string | null = null;
   @State showNotes: boolean = false;
   @State statusText: string = '';
   @State currentView: string = 'default';
@@ -636,53 +655,63 @@ export struct MainLayout {
         // Menu bar
         MenuBar({
           openMenu: this.openMenu,
-          menus: this.menuDefs
+          menus: this.menuDefs,
+          onItemClick: (itemId: string) => this.onMenuItemClick(itemId),
+          onAnchorChange: (menuId: string, x: number) => {
+            this.menuAnchorMap.set(menuId, x);
+            if (this.openMenu === menuId) {
+              this.dropdownX = x;
+            }
+          }
         })
 
-        // Content area: transparent - events pass through to XComponent
-        Column()
-          .layoutWeight(1)
-          .hitTestBehavior(HitTestMode.Transparent)
-          .onTouch((event: TouchEvent) => {
-            // Forward touch events (left-button clicks converted by ArkUI)
-            // as mouse events to Qt via NAPI
-            const changed: TouchObject[] = event.changedTouches;
-            for (let i = 0; i < changed.length; i++) {
-              const t: TouchObject = changed[i];
-              let action: number = -1;
-              if (t.type === TouchType.Down) {
-                action = 0; leftDown = true;
-              } else if (t.type === TouchType.Up) {
-                action = 1; leftDown = false;
-              } else if (t.type === TouchType.Move && leftDown) {
-                action = 2;
+        // Content area: shows active view (default=transparent pass-through to Qt)
+        // When menu is open, touching the content area closes it
+        if (this.currentView === 'tables') {
+          TablePage()
+            .layoutWeight(1)
+        } else if (this.currentView === 'plots') {
+          PlotPage()
+            .layoutWeight(1)
+        } else {
+          // Default: transparent - touch events pass through to
+          // the XComponent for native QPA processing.  We do NOT forward
+          // touch via sendMouse here — QPA handles it natively.
+          Column()
+            .layoutWeight(1)
+            .hitTestBehavior(HitTestMode.Transparent)
+            .onTouch((_event: TouchEvent) => {
+              // Touch ANYWHERE in the content area closes an open menu.
+              if (this.openMenu !== null) {
+                hilog.info(DOMAIN, TAG, 'content touch - closing menu');
+                this.openMenu = null;
               }
-              if (action >= 0 && action !== 2) {
-                qtInjector.sendMouse(t.x, t.y, 1, action);
-              }
-            }
-          })
-          .onMouse((event: MouseEvent) => {
-            // Forward left-button drag
-            if (event.button === MouseButton.Left && event.action === MouseAction.Move && leftDown) {
-              qtInjector.sendMouse(event.x, event.y, 1, 2);
-            }
-          })
+            })
+        }
 
         // Status bar
         StatusBar({ statusText: this.statusText })
       }
+      .width('100%')
+      .height('100%')
 
-      // Layer 3 (top): External-click overlay to close sub-menus.
-      // Only shown when a sub-menu is open.
-      // HitTestMode.Transparent: we catch the touch to close the menu,
-      // then let the event pass through to the XComponent (Qt).
+      // Scrim while a menu is open: covers everything below the menu bar,
+      // closes the menu when tapped, and (being hit-test opaque) blocks
+      // both ETS forwarding and native QPA delivery of that tap — desktop
+      // menus dismiss on outside-click without acting on the content.
+      // It starts at MENUBAR_HEIGHT_VP so the titles keep their toggle and
+      // hover-switch behaviour, and is rendered BELOW DropdownMenu so the
+      // submenu items stay clickable.  Close happens in onClick (fires on
+      // Up, after Stack.onTouch already saw openMenu!==null for both Down
+      // and Up) so the dismissing tap is never forwarded to Qt.
       if (this.openMenu !== null) {
         Column()
           .width('100%')
-          .height('100%')
-          .hitTestBehavior(HitTestMode.Transparent)
-          .onTouch(() => {
+          .height('calc(100% - 28vp)') // 28 = MENUBAR_HEIGHT_VP
+          .position({ x: 0, y: MENUBAR_HEIGHT_VP })
+          .backgroundColor(Color.Transparent)
+          .onClick(() => {
+            hilog.info(DOMAIN, TAG, 'scrim tap - closing menu');
             this.openMenu = null;
           })
       }
@@ -770,5 +799,105 @@ export struct MainLayout {
     }
     .width('100%')
     .height('100%')
+    // Transparent normally (touches fall through to the XComponent for
+    // native QPA delivery).  While a menu is open, switch to Default so
+    // the dismissing tap stays inside ArkTS — the scrim alone cannot stop
+    // the native pipeline because an opaque child does not override the
+    // outer Stack's Transparent mode (device-verified: src=2 press reached
+    // Qt at the dismiss tap position).
+    .hitTestBehavior(this.openMenu !== null ? HitTestMode.Default : HitTestMode.Transparent)
+    // Forward touch events (finger + Bluetooth-left-converted-to-touch)
+    // via sendMouse.  ETS CANNOT tell them apart: both report
+    // source=TouchScreen, sourceTool=Finger (device-verified).  Finger
+    // touches are also delivered natively by the QPA plugin, so Qt would
+    // see them twice — the Qt side (InputProbe) drops the duplicate by
+    // matching type+pos+button across different event sources within 60ms.
+    // Right/middle Bluetooth clicks stay as MouseEvent and go via onMouse.
+    // COORDINATES: ETS delivers vp; Qt runs with HighDpi scaling disabled
+    // (DPR=1) and therefore expects PHYSICAL pixels — convert with vp2px()
+    // before forwarding (DEVELOPMENT_GUIDE §1.3, device 2456x1600, ~1.5x).
+    .onTouch((event: TouchEvent) => {
+      // Never forward while an ArkTS menu is open (dropdown interactions),
+      // nor within the ArkTS menu-bar / status-bar bands: the Qt menu bar
+      // sits underneath and a forwarded tap there opens a QMenu popup,
+      // which the single-window QPA cannot create (SIGSEGV).
+      if (this.openMenu !== null) { return; }
+      const stackHeight: number = event.target.area.height as number;
+      const changed: TouchObject[] = event.changedTouches;
+      for (let i = 0; i < changed.length; i++) {
+        const t: TouchObject = changed[i];
+        let action: number = -1;
+        if (t.type === TouchType.Down) {
+          // Band guard applies to Down only; Move/Up follow leftDown so a
+          // drag that ends inside a chrome band still delivers its release
+          // (otherwise Qt is left with a stuck pressed button).
+          if (t.y < MENUBAR_HEIGHT_VP || t.y > stackHeight - STATUSBAR_HEIGHT_VP) {
+            continue; // ArkTS chrome band — handled natively, not Qt's
+          }
+          action = 0; leftDown = true;
+        } else if (t.type === TouchType.Up) {
+          if (!leftDown) { continue; }
+          action = 1; leftDown = false;
+        } else if (t.type === TouchType.Move && leftDown) {
+          action = 2;
+        }
+        if (action >= 0) {
+          const px: number = vp2px(t.x);
+          const py: number = vp2px(t.y);
+          if (dbgCount < 50) {
+            dbgCount++;
+            hilog.info(DOMAIN, TAG,
+              'touch→mouse action=%{public}d vp=(%{public}d,%{public}d) px=(%{public}d,%{public}d)',
+              action, Math.round(t.x), Math.round(t.y), Math.round(px), Math.round(py));
+          }
+          try {
+            const ok = qtInjector.sendMouse(px, py, 1, action);
+            if (!ok) {
+              hilog.warn(DOMAIN, TAG, 'sendMouse(touch) returned false');
+            }
+          } catch (e) {
+            hilog.error(DOMAIN, TAG, 'sendMouse(touch) failed: %{public}s', (e as Error).message);
+          }
+        }
+      }
+    })
+    // Forward Bluetooth RIGHT/MIDDLE clicks (these arrive as MouseEvent,
+    // not converted to touch by OHOS).  LEFT click arrives as touch event
+    // (handled above), so skip it here to avoid duplicates.
+    .onMouse((event: MouseEvent) => {
+      if (event.button === MouseButton.Left) return;
+      // Same chrome-band guard as onTouch: keep forwarded clicks out of
+      // the Qt menu bar underneath the ArkTS one (popup crash).
+      if (this.openMenu !== null) return;
+      const stackHeight: number = event.target.area.height as number;
+      if (event.y < MENUBAR_HEIGHT_VP || event.y > stackHeight - STATUSBAR_HEIGHT_VP) {
+        return;
+      }
+      let btn: number = 0;
+      if (event.button === MouseButton.Right) btn = 2;
+      else if (event.button === MouseButton.Middle) btn = 3;
+      else return;
+      let act: number = -1;
+      if (event.action === MouseAction.Press) act = 0;
+      else if (event.action === MouseAction.Release) act = 1;
+      else if (event.action === MouseAction.Move) act = 2;
+      else return;
+      const px: number = vp2px(event.x);
+      const py: number = vp2px(event.y);
+      if (dbgCount < 50) {
+        dbgCount++;
+        hilog.info(DOMAIN, TAG,
+          'mouse→mouse action=%{public}d btn=%{public}d vp=(%{public}d,%{public}d) px=(%{public}d,%{public}d)',
+          act, btn, Math.round(event.x), Math.round(event.y), Math.round(px), Math.round(py));
+      }
+      try {
+        const ok = qtInjector.sendMouse(px, py, btn, act);
+        if (!ok) {
+          hilog.warn(DOMAIN, TAG, 'sendMouse(mouse) returned false');
+        }
+      } catch (e) {
+        hilog.error(DOMAIN, TAG, 'sendMouse(mouse) failed: %{public}s', (e as Error).message);
+      }
+    })
   }
 }
