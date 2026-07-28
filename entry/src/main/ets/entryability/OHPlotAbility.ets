@@ -15,6 +15,7 @@ import { JsStandardPaths, ApplicationDirs } from '../native/JsStandardPaths';
 import { SimpleJsWindowManager, SimpleJsWindow } from '../native/JsWindowManager';
 import { JsInputMethod, QpaInput } from '../native/JsInputMethod';
 import { JsCursor } from '../native/JsCursor';
+import { JsPasteBoard } from '../native/JsPasteBoard';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -85,6 +86,10 @@ function createJsObject(type: string, name: string, ...args: Object[]): Object {
       }
       return undefined;
     });
+  } else if (type == 'JsPasteBoard') {
+    // Clipboard bridge: QOpenHarmonyPlatformClipboard proxies QClipboard
+    // entirely through this object (see specifications/08).
+    obj = new JsPasteBoard();
   } else if (type == 'JsWindowManager') {
     // Return the pre-created window manager (already has main window registered).
     obj = windowManager;
