@@ -753,18 +753,22 @@ export struct MainLayout {
             hilog.info(DOMAIN, TAG, 'scrim tap - closing menu');
             this.openMenu = null;
           })
+          .zIndex(100) // above ProjectTree/NoteEditor overlays declared later
       }
 
       // Floating dropdown menu: rendered at Stack level (NOT inside the
       // Column) so opening it does not reflow/push the content area down.
       // .position() is applied HERE (Stack child) so x/y are relative to
       // the Stack's top-left, anchoring the panel under its menu title.
+      // zIndex keeps it above the Project sidebar, which sits later in the
+      // Stack and otherwise covers the File/Edit/View dropdowns.
       DropdownMenu({
         openMenu: this.openMenu,
         menus: this.menuDefs,
         onItemClick: (itemId: string) => this.onMenuItemClick(itemId)
       })
         .position({ x: this.dropdownX, y: MENUBAR_HEIGHT_VP })
+        .zIndex(101)
 
       // Note editor overlay
       if (this.showNotes) {
