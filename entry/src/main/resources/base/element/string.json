@@ -68,6 +68,7 @@
     { "name": "toolbar_undo", "value": "Undo" },
     { "name": "toolbar_redo", "value": "Redo" },
     { "name": "toolbar_plot_line", "value": "Plot Line" },
-    { "name": "toolbar_plot_scatter", "value": "Plot Scatter" }
+    { "name": "toolbar_plot_scatter", "value": "Plot Scatter" },
+    { "name": "not_adapted", "value": "This feature has not been adapted yet" }
   ]
 }

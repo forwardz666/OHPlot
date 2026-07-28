@@ -62,6 +62,17 @@ const MENUBAR_HEIGHT_VP: number = 28;
 const TOP_CHROME_VP: number = 60;
 const STATUSBAR_HEIGHT_VP: number = 24;
 
+// Mirror of the Qt-side menuAction whitelist (main.cpp command registry).
+// menuAction is a *mutation* command: scidavis_call queues it and returns
+// {"success":true,"queued":true} immediately, so the Qt-side "unsupported"
+// error can never reach ETS through the return value.  Unadapted items must
+// therefore be gated here, before calling Qt.  Keep in sync with main.cpp.
+const MENU_ACTION_SUPPORTED: string[] = [
+  'new_notes', 'new_matrix', 'new_project', 'new_graph',
+  'cascade', 'maximize_window', 'minimize_window', 'close_window',
+  'about', 'undo', 'redo', 'cut', 'copy', 'paste', 'delete'
+];
+
 let leftDown: boolean = false;
 
 let dbgCount: number = 0;
@@ -227,6 +238,10 @@ export struct MainLayout {
       const resp: UiStateResponse = JSON.parse(raw) as UiStateResponse;
       if (resp.success && resp.data !== undefined) {
         this.uiState = resp.data;
+        // Greying debug trail: activeType drives isTable/isGraph on the
+        // toolbar; log it so device runs can prove what ETS received.
+        hilog.info(DOMAIN, TAG, 'uiState: type=%{public}s name=%{public}s undo=%{public}s',
+          resp.data.activeType, resp.data.activeName, String(resp.data.undoEnabled));
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'getUiState failed: %{public}s', (e as Error).message);
@@ -391,6 +406,18 @@ export struct MainLayout {
     this.menuDefs = defs;
   }
   
+  // Unified "not adapted yet" notice (menu + toolbar): an AlertDialog per
+  // spec — silent no-ops and toasts are both forbidden for unadapted items.
+  private showNotAdapted(): void {
+    this.getUIContext().showAlertDialog({
+      message: $r('app.string.not_adapted'),
+      confirm: {
+        value: '确定',
+        action: () => {}
+      }
+    });
+  }
+
   // NAPI defensive-programming spec (HARNESS guide §3.3): every callQtCommand
   // must be wrapped in try-catch — a failed dlsym/route otherwise throws an
   // uncaught exception that kills the ArkTS UI thread.
@@ -588,7 +615,14 @@ export struct MainLayout {
         (getContext(this) as common.UIAbilityContext).terminateSelf();
         break;
       default: {
-        // Fallback: route unhandled items to Qt so the backend can decide
+        // Unadapted item: the queued menuAction reply cannot tell us (see
+        // MENU_ACTION_SUPPORTED above), so gate on the local whitelist.
+        if (MENU_ACTION_SUPPORTED.indexOf(itemId) < 0) {
+          hilog.info(DOMAIN, TAG, 'not adapted: %{public}s', itemId);
+          this.showNotAdapted();
+          break;
+        }
+        // Fallback: route whitelisted items to Qt so the backend can decide
         // (HARNESS guide P1 — users expect a real response, not just a log).
         const result: string = qtInjector.callQtCommand('menuAction',
           JSON.stringify({ itemId: itemId } as MenuActionArgs));
@@ -596,10 +630,9 @@ export struct MainLayout {
         try {
           const resp: CmdResult = JSON.parse(result) as CmdResult;
           if (resp.success === false) {
-            this.getUIContext().getPromptAction().showToast({
-              message: '功能开发中',
-              duration: 2000
-            });
+            // Belt-and-braces: synchronous failures (e.g. Qt not running)
+            // still surface the same unified notice.
+            this.showNotAdapted();
           }
         } catch (e) {
           hilog.error(DOMAIN, TAG, 'fallback parse failed: %{public}s', (e as Error).message);
@@ -748,13 +781,15 @@ export struct MainLayout {
           }
         })
 
-        // ArkTS toolbar (T5): replaces the hidden native Qt toolbars.  Ids
-        // reuse the menu dispatch so behaviour matches the menu items 1:1.
+        // ArkTS toolbar: original SciDAVis desktop icons, Windows-layout
+        // File/Edit/Graph/Plot groups.  Ids reuse the menu dispatch so
+        // behaviour matches the menu items 1:1.
         ToolBar({
           undoEnabled: this.uiState.undoEnabled,
           redoEnabled: this.uiState.redoEnabled,
           hasWin: this.uiState.activeName !== '',
           isTable: this.uiState.activeType === 'Table',
+          isGraph: this.uiState.activeType === 'MultiLayer',
           onItemClick: (itemId: string) => {
             this.onMenuItemClick(itemId);
             // keep greying current (menus refresh on open; toolbar has no
@@ -856,7 +891,10 @@ export struct MainLayout {
         }
         .width('22%')
         .height('70%')
-        .position({ x: 8, y: MENUBAR_HEIGHT_VP + 8 })
+        // Below the full top chrome (menubar + toolbar): at MENUBAR_HEIGHT
+        // the panel used to overlap the toolbar band and swallow its
+        // clicks (device-verified via uitest hit-test at y=96px).
+        .position({ x: 8, y: TOP_CHROME_VP + 8 })
         .backgroundColor('#F8F8F8')
         .borderRadius(8)
         .border({ width: 1, color: '#C0C0C0' })
@@ -901,7 +939,8 @@ export struct MainLayout {
         }
         .width('46%')
         .height('60%')
-        .position({ x: '52%', y: MENUBAR_HEIGHT_VP + 8 })
+        // Same toolbar-occlusion fix as the project browser panel above.
+        .position({ x: '52%', y: TOP_CHROME_VP + 8 })
         .backgroundColor('#F8F8F8')
         .borderRadius(8)
         .border({ width: 1, color: '#C0C0C0' })

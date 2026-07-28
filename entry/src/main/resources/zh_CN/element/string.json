@@ -68,6 +68,7 @@
     { "name": "toolbar_undo", "value": "撤消" },
     { "name": "toolbar_redo", "value": "重做" },
     { "name": "toolbar_plot_line", "value": "折线图" },
-    { "name": "toolbar_plot_scatter", "value": "散点图" }
+    { "name": "toolbar_plot_scatter", "value": "散点图" },
+    { "name": "not_adapted", "value": "此功能还未适配完毕" }
   ]
 }
