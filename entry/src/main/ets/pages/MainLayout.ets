@@ -18,6 +18,7 @@
 // - WARNING: Do NOT forward touch events via sendMouse — the QPA plugin
 //   already handles them natively.  Forwarding duplicates causes crashes.
 import { MenuBar, DropdownMenu } from '../components/MenuBar';
+import { ToolBar } from '../components/ToolBar';
 import { StatusBar } from '../components/StatusBar';
 import { QtEventHost } from '../components/QtEventHost';
 import { NoteEditor } from './NoteEditor';
@@ -56,6 +57,9 @@ const TAG: string = 'QtInput';
 // supports only the single main XComponent window (device crash log
 // cppcrash-...-20260727151314, QOpenHarmonyJsObject::getJsFunction).
 const MENUBAR_HEIGHT_VP: number = 28;
+// Menu bar (28) + ArkTS toolbar (32): the whole top chrome band that must
+// never be forwarded to Qt (the hidden Qt menu bar/toolbars sit underneath).
+const TOP_CHROME_VP: number = 60;
 const STATUSBAR_HEIGHT_VP: number = 24;
 
 let leftDown: boolean = false;
@@ -744,6 +748,21 @@ export struct MainLayout {
           }
         })
 
+        // ArkTS toolbar (T5): replaces the hidden native Qt toolbars.  Ids
+        // reuse the menu dispatch so behaviour matches the menu items 1:1.
+        ToolBar({
+          undoEnabled: this.uiState.undoEnabled,
+          redoEnabled: this.uiState.redoEnabled,
+          hasWin: this.uiState.activeName !== '',
+          isTable: this.uiState.activeType === 'Table',
+          onItemClick: (itemId: string) => {
+            this.onMenuItemClick(itemId);
+            // keep greying current (menus refresh on open; toolbar has no
+            // such hook, so refresh right after each dispatch)
+            this.refreshUiState();
+          }
+        })
+
         // Content area: shows active view (default=transparent pass-through to Qt)
         // When menu is open, touching the content area closes it
         if (this.currentView === 'tables') {
@@ -944,7 +963,7 @@ export struct MainLayout {
           // Band guard applies to Down only; Move/Up follow leftDown so a
           // drag that ends inside a chrome band still delivers its release
           // (otherwise Qt is left with a stuck pressed button).
-          if (t.y < MENUBAR_HEIGHT_VP || t.y > stackHeight - STATUSBAR_HEIGHT_VP) {
+          if (t.y < TOP_CHROME_VP || t.y > stackHeight - STATUSBAR_HEIGHT_VP) {
             continue; // ArkTS chrome band — handled natively, not Qt's
           }
           action = 0; leftDown = true;
@@ -983,7 +1002,7 @@ export struct MainLayout {
       // the Qt menu bar underneath the ArkTS one (popup crash).
       if (this.openMenu !== null) return;
       const stackHeight: number = event.target.area.height as number;
-      if (event.y < MENUBAR_HEIGHT_VP || event.y > stackHeight - STATUSBAR_HEIGHT_VP) {
+      if (event.y < TOP_CHROME_VP || event.y > stackHeight - STATUSBAR_HEIGHT_VP) {
         return;
       }
       let btn: number = 0;
