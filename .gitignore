@@ -24,6 +24,10 @@ tools/delegate/*.patch
 tools/delegate/backup/
 tools/shots/
 
+# Device-verification transients (uitest dumpLayout pulls, commit-split patches)
+tools/layout_*.json
+tools/t6_*.patch
+
 # Native build
 *.o
 *.so.bak
