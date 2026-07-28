@@ -29,6 +29,8 @@ import { AddColumnsDialog, SetColumnValuesDialog, SortTableDialog } from './dial
 import { Plot2DDialog } from './dialogs/Plot2DDialog';
 import { MatrixDimensionsDialog, MatrixValuesDialog } from './dialogs/MatrixOpsDialog';
 import { AnalysisDialog, CorrelateDialog } from './dialogs/AnalysisDialog';
+import { PreferencesDialog } from './dialogs/PreferencesDialog';
+import { ScriptConsoleDialog } from './dialogs/ScriptConsoleDialog';
 import hilog from '@ohos.hilog';
 import qohos from 'libqohos.so';
 import { picker } from '@kit.CoreFileKit';
@@ -161,6 +163,14 @@ export struct MainLayout {
   // events by QtEventHost via AppStorage.
   @State showResultsLog: boolean = false;
   @StorageProp('resultsLog') resultsLogText: string = '';
+  // Phase 3 dialogs living outside the isVisible pattern: these are
+  // @CustomDialog structs, driven by controllers.
+  private prefsDialogCtl: CustomDialogController = new CustomDialogController({
+    builder: PreferencesDialog(), autoCancel: true
+  });
+  private scriptConsoleCtl: CustomDialogController = new CustomDialogController({
+    builder: ScriptConsoleDialog(), autoCancel: true
+  });
   // Sandbox path of the current project file ('' = untitled).  The picker
   // flows copy external files in/out of the sandbox because Qt can only
   // reach sandbox paths, not content URIs.
@@ -244,7 +254,7 @@ export struct MainLayout {
       { id: 'paste', label: 'Paste Selection', shortcut: 'Ctrl+V', enabled: hasWin },
       { id: 'delete', label: 'Delete Selection', enabled: hasWin },
       { id: 'sep2', label: '─' },
-      { id: 'preferences', label: 'Preferences...', enabled: false }
+      { id: 'preferences', label: 'Preferences...' }
     ]});
 
     defs.push({ id: 'view', label: 'View', items: [
@@ -253,7 +263,7 @@ export struct MainLayout {
       { id: 'notes', label: 'Note Pad', checked: this.showNotes },
       { id: 'sep1', label: '─' },
       { id: 'log', label: 'Results Log', checked: this.showResultsLog },
-      { id: 'script_console', label: 'Script Console', enabled: false }
+      { id: 'script_console', label: 'Script Console' }
     ]});
 
     // Context menu follows the active MDI window type (desktop behaviour).
@@ -456,6 +466,12 @@ export struct MainLayout {
         break;
       case 'log':
         this.showResultsLog = !this.showResultsLog;
+        break;
+      case 'preferences':
+        this.prefsDialogCtl.open();
+        break;
+      case 'script_console':
+        this.scriptConsoleCtl.open();
         break;
       case 'plot_2d':
         this.currentView = 'plots';
