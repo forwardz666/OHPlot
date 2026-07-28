@@ -49,6 +49,7 @@
 #include <QMdiSubWindow>
 #include <QSplashScreen>
 #include <QTimer>
+#include <QToolBar>
 #include <QWindow>
 #include <QPointer>
 #include <QSemaphore>
@@ -1463,6 +1464,20 @@ int main(int argc, char **argv)
             scidavisEmitEvent(QStringLiteral("clipboardChanged"), p);
         });
         mw->applyUserSettings();
+        // OHOS: hide all native Qt toolbars — they render at desktop pixel
+        // sizes through the XComponent (unusably small at DPR=1) and their
+        // QToolButton tooltips/popups would create a second top-level window
+        // (single-window QPA -> SIGSEGV).  The toolbar is rebuilt in ArkTS.
+        for (QToolBar *tb : mw->findChildren<QToolBar *>())
+            tb->hide();
+        // Disable all "Save changes?" confirmation switches — the
+        // single-window QPA cannot show the Save changes QMessageBox.
+        mw->confirmCloseTable = false;
+        mw->confirmCloseMatrix = false;
+        mw->confirmClosePlot2D = false;
+        mw->confirmClosePlot3D = false;
+        mw->confirmCloseFolder = false;
+        mw->confirmCloseNotes = false;
         mw->newTable();
         mw->activateSubWindow();
         mw->savedProject();
