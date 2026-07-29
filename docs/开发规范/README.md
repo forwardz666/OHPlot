@@ -20,6 +20,6 @@ OHPlot（SciDAVis OpenHarmony 适配版）开发规范文档，按编号排序�
 
 ## 配套资源
 
-- 开发过程使用的 Agent Skills 见 [../skills/](../skills/) 目录
-- 开发日志见 [../dev-logs/](../dev-logs/) 目录
-- 功能实现计划见 [../FEATURE_IMPLEMENTATION_PLAN.md](../FEATURE_IMPLEMENTATION_PLAN.md)
+- 开发过程使用的 Agent Skills 见 [../技能文档/](../技能文档/) 目录
+- 开发日志见 [../开发日志/](../开发日志/) 目录
+- 功能实现计划见 [../功能计划/功能实施计划.md](../功能计划/功能实施计划.md)
