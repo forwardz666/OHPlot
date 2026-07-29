@@ -1,0 +1,4 @@
+interface:
+  display_name: "HarmonyOS ArkUI HDS UI"
+  short_description: "Design ArkUI HDS glass UI"
+  default_prompt: "Use $harmonyos-arkui-hds-ui to improve ArkUI/HDS layouts, floating tabs, glass materials, and immersive HarmonyOS UI."
