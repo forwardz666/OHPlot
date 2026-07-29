@@ -8,6 +8,7 @@ import hilog from '@ohos.hilog';
 import { picker } from '@kit.CoreFileKit';
 import fs from '@ohos.file.fs';
 import common from '@ohos.app.ability.common';
+import { getAppString } from '../../components/LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -76,7 +77,7 @@ export struct ImportDialog {
       this.isVisible = false; // toast arrives via the event channel
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'ImportDialog picker failed: %{public}s', (e as Error).message);
-      this.statusMsg = 'Import failed: ' + (e as Error).message;
+      this.statusMsg = getAppString('msg_import_failed') + (e as Error).message;
     }
   }
 
@@ -100,7 +101,7 @@ export struct ImportDialog {
         // Dialog box
         Column() {
           // Title
-          Text('Import ASCII Data')
+          Text($r('app.string.dlg_import_title'))
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333333')
@@ -110,7 +111,7 @@ export struct ImportDialog {
             Column() {
               // Separator selection
               Row() {
-                Text('Separator:')
+                Text($r('app.string.dlg_separator'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(100)
@@ -128,23 +129,23 @@ export struct ImportDialog {
 
               // Import mode
               Row() {
-                Text('Import Mode:')
+                Text($r('app.string.dlg_import_mode'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(100)
-                Text('New Tables')
+                Text($r('app.string.dlg_import_new_tables'))
                   .fontSize(12)
                   .fontColor(this.importMode === 0 ? '#0078D7' : '#666666')
                   .fontWeight(this.importMode === 0 ? FontWeight.Bold : FontWeight.Normal)
                   .padding({ left: 6, right: 6 })
                   .onClick(() => { this.importMode = 0; })
-                Text('New Rows')
+                Text($r('app.string.dlg_import_new_rows'))
                   .fontSize(12)
                   .fontColor(this.importMode === 1 ? '#0078D7' : '#666666')
                   .fontWeight(this.importMode === 1 ? FontWeight.Bold : FontWeight.Normal)
                   .padding({ left: 6, right: 6 })
                   .onClick(() => { this.importMode = 1; })
-                Text('Overwrite')
+                Text($r('app.string.dlg_import_overwrite'))
                   .fontSize(12)
                   .fontColor(this.importMode === 2 ? '#0078D7' : '#666666')
                   .fontWeight(this.importMode === 2 ? FontWeight.Bold : FontWeight.Normal)
@@ -156,7 +157,7 @@ export struct ImportDialog {
 
               // Options
               Row() {
-                Text('Ignored lines:')
+                Text($r('app.string.dlg_import_ignored_lines'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(100)
@@ -170,7 +171,7 @@ export struct ImportDialog {
               .margin({ bottom: 8 })
 
               Row() {
-                Text('Convert to numeric:')
+                Text($r('app.string.dlg_import_convert_numeric'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(140)
@@ -181,7 +182,7 @@ export struct ImportDialog {
               .margin({ bottom: 6 })
 
               Row() {
-                Text('Rename columns:')
+                Text($r('app.string.dlg_import_rename_columns'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(140)
@@ -192,7 +193,7 @@ export struct ImportDialog {
               .margin({ bottom: 6 })
 
               Row() {
-                Text('Strip spaces:')
+                Text($r('app.string.dlg_import_strip_spaces'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(140)
@@ -217,7 +218,7 @@ export struct ImportDialog {
 
           // Buttons
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14)
               .height(32)
               .backgroundColor('#E0E0E0')
@@ -226,7 +227,7 @@ export struct ImportDialog {
               .onClick(() => {
                 this.isVisible = false;
               })
-            Button('Import...')
+            Button($r('app.string.dlg_import_action'))
               .fontSize(14)
               .height(32)
               .backgroundColor('#0078D7')

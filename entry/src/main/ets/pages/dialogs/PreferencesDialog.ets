@@ -1,3 +1,8 @@
+import { getAppLanguage, setAppLanguage } from '../../components/LocaleHelper';
+
+// Language choice index → i18n.System.setAppPreferredLanguage tag.
+const LANG_TAGS: string[] = ['default', 'en-Latn-US', 'zh-Hans'];
+
 @CustomDialog
 export struct PreferencesDialog {
   controller: CustomDialogController;
@@ -6,15 +11,32 @@ export struct PreferencesDialog {
   @State autosaveInterval: string = '5';
   @State showComments: boolean = false;
   @State antialiasing: boolean = false;
+  // Pending language selection; applied (setAppPreferredLanguage) on Apply.
+  @State langIndex: number = 1;
+  private langDirty: boolean = false;
 
-  private categories: string[] = ['General', 'Tables', 'Plots'];
+  // Resource-based categories: Text($r(...)) re-renders automatically on
+  // language change (no getAppString/langTick rebuild needed here).
+  private categories: Resource[] = [
+    $r('app.string.pref_general'), $r('app.string.pref_tables'), $r('app.string.pref_plots')
+  ];
+  private langLabels: Resource[] = [
+    $r('app.string.pref_lang_system'), $r('app.string.pref_lang_english'), $r('app.string.pref_lang_chinese')
+  ];
+
+  aboutToAppear(): void {
+    // getAppPreferredLanguage cannot report "unset" (it falls back to the
+    // system language), so the initial selection mirrors the effective
+    // language; picking "Follow System" resets via 'default'.
+    this.langIndex = getAppLanguage().startsWith('zh') ? 2 : 1;
+  }
 
   build() {
     Column() {
       Row() {
         // Left category list
         Column() {
-          ForEach(this.categories, (cat: string, idx: number) => {
+          ForEach(this.categories, (cat: Resource, idx: number) => {
             Text(cat)
               .fontSize(14)
               .fontColor(idx === this.selectedCategory ? '#0078D7' : '#333333')
@@ -26,7 +48,7 @@ export struct PreferencesDialog {
               .onClick(() => {
                 this.selectedCategory = idx;
               })
-          }, (cat: string) => cat)
+          }, (cat: Resource, idx: number) => idx.toString())
         }
         .width(100)
         .height(200)
@@ -37,7 +59,28 @@ export struct PreferencesDialog {
           if (this.selectedCategory === 0) {
             // General
             Row() {
-              Text('Autosave')
+              Text($r('app.string.pref_language'))
+                .fontSize(13)
+                .fontColor('#333333')
+              Select([
+                { value: this.langLabels[0] },
+                { value: this.langLabels[1] },
+                { value: this.langLabels[2] }
+              ])
+                .selected(this.langIndex)
+                .value(this.langLabels[this.langIndex])
+                .font({ size: 13 })
+                .height(30)
+                .onSelect((idx: number) => {
+                  this.langIndex = idx;
+                  this.langDirty = true;
+                })
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.SpaceBetween)
+            .margin({ bottom: 12 })
+            Row() {
+              Text($r('app.string.pref_autosave'))
                 .fontSize(13)
                 .fontColor('#333333')
               Toggle({ type: ToggleType.Switch, isOn: this.autosave })
@@ -48,7 +91,7 @@ export struct PreferencesDialog {
             .width('100%')
             .margin({ bottom: 12 })
             Row() {
-              Text('Autosave interval (min)')
+              Text($r('app.string.pref_autosave_interval'))
                 .fontSize(13)
                 .fontColor('#333333')
               TextInput({ text: this.autosaveInterval, placeholder: '5' })
@@ -63,7 +106,7 @@ export struct PreferencesDialog {
           } else if (this.selectedCategory === 1) {
             // Tables
             Row() {
-              Text('Show comments')
+              Text($r('app.string.pref_show_comments'))
                 .fontSize(13)
                 .fontColor('#333333')
               Toggle({ type: ToggleType.Switch, isOn: this.showComments })
@@ -75,7 +118,7 @@ export struct PreferencesDialog {
           } else {
             // Plots
             Row() {
-              Text('Antialiasing')
+              Text($r('app.string.pref_antialiasing'))
                 .fontSize(13)
                 .fontColor('#333333')
               Toggle({ type: ToggleType.Switch, isOn: this.antialiasing })
@@ -94,7 +137,7 @@ export struct PreferencesDialog {
 
       // Bottom buttons
       Row() {
-        Button('Cancel')
+        Button($r('app.string.common_cancel'))
           .fontSize(14)
           .height(32)
           .backgroundColor('#E0E0E0')
@@ -103,7 +146,7 @@ export struct PreferencesDialog {
           .onClick(() => {
             this.controller.close();
           })
-        Button('Apply')
+        Button($r('app.string.common_apply'))
           .fontSize(14)
           .height(32)
           .backgroundColor('#0078D7')
@@ -111,7 +154,13 @@ export struct PreferencesDialog {
           .borderRadius(4)
           .margin({ left: 12 })
           .onClick(() => {
-            // TODO: call get/setPreference commands to persist settings
+            // Language applies immediately: setAppPreferredLanguage refreshes
+            // $r bindings and fires onConfigurationUpdate → langTick →
+            // MainLayout.rebuildMenus.  Persisted by the system.
+            if (this.langDirty) {
+              setAppLanguage(LANG_TAGS[this.langIndex]);
+            }
+            // TODO: call get/setPreference commands to persist other settings
             this.controller.close();
           })
       }

@@ -2,6 +2,7 @@
 // 2D scientific plot renderer using ArkUI Canvas.
 // Renders axes, grid, and curve data from the Qt backend.
 import hilog from '@ohos.hilog';
+import { getAppString } from './LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'ArkSciDAVis';
@@ -93,7 +94,8 @@ export struct PlotCanvas {
       ctx.fillStyle = '#999999';
       ctx.font = '14px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(this.curves.length === 0 ? 'No plot data' : 'Plot area too small',
+      ctx.fillText(this.curves.length === 0
+        ? getAppString('msg_no_plot_data') : getAppString('msg_plot_too_small'),
         canvasW / 2, canvasH / 2);
       return;
     }

@@ -6,6 +6,7 @@
 // arrive as message events toasted by QtEventHost.
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
+import { getAppString } from '../../components/LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -94,14 +95,14 @@ export struct AddColumnsDialog {
           .onClick(() => { this.isVisible = false; })
 
         Column() {
-          Text('Add Columns — ' + this.tableId)
+          Text(getAppString('dlg_add_columns') + ' — ' + this.tableId)
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333333')
             .margin({ top: 16, bottom: 12 })
 
           Row() {
-            Text('Number of columns:')
+            Text($r('app.string.dlg_num_columns'))
               .fontSize(13)
               .fontColor('#555555')
               .layoutWeight(1)
@@ -117,11 +118,11 @@ export struct AddColumnsDialog {
           .margin({ bottom: 12 })
 
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14).height(32)
               .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
               .onClick(() => { this.isVisible = false; })
-            Button('Add')
+            Button($r('app.string.common_add'))
               .fontSize(14).height(32)
               .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
               .margin({ left: 12 })
@@ -165,7 +166,7 @@ export struct SetColumnValuesDialog {
 
   onApply(): void {
     if (this.formula.trim() === '') {
-      this.statusMsg = 'Please enter a formula.';
+      this.statusMsg = getAppString('msg_enter_formula');
       return;
     }
     try {
@@ -194,7 +195,7 @@ export struct SetColumnValuesDialog {
           .onClick(() => { this.isVisible = false; })
 
         Column() {
-          Text('Set Column Values — ' + this.tableId)
+          Text(getAppString('dlg_set_col_values') + ' — ' + this.tableId)
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333333')
@@ -203,7 +204,7 @@ export struct SetColumnValuesDialog {
           Scroll() {
             Column() {
               Row() {
-                Text('Column:')
+                Text($r('app.string.dlg_column'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(80)
@@ -225,7 +226,7 @@ export struct SetColumnValuesDialog {
                   .height(90)
                   .border({ width: 1, color: '#D0D0D0' })
                 } else {
-                  Text('No columns')
+                  Text($r('app.string.common_no_columns'))
                     .fontSize(12)
                     .fontColor('#999999')
                 }
@@ -235,17 +236,17 @@ export struct SetColumnValuesDialog {
 
               // muParser column formula: "i" is the (1-based) row index,
               // col("name") reads another column at the current row.
-              Text('Formula (muParser):')
+              Text($r('app.string.dlg_formula_muparser'))
                 .fontSize(13)
                 .fontColor('#555555')
                 .alignSelf(ItemAlign.Start)
                 .margin({ bottom: 4 })
-              TextInput({ text: this.formula, placeholder: 'e.g. i  or  col("1")*2' })
+              TextInput({ text: this.formula, placeholder: $r('app.string.dlg_example_col') })
                 .fontSize(13)
                 .height(36)
                 .width('100%')
                 .onChange((val: string) => { this.formula = val; })
-              Text('Examples: i • rand() • sin(0.1*i) • col("1")+1   (i = row number)')
+              Text($r('app.string.dlg_examples_hint'))
                 .fontSize(10)
                 .fontColor('#999999')
                 .alignSelf(ItemAlign.Start)
@@ -264,11 +265,11 @@ export struct SetColumnValuesDialog {
           .width('100%')
 
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14).height(32)
               .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
               .onClick(() => { this.isVisible = false; })
-            Button('Apply')
+            Button($r('app.string.common_apply'))
               .fontSize(14).height(32)
               .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
               .margin({ left: 12 })
@@ -335,7 +336,7 @@ export struct SortTableDialog {
           .onClick(() => { this.isVisible = false; })
 
         Column() {
-          Text('Sort Table — ' + this.tableId)
+          Text(getAppString('dlg_sort_table') + ' — ' + this.tableId)
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333333')
@@ -344,13 +345,13 @@ export struct SortTableDialog {
           Scroll() {
             Column() {
               Row() {
-                Text('Sort by:')
+                Text($r('app.string.dlg_sort_by'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(80)
                 Scroll() {
                   Column() {
-                    Text('(each column separately)')
+                    Text($r('app.string.dlg_each_col_separately'))
                       .fontSize(12)
                       .fontColor(this.leadingCol === -1 ? '#0078D7' : '#666666')
                       .fontWeight(this.leadingCol === -1 ? FontWeight.Bold : FontWeight.Normal)
@@ -376,17 +377,17 @@ export struct SortTableDialog {
               .margin({ bottom: 12 })
 
               Row() {
-                Text('Order:')
+                Text($r('app.string.dlg_order'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(80)
-                Text('Ascending')
+                Text($r('app.string.dlg_ascending'))
                   .fontSize(12)
                   .fontColor(this.ascending ? '#0078D7' : '#666666')
                   .fontWeight(this.ascending ? FontWeight.Bold : FontWeight.Normal)
                   .padding({ left: 6, right: 12 })
                   .onClick(() => { this.ascending = true; })
-                Text('Descending')
+                Text($r('app.string.dlg_descending'))
                   .fontSize(12)
                   .fontColor(!this.ascending ? '#0078D7' : '#666666')
                   .fontWeight(!this.ascending ? FontWeight.Bold : FontWeight.Normal)
@@ -401,11 +402,11 @@ export struct SortTableDialog {
           .width('100%')
 
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14).height(32)
               .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
               .onClick(() => { this.isVisible = false; })
-            Button('Sort')
+            Button($r('app.string.dlg_sort_action'))
               .fontSize(14).height(32)
               .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
               .margin({ left: 12 })

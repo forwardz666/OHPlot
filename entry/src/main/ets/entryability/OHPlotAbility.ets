@@ -1,6 +1,6 @@
 import UIAbility from '@ohos.app.ability.UIAbility';
 import window from '@ohos.window';
-import { Want, AbilityConstant } from '@kit.AbilityKit';
+import { Want, AbilityConstant, Configuration } from '@kit.AbilityKit';
 import hilog from '@ohos.hilog';
 import display from '@ohos.display';
 import font from '@ohos.font';
@@ -130,6 +130,15 @@ export default class OHPlotAbility extends UIAbility {
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam) {
     hilog.info(DOMAIN, TAG, 'OHPlotAbility::onCreate');
+  }
+
+  // Language change (system or setAppPreferredLanguage) → bump langTick so
+  // MainLayout rebuilds data-model strings (menu labels); $r() bindings
+  // refresh automatically via the ArkUI configuration update.
+  onConfigurationUpdate(newConfig: Configuration): void {
+    hilog.info(DOMAIN, TAG, 'onConfigurationUpdate language=%{public}s', newConfig.language ?? '');
+    let tick = AppStorage.get<number>('langTick') ?? 0;
+    AppStorage.setOrCreate('langTick', tick + 1);
   }
 
   onWindowStageCreate(windowStage: window.WindowStage) {

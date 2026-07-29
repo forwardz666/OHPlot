@@ -4,6 +4,7 @@
 import { DataTable } from '../components/DataTable';
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
+import { getAppString } from '../components/LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'ArkSciDAVis';
@@ -70,7 +71,7 @@ export struct TablePage {
     Column() {
       // Toolbar row
       Row() {
-        Text('Table: ' + (this.tableName || '(none)'))
+        Text(getAppString('page_table_prefix') + (this.tableName || getAppString('common_empty')))
           .fontSize(14)
           .fontColor('#333333')
           .layoutWeight(1)
@@ -91,7 +92,7 @@ export struct TablePage {
           .height(28)
           .flexGrow(1)
         }
-        Button('Refresh')
+        Button($r('app.string.common_refresh'))
           .fontSize(12)
           .height(28)
           .onClick(() => {

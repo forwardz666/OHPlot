@@ -6,6 +6,7 @@
 // resultsLog events toasted by QtEventHost.
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
+import { getAppString } from '../../components/LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -31,23 +32,33 @@ interface AnalyzeCurveArgs {
   freq2?: number;
 }
 
-const OP_TITLES: Map<string, string> = new Map([
-  ['fit_linear', 'Fit Linear'],
-  ['fit_poly', 'Fit Polynomial'],
-  ['fit_gauss', 'Fit Gaussian'],
-  ['fit_lorentz', 'Fit Lorentzian'],
-  ['fit_sigmoidal', 'Fit Boltzmann (Sigmoidal)'],
-  ['fft', 'FFT'],
-  ['smooth', 'Smooth'],
-  ['interpolate', 'Interpolate'],
-  ['differentiate', 'Differentiate'],
-  ['integrate', 'Integrate'],
-  ['fft_filter', 'FFT Filter'],
+// Maps each operation to the resource name of its dialog title.
+const OP_TITLE_KEYS: Map<string, string> = new Map([
+  ['fit_linear', 'analysis_fit_linear'],
+  ['fit_poly', 'dlg_title_fit_poly'],
+  ['fit_gauss', 'analysis_fit_gaussian'],
+  ['fit_lorentz', 'analysis_fit_lorentzian'],
+  ['fit_sigmoidal', 'analysis_fit_boltzmann'],
+  ['fft', 'analysis_fft'],
+  ['smooth', 'analysis_smooth'],
+  ['interpolate', 'dlg_title_interpolate'],
+  ['differentiate', 'analysis_differentiate'],
+  ['integrate', 'analysis_integrate'],
+  ['fft_filter', 'dlg_title_fft_filter'],
 ]);
 
-const SMOOTH_METHODS: string[] = ['Savitzky-Golay', 'FFT', 'Moving Average'];
-const INTERP_METHODS: string[] = ['Linear', 'Cubic', 'Akima'];
-const FILTER_TYPES: string[] = ['Low Pass', 'High Pass', 'Band Pass', 'Band Block'];
+function smoothMethodLabels(): string[] {
+  return [getAppString('dlg_method_savgol'), getAppString('dlg_method_fft'),
+    getAppString('dlg_method_moving_avg')];
+}
+function interpMethodLabels(): string[] {
+  return [getAppString('dlg_method_linear'), getAppString('dlg_method_cubic'),
+    getAppString('dlg_method_akima')];
+}
+function filterTypeLabels(): string[] {
+  return [getAppString('dlg_filter_low_pass'), getAppString('dlg_filter_high_pass'),
+    getAppString('dlg_filter_band_pass'), getAppString('dlg_filter_band_block')];
+}
 
 function fetchCurves(): string[] {
   try {
@@ -91,13 +102,13 @@ export struct AnalysisDialog {
       this.curves = fetchCurves();
       // Default to the most recently added curve, like the backend does.
       this.selectedCurve = this.curves.length > 0 ? this.curves.length - 1 : 0;
-      this.statusMsg = this.curves.length === 0 ? 'The active plot has no analysable curves.' : '';
+      this.statusMsg = this.curves.length === 0 ? getAppString('msg_no_curves') : '';
     }
   }
 
   onApply(): void {
     if (this.curves.length === 0) {
-      this.statusMsg = 'The active plot has no analysable curves.';
+      this.statusMsg = getAppString('msg_no_curves');
       return;
     }
     const op: string = this.currentOp();
@@ -122,7 +133,7 @@ export struct AnalysisDialog {
       const f1: number = parseFloat(this.freqText);
       const f2: number = parseFloat(this.freq2Text);
       if (isNaN(f1) || (this.filterType >= 2 && isNaN(f2))) {
-        this.statusMsg = 'Please enter valid frequencies.';
+        this.statusMsg = getAppString('msg_valid_freq');
         return;
       }
       args.freq = f1;
@@ -180,7 +191,7 @@ export struct AnalysisDialog {
           .onClick(() => { this.isVisible = false; })
 
         Column() {
-          Text(OP_TITLES.get(this.currentOp()) ?? 'Analysis')
+          Text(getAppString(OP_TITLE_KEYS.get(this.currentOp()) ?? 'dlg_title_analysis'))
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333333')
@@ -189,7 +200,7 @@ export struct AnalysisDialog {
           Scroll() {
             Column() {
               Row() {
-                Text('Curve:')
+                Text($r('app.string.dlg_curve'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(80)
@@ -211,7 +222,7 @@ export struct AnalysisDialog {
                   .height(90)
                   .border({ width: 1, color: '#D0D0D0' })
                 } else {
-                  Text('No curves')
+                  Text($r('app.string.common_no_curves'))
                     .fontSize(12)
                     .fontColor('#999999')
                 }
@@ -220,38 +231,38 @@ export struct AnalysisDialog {
               .margin({ bottom: 12 })
 
               if (this.currentOp() === 'fit_poly') {
-                this.NumberField('Polynomial order (2-9):', this.orderText,
+                this.NumberField(getAppString('dlg_poly_order_range'), this.orderText,
                   (val: string) => { this.orderText = val; })
               } else if (this.currentOp() === 'smooth') {
-                Text('Method:')
+                Text($r('app.string.dlg_method'))
                   .fontSize(13).fontColor('#555555')
                   .alignSelf(ItemAlign.Start).margin({ bottom: 4 })
-                this.MethodPicker(SMOOTH_METHODS, this.smoothMethod,
+                this.MethodPicker(smoothMethodLabels(), this.smoothMethod,
                   (idx: number) => { this.smoothMethod = idx; })
-                this.NumberField('Points:', this.pointsText,
+                this.NumberField(getAppString('dlg_points'), this.pointsText,
                   (val: string) => { this.pointsText = val; })
                 if (this.smoothMethod === 0) {
-                  this.NumberField('Polynomial order:', this.orderText,
+                  this.NumberField(getAppString('dlg_poly_order'), this.orderText,
                     (val: string) => { this.orderText = val; })
                 }
               } else if (this.currentOp() === 'interpolate') {
-                Text('Method:')
+                Text($r('app.string.dlg_method'))
                   .fontSize(13).fontColor('#555555')
                   .alignSelf(ItemAlign.Start).margin({ bottom: 4 })
-                this.MethodPicker(INTERP_METHODS, this.interpMethod,
+                this.MethodPicker(interpMethodLabels(), this.interpMethod,
                   (idx: number) => { this.interpMethod = idx; })
-                this.NumberField('Points:', this.interpPointsText,
+                this.NumberField(getAppString('dlg_points'), this.interpPointsText,
                   (val: string) => { this.interpPointsText = val; })
               } else if (this.currentOp() === 'fft_filter') {
-                Text('Filter type:')
+                Text($r('app.string.dlg_filter_type'))
                   .fontSize(13).fontColor('#555555')
                   .alignSelf(ItemAlign.Start).margin({ bottom: 4 })
-                this.MethodPicker(FILTER_TYPES, this.filterType,
+                this.MethodPicker(filterTypeLabels(), this.filterType,
                   (idx: number) => { this.filterType = idx; })
-                this.NumberField(this.filterType >= 2 ? 'Low frequency:' : 'Cutoff frequency:',
+                this.NumberField(this.filterType >= 2 ? getAppString('dlg_low_freq') : getAppString('dlg_cutoff_freq'),
                   this.freqText, (val: string) => { this.freqText = val; })
                 if (this.filterType >= 2) {
-                  this.NumberField('High frequency:', this.freq2Text,
+                  this.NumberField(getAppString('dlg_high_freq'), this.freq2Text,
                     (val: string) => { this.freq2Text = val; })
                 }
               }
@@ -269,11 +280,11 @@ export struct AnalysisDialog {
           .width('100%')
 
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14).height(32)
               .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
               .onClick(() => { this.isVisible = false; })
-            Button('Apply')
+            Button($r('app.string.common_apply'))
               .fontSize(14).height(32)
               .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
               .margin({ left: 12 })
@@ -352,13 +363,13 @@ export struct CorrelateDialog {
       this.colNames = fetchTableCols(this.target());
       this.col1 = 0;
       this.col2 = this.colNames.length > 1 ? 1 : 0;
-      this.statusMsg = this.colNames.length < 2 ? 'The table needs at least two columns.' : '';
+      this.statusMsg = this.colNames.length < 2 ? getAppString('msg_two_columns') : '';
     }
   }
 
   onApply(): void {
     if (this.colNames.length < 2) {
-      this.statusMsg = 'The table needs at least two columns.';
+      this.statusMsg = getAppString('msg_two_columns');
       return;
     }
     try {
@@ -411,7 +422,7 @@ export struct CorrelateDialog {
           .onClick(() => { this.isVisible = false; })
 
         Column() {
-          Text('Correlate — ' + this.target())
+          Text(getAppString('dlg_correlate') + ' — ' + this.target())
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333333')
@@ -419,9 +430,9 @@ export struct CorrelateDialog {
 
           Scroll() {
             Column() {
-              this.ColumnPicker('Column 1:', this.col1, (idx: number) => { this.col1 = idx; })
-              this.ColumnPicker('Column 2:', this.col2, (idx: number) => { this.col2 = idx; })
-              Text('Pick the same column twice for an autocorrelation.')
+              this.ColumnPicker(getAppString('dlg_column_1'), this.col1, (idx: number) => { this.col1 = idx; })
+              this.ColumnPicker(getAppString('dlg_column_2'), this.col2, (idx: number) => { this.col2 = idx; })
+              Text($r('app.string.dlg_autocorr_hint'))
                 .fontSize(10)
                 .fontColor('#999999')
                 .alignSelf(ItemAlign.Start)
@@ -439,11 +450,11 @@ export struct CorrelateDialog {
           .width('100%')
 
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14).height(32)
               .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
               .onClick(() => { this.isVisible = false; })
-            Button('Correlate')
+            Button($r('app.string.dlg_correlate'))
               .fontSize(14).height(32)
               .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
               .margin({ left: 12 })

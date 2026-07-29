@@ -3,6 +3,7 @@
 // Data is loaded from the Qt backend via callQtCommand NAPI.
 import hilog from '@ohos.hilog';
 import qohos from 'libqohos.so';
+import { getAppString } from './LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'ArkSciDAVis';
@@ -82,7 +83,9 @@ export struct DataTable {
       if (this.numRows === 0 && this.numCols === 0 && !this.isLoading) {
         // Empty state
         Column() {
-          Text(this.tableName ? 'Table \'' + this.tableName + '\' is empty' : 'No table selected')
+          Text(this.tableName
+            ? getAppString('msg_table_empty_prefix') + this.tableName + getAppString('msg_table_empty_suffix')
+            : getAppString('msg_no_table_selected'))
             .fontSize(16)
             .fontColor('#999999')
         }
@@ -92,7 +95,7 @@ export struct DataTable {
       } else if (this.isLoading && this.numRows === 0) {
         // Loading state
         Column() {
-          Text('Loading...')
+          Text($r('app.string.common_loading'))
             .fontSize(16)
             .fontColor('#999999')
         }

@@ -5,13 +5,13 @@ export struct ScriptConsoleDialog {
 
   build() {
     Column() {
-      Text('Script Console')
+      Text($r('app.string.dlg_script_console'))
         .fontSize(18)
         .fontWeight(FontWeight.Bold)
         .fontColor('#333333')
         .margin({ top: 20, bottom: 8 })
 
-      TextArea({ placeholder: 'Scripting backend is not yet available on OpenHarmony.' })
+      TextArea({ placeholder: $r('app.string.dlg_script_unavailable') })
         .enabled(false)
         .width(280)
         .height(160)
@@ -21,12 +21,12 @@ export struct ScriptConsoleDialog {
         .borderRadius(4)
         .margin({ bottom: 8 })
 
-      Text('TODO: muParser/Python console will be wired in a later phase.')
+      Text($r('app.string.dlg_script_todo'))
         .fontSize(11)
         .fontColor('#999999')
         .margin({ bottom: 16 })
 
-      Button('Close')
+      Button($r('app.string.common_close'))
         .fontSize(14)
         .width(100)
         .height(32)

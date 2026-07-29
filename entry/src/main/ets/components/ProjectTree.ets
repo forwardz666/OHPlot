@@ -133,7 +133,7 @@ export struct ProjectTree {
   build() {
     Column() {
       Row() {
-        Text('Project')
+        Text($r('app.string.panel_project'))
           .fontSize(12)
           .fontWeight(FontWeight.Bold)
           .fontColor('#333333')

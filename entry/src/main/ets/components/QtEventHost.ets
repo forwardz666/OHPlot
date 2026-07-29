@@ -23,6 +23,7 @@ import hilog from '@ohos.hilog';
 import promptAction from '@ohos.promptAction';
 import fs from '@ohos.file.fs';
 import pasteboard from '@ohos.pasteboard';
+import { getAppString } from './LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'QtEventHost';
@@ -143,22 +144,22 @@ export struct QtEventHost {
         break;
       }
       case 'dialogBlocked':
-        this.toast('Dialog not yet available on tablet: ' + (ev.className ?? 'unknown'));
+        this.toast(getAppString('msg_dialog_blocked') + (ev.className ?? 'unknown'));
         break;
       case 'fileDialog':
         // Phase 2: open @ohos.file.picker here and route the chosen path
         // back through a dedicated command (openProject/saveProject/...).
-        this.toast('File dialog "' + stripMnemonic(ev.caption) + '" not yet wired (' +
+        this.toast(getAppString('msg_file_dialog_unwired') + stripMnemonic(ev.caption) + ' (' +
           (ev.mode ?? '?') + ')');
         break;
       case 'inputDialog':
-        this.toast('Input dialog not yet available: ' + stripMnemonic(ev.title));
+        this.toast(getAppString('msg_input_dialog_unavailable') + stripMnemonic(ev.title));
         break;
       case 'colorDialog':
-        this.toast('Color picker not yet available');
+        this.toast(getAppString('msg_color_picker_unavailable'));
         break;
       case 'fontDialog':
-        this.toast('Font picker not yet available');
+        this.toast(getAppString('msg_font_picker_unavailable'));
         break;
       case 'contextMenu': {
         const items: QtMenuItem[] = ev.items ?? [];
@@ -184,13 +185,13 @@ export struct QtEventHost {
         break;
       }
       case 'projectSaved':
-        this.copyOutPending('pendingSaveAsUri', ev.ok === true, ev.path ?? '', 'Save As');
+        this.copyOutPending('pendingSaveAsUri', ev.ok === true, ev.path ?? '', getAppString('op_save_as'));
         break;
       case 'asciiExported':
-        this.copyOutPending('pendingExportUri', ev.ok === true, ev.path ?? '', 'Export');
+        this.copyOutPending('pendingExportUri', ev.ok === true, ev.path ?? '', getAppString('op_export'));
         break;
       case 'imageExported':
-        this.copyOutPending('pendingImageUri', ev.ok === true, ev.path ?? '', 'Export Image');
+        this.copyOutPending('pendingImageUri', ev.ok === true, ev.path ?? '', getAppString('op_export_image'));
         break;
       case 'resultsLog': {
         // Analysis output: append to the shared log that the ArkTS
@@ -233,7 +234,7 @@ export struct QtEventHost {
     }
     AppStorage.setOrCreate<string>(storageKey, '');
     if (!ok || path === '') {
-      this.toast(label + ' failed: backend could not write the file');
+      this.toast(label + getAppString('msg_op_write_failed'));
       return;
     }
     try {
@@ -243,11 +244,11 @@ export struct QtEventHost {
       fs.closeSync(dst);
       hilog.info(DOMAIN, TAG, '%{public}s exported %{public}s -> %{public}s',
         label, path, pending);
-      this.toast(label + ': file exported');
+      this.toast(label + getAppString('msg_op_exported'));
     } catch (e) {
       hilog.error(DOMAIN, TAG, '%{public}s export failed: %{public}s',
         label, (e as Error).message);
-      this.toast(label + ' export failed: ' + (e as Error).message);
+      this.toast(label + getAppString('msg_op_export_failed') + (e as Error).message);
     }
   }
 
@@ -301,7 +302,7 @@ export struct QtEventHost {
               Text(this.msgText).fontSize(14).fontColor('#333333')
             }
             .constraintSize({ maxHeight: 260 })
-            Button('OK')
+            Button($r('app.string.common_ok'))
               .margin({ top: 12 })
               .height(36)
               .onClick(() => { this.msgVisible = false; })

@@ -5,6 +5,7 @@
 // (ApplicationWindow::multilayerPlot — never pops a dialog).
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
+import { getAppString } from '../../components/LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -36,21 +37,21 @@ interface Plot2DArgs {
   cols: number[];
 }
 
-// plot type id → human title (mirrors the plot2D style map in main.cpp)
-const PLOT_TITLES: Map<string, string> = new Map<string, string>([
-  ['line', 'Line'],
-  ['scatter', 'Scatter'],
-  ['line_symbol', 'Line + Symbol'],
-  ['vertical_bars', 'Vertical Bars'],
-  ['horizontal_bars', 'Horizontal Bars'],
-  ['area', 'Area'],
-  ['pie', 'Pie'],
-  ['drop_lines', 'Vertical Drop Lines'],
-  ['spline', 'Spline'],
-  ['vertical_steps', 'Vertical Steps'],
-  ['horizontal_steps', 'Horizontal Steps'],
-  ['histogram', 'Histogram'],
-  ['box', 'Box Plot'],
+// plot type id → title resource name (mirrors the plot2D style map in main.cpp)
+const PLOT_TITLE_KEYS: Map<string, string> = new Map<string, string>([
+  ['line', 'plot_line'],
+  ['scatter', 'plot_scatter'],
+  ['line_symbol', 'plot_line_symbol'],
+  ['vertical_bars', 'plot_vertical_bars'],
+  ['horizontal_bars', 'plot_horizontal_bars'],
+  ['area', 'plot_area'],
+  ['pie', 'plot_pie'],
+  ['drop_lines', 'plot_vertical_drop_lines'],
+  ['spline', 'plot_spline'],
+  ['vertical_steps', 'plot_vertical_steps'],
+  ['horizontal_steps', 'plot_horizontal_steps'],
+  ['histogram', 'plot_histogram'],
+  ['box', 'plot_box'],
 ]);
 
 @Component
@@ -97,8 +98,8 @@ export struct Plot2DDialog {
 
   private title(): string {
     const t: string = this.currentType();
-    const label: string | undefined = PLOT_TITLES.get(t);
-    return (label !== undefined ? label : t) + ' — ' + this.tableId;
+    const key: string | undefined = PLOT_TITLE_KEYS.get(t);
+    return (key !== undefined ? getAppString(key) : t) + ' — ' + this.tableId;
   }
 
   onPlot(): void {
@@ -108,11 +109,11 @@ export struct Plot2DDialog {
     }
     const type: string = this.currentType();
     if (type === 'pie' && cols.length !== 1) {
-      this.statusMsg = 'Pie plots need exactly one column.';
+      this.statusMsg = getAppString('msg_pie_one_column');
       return;
     }
     if (cols.length === 0) {
-      this.statusMsg = 'Please select at least one column.';
+      this.statusMsg = getAppString('msg_select_column');
       return;
     }
     try {
@@ -146,7 +147,7 @@ export struct Plot2DDialog {
 
           Scroll() {
             Column() {
-              Text('Columns to plot (Y):')
+              Text($r('app.string.dlg_columns_to_plot'))
                 .fontSize(13)
                 .fontColor('#555555')
                 .alignSelf(ItemAlign.Start)
@@ -182,7 +183,7 @@ export struct Plot2DDialog {
                 .height(150)
                 .border({ width: 1, color: '#D0D0D0' })
               } else {
-                Text('No columns')
+                Text($r('app.string.common_no_columns'))
                   .fontSize(12)
                   .fontColor('#999999')
               }
@@ -200,11 +201,11 @@ export struct Plot2DDialog {
           .width('100%')
 
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14).height(32)
               .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
               .onClick(() => { this.isVisible = false; })
-            Button('Plot')
+            Button($r('app.string.dlg_plot_action'))
               .fontSize(14).height(32)
               .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
               .margin({ left: 12 })

@@ -154,7 +154,7 @@ export struct PlotPage {
     Column() {
       // --- Toolbar ---
       Row() {
-        Text('Plots')
+        Text($r('app.string.panel_plots'))
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
           .fontColor('#333333')
@@ -178,7 +178,7 @@ export struct PlotPage {
           .layoutWeight(1)
           .height(28)
         }
-        Button('Refresh')
+        Button($r('app.string.common_refresh'))
           .fontSize(12)
           .height(28)
           .onClick(() => {
@@ -195,10 +195,10 @@ export struct PlotPage {
       if (this.plotList.length === 0 && !this.isLoading) {
         // Empty state
         Column() {
-          Text('No plots available')
+          Text($r('app.string.common_no_plots'))
             .fontSize(16)
             .fontColor('#999999')
-          Text('Create a plot from a table (Qt backend)')
+          Text($r('app.string.page_create_plot_hint'))
             .fontSize(12)
             .fontColor('#BBBBBB')
             .margin({ top: 4 })
@@ -208,7 +208,7 @@ export struct PlotPage {
         .alignItems(HorizontalAlign.Center)
       } else if (this.isLoading) {
         Column() {
-          Text('Loading...')
+          Text($r('app.string.common_loading'))
             .fontSize(16)
             .fontColor('#999999')
         }
@@ -229,7 +229,7 @@ export struct PlotPage {
           // Curve list sidebar
           if (this.currentGraph) {
             Column() {
-              Text('Curves')
+              Text($r('app.string.panel_curves'))
                 .fontSize(12)
                 .fontWeight(FontWeight.Bold)
                 .fontColor('#333333')

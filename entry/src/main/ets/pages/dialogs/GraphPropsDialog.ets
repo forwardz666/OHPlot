@@ -42,7 +42,7 @@ export struct GraphPropsDialog {
 
   build() {
     Column() {
-      Text('Graph Properties')
+      Text($r('app.string.dlg_graph_props'))
         .fontSize(18)
         .fontWeight(FontWeight.Bold)
         .fontColor('#333333')
@@ -50,11 +50,11 @@ export struct GraphPropsDialog {
 
       Column({ space: 8 }) {
         Row({ space: 8 }) {
-          TextInput({ placeholder: 'Graph title', text: this.titleText })
+          TextInput({ placeholder: $r('app.string.dlg_graph_title_ph'), text: this.titleText })
             .layoutWeight(1)
             .fontSize(13)
             .onChange((value: string) => { this.titleText = value; })
-          Button('Apply')
+          Button($r('app.string.common_apply'))
             .fontSize(12).height(32)
             .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
             .onClick(() => {
@@ -65,11 +65,11 @@ export struct GraphPropsDialog {
         .width('100%')
 
         Row({ space: 8 }) {
-          TextInput({ placeholder: 'X axis title', text: this.xAxisTitle })
+          TextInput({ placeholder: $r('app.string.dlg_x_axis_title_ph'), text: this.xAxisTitle })
             .layoutWeight(1)
             .fontSize(13)
             .onChange((value: string) => { this.xAxisTitle = value; })
-          Button('Apply')
+          Button($r('app.string.common_apply'))
             .fontSize(12).height(32)
             .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
             .onClick(() => {
@@ -80,11 +80,11 @@ export struct GraphPropsDialog {
         .width('100%')
 
         Row({ space: 8 }) {
-          TextInput({ placeholder: 'Y axis title', text: this.yAxisTitle })
+          TextInput({ placeholder: $r('app.string.dlg_y_axis_title_ph'), text: this.yAxisTitle })
             .layoutWeight(1)
             .fontSize(13)
             .onChange((value: string) => { this.yAxisTitle = value; })
-          Button('Apply')
+          Button($r('app.string.common_apply'))
             .fontSize(12).height(32)
             .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
             .onClick(() => {
@@ -101,7 +101,7 @@ export struct GraphPropsDialog {
               this.callQt('setAxisScale',
                 JSON.stringify({ axis: 2, scale: val ? 'log' : 'linear' } as SetAxisScaleArgs));
             })
-          Text('Log X axis')
+          Text($r('app.string.dlg_log_x'))
             .fontSize(13)
             .fontColor('#555555')
             .margin({ left: 8 })
@@ -116,7 +116,7 @@ export struct GraphPropsDialog {
               this.callQt('setAxisScale',
                 JSON.stringify({ axis: 0, scale: val ? 'log' : 'linear' } as SetAxisScaleArgs));
             })
-          Text('Log Y axis')
+          Text($r('app.string.dlg_log_y'))
             .fontSize(13)
             .fontColor('#555555')
             .margin({ left: 8 })
@@ -124,7 +124,7 @@ export struct GraphPropsDialog {
         .width('100%')
         .padding({ top: 4, bottom: 4 })
 
-        Button('Toggle Legend')
+        Button($r('app.string.dlg_toggle_legend'))
           .fontSize(13).height(36)
           .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
           .width('100%')
@@ -135,7 +135,7 @@ export struct GraphPropsDialog {
       .width('100%')
       .padding({ left: 16, right: 16 })
 
-      Button('Close')
+      Button($r('app.string.common_close'))
         .fontSize(14).height(32)
         .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
         .margin({ top: 12, bottom: 16 })

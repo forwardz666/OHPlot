@@ -38,12 +38,12 @@ export struct ToolBar {
   // File ▸ New Aspect (new_aspect.xpm button)
   private newAspectMenu(): MenuElement[] {
     const items: MenuElement[] = [
-      { value: 'New Table', icon: $r('app.media.tb_table'), action: (): void => this.fire('new_table') },
-      { value: 'New Matrix', icon: $r('app.media.tb_new_matrix'), action: (): void => this.fire('new_matrix') },
-      { value: 'New Note', icon: $r('app.media.tb_new_note'), action: (): void => this.fire('new_notes') },
-      { value: 'New Graph', icon: $r('app.media.tb_new_graph'), action: (): void => this.fire('new_graph') },
-      { value: 'New Function Plot', action: (): void => this.fire('new_function') },
-      { value: 'New 3D Surface Plot', action: (): void => this.fire('new_surface') }
+      { value: $r('app.string.tbmenu_new_table'), icon: $r('app.media.tb_table'), action: (): void => this.fire('new_table') },
+      { value: $r('app.string.tbmenu_new_matrix'), icon: $r('app.media.tb_new_matrix'), action: (): void => this.fire('new_matrix') },
+      { value: $r('app.string.tbmenu_new_note'), icon: $r('app.media.tb_new_note'), action: (): void => this.fire('new_notes') },
+      { value: $r('app.string.tbmenu_new_graph'), icon: $r('app.media.tb_new_graph'), action: (): void => this.fire('new_graph') },
+      { value: $r('app.string.tbmenu_new_function_plot'), action: (): void => this.fire('new_function') },
+      { value: $r('app.string.tbmenu_new_3d_surface'), action: (): void => this.fire('new_surface') }
     ];
     return items;
   }
@@ -51,10 +51,10 @@ export struct ToolBar {
   // Graph ▸ Manage layers (arrangeLayers.xpm button)
   private layersMenu(): MenuElement[] {
     const items: MenuElement[] = [
-      { value: 'Automatic Layout', action: (): void => this.fire('auto_layout') },
-      { value: 'Add Layer', action: (): void => this.fire('add_layer') },
-      { value: 'Remove Layer', action: (): void => this.fire('delete_layer') },
-      { value: 'Arrange Layers...', action: (): void => this.fire('arrange_layers') }
+      { value: $r('app.string.tbmenu_auto_layout'), action: (): void => this.fire('auto_layout') },
+      { value: $r('app.string.tbmenu_add_layer'), action: (): void => this.fire('add_layer') },
+      { value: $r('app.string.tbmenu_remove_layer'), action: (): void => this.fire('delete_layer') },
+      { value: $r('app.string.tbmenu_arrange_layers'), action: (): void => this.fire('arrange_layers') }
     ];
     return items;
   }
@@ -62,9 +62,9 @@ export struct ToolBar {
   // Graph ▸ Add curves / error bars (curves.xpm button)
   private curvesMenu(): MenuElement[] {
     const items: MenuElement[] = [
-      { value: 'Add/Remove Curve...', action: (): void => this.fire('add_curve') },
-      { value: 'Add Error Bars...', action: (): void => this.fire('add_error_bars') },
-      { value: 'Add Function...', action: (): void => this.fire('add_function') }
+      { value: $r('app.string.tbmenu_add_remove_curve'), action: (): void => this.fire('add_curve') },
+      { value: $r('app.string.tbmenu_add_error_bars'), action: (): void => this.fire('add_error_bars') },
+      { value: $r('app.string.tbmenu_add_function'), action: (): void => this.fire('add_function') }
     ];
     return items;
   }
@@ -72,12 +72,12 @@ export struct ToolBar {
   // Graph ▸ Enrichments (text.xpm button)
   private enrichmentsMenu(): MenuElement[] {
     const items: MenuElement[] = [
-      { value: 'Add Text', action: (): void => this.fire('add_text') },
-      { value: 'Draw Arrow', action: (): void => this.fire('draw_arrow') },
-      { value: 'Draw Line', action: (): void => this.fire('draw_line') },
-      { value: 'Add Time Stamp', action: (): void => this.fire('time_stamp') },
-      { value: 'Add Image', action: (): void => this.fire('add_image') },
-      { value: 'New Legend', action: (): void => this.fire('new_legend') }
+      { value: $r('app.string.tbmenu_add_text'), action: (): void => this.fire('add_text') },
+      { value: $r('app.string.tbmenu_draw_arrow'), action: (): void => this.fire('draw_arrow') },
+      { value: $r('app.string.tbmenu_draw_line'), action: (): void => this.fire('draw_line') },
+      { value: $r('app.string.tbmenu_add_timestamp'), action: (): void => this.fire('time_stamp') },
+      { value: $r('app.string.tbmenu_add_image'), action: (): void => this.fire('add_image') },
+      { value: $r('app.string.tbmenu_new_legend'), action: (): void => this.fire('new_legend') }
     ];
     return items;
   }
@@ -85,13 +85,13 @@ export struct ToolBar {
   // Plot ▸ Lines and/or symbols (lpPlot.xpm button)
   private linesMenu(): MenuElement[] {
     const items: MenuElement[] = [
-      { value: 'Line', icon: $r('app.media.tb_lplot'), action: (): void => this.fire('plot_line') },
-      { value: 'Scatter', icon: $r('app.media.tb_pplot'), action: (): void => this.fire('plot_scatter') },
-      { value: 'Line + Symbol', icon: $r('app.media.tb_lpplot'), action: (): void => this.fire('plot_line_symbol') },
-      { value: 'Spline', action: (): void => this.fire('plot_spline') },
-      { value: 'Vertical Drop Lines', action: (): void => this.fire('plot_drop_lines') },
-      { value: 'Horizontal Steps', action: (): void => this.fire('plot_horizontal_steps') },
-      { value: 'Vertical Steps', action: (): void => this.fire('plot_vertical_steps') }
+      { value: $r('app.string.tbmenu_line'), icon: $r('app.media.tb_lplot'), action: (): void => this.fire('plot_line') },
+      { value: $r('app.string.tbmenu_scatter'), icon: $r('app.media.tb_pplot'), action: (): void => this.fire('plot_scatter') },
+      { value: $r('app.string.tbmenu_line_symbol'), icon: $r('app.media.tb_lpplot'), action: (): void => this.fire('plot_line_symbol') },
+      { value: $r('app.string.tbmenu_spline'), action: (): void => this.fire('plot_spline') },
+      { value: $r('app.string.tbmenu_vertical_drop_lines'), action: (): void => this.fire('plot_drop_lines') },
+      { value: $r('app.string.tbmenu_horizontal_steps'), action: (): void => this.fire('plot_horizontal_steps') },
+      { value: $r('app.string.tbmenu_vertical_steps'), action: (): void => this.fire('plot_vertical_steps') }
     ];
     return items;
   }
@@ -99,8 +99,8 @@ export struct ToolBar {
   // Plot ▸ Bars (vertBars.xpm button)
   private barsMenu(): MenuElement[] {
     const items: MenuElement[] = [
-      { value: 'Vertical Bars', action: (): void => this.fire('plot_vertical_bars') },
-      { value: 'Horizontal Bars', action: (): void => this.fire('plot_horizontal_bars') }
+      { value: $r('app.string.tbmenu_vertical_bars'), action: (): void => this.fire('plot_vertical_bars') },
+      { value: $r('app.string.tbmenu_horizontal_bars'), action: (): void => this.fire('plot_horizontal_bars') }
     ];
     return items;
   }
@@ -108,8 +108,8 @@ export struct ToolBar {
   // Plot ▸ Vectors (vectXYXY.xpm button)
   private vectorsMenu(): MenuElement[] {
     const items: MenuElement[] = [
-      { value: 'Vectors XYXY', action: (): void => this.fire('plot_vect_xyxy') },
-      { value: 'Vectors XYAM', action: (): void => this.fire('plot_vect_xyam') }
+      { value: $r('app.string.tbmenu_vectors_xyxy'), action: (): void => this.fire('plot_vect_xyxy') },
+      { value: $r('app.string.tbmenu_vectors_xyam'), action: (): void => this.fire('plot_vect_xyam') }
     ];
     return items;
   }

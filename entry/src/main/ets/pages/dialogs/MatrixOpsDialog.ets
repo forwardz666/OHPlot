@@ -6,6 +6,7 @@
 // QtEventHost.
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
+import { getAppString } from '../../components/LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -66,14 +67,14 @@ export struct MatrixDimensionsDialog {
           .onClick(() => { this.isVisible = false; })
 
         Column() {
-          Text('Matrix Dimensions — ' + this.matrixId)
+          Text(getAppString('dlg_matrix_dims') + ' — ' + this.matrixId)
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333333')
             .margin({ top: 16, bottom: 12 })
 
           Row() {
-            Text('Rows:')
+            Text($r('app.string.dlg_rows'))
               .fontSize(13)
               .fontColor('#555555')
               .layoutWeight(1)
@@ -89,7 +90,7 @@ export struct MatrixDimensionsDialog {
           .margin({ bottom: 8 })
 
           Row() {
-            Text('Columns:')
+            Text($r('app.string.dlg_cols'))
               .fontSize(13)
               .fontColor('#555555')
               .layoutWeight(1)
@@ -105,11 +106,11 @@ export struct MatrixDimensionsDialog {
           .margin({ bottom: 12 })
 
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14).height(32)
               .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
               .onClick(() => { this.isVisible = false; })
-            Button('Apply')
+            Button($r('app.string.common_apply'))
               .fontSize(14).height(32)
               .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
               .margin({ left: 12 })
@@ -140,7 +141,7 @@ export struct MatrixValuesDialog {
 
   onApply(): void {
     if (this.formula.trim() === '') {
-      this.statusMsg = 'Please enter a formula.';
+      this.statusMsg = getAppString('msg_enter_formula');
       return;
     }
     try {
@@ -167,7 +168,7 @@ export struct MatrixValuesDialog {
           .onClick(() => { this.isVisible = false; })
 
         Column() {
-          Text('Set Matrix Values — ' + this.matrixId)
+          Text(getAppString('dlg_set_matrix_values') + ' — ' + this.matrixId)
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333333')
@@ -176,17 +177,17 @@ export struct MatrixValuesDialog {
           Column() {
             // Matrix muParser variables: i/row (1-based row), j/col
             // (1-based column), x/y (coordinate system values).
-            Text('Formula (muParser):')
+            Text($r('app.string.dlg_formula_muparser'))
               .fontSize(13)
               .fontColor('#555555')
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 4 })
-            TextInput({ text: this.formula, placeholder: 'e.g. i*j  or  sin(x)*cos(y)' })
+            TextInput({ text: this.formula, placeholder: $r('app.string.dlg_example_matrix') })
               .fontSize(13)
               .height(36)
               .width('100%')
               .onChange((val: string) => { this.formula = val; })
-            Text('Variables: i,row • j,col • x,y (coordinates)')
+            Text($r('app.string.dlg_matrix_vars_hint'))
               .fontSize(10)
               .fontColor('#999999')
               .alignSelf(ItemAlign.Start)
@@ -203,11 +204,11 @@ export struct MatrixValuesDialog {
           .width('100%')
 
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14).height(32)
               .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
               .onClick(() => { this.isVisible = false; })
-            Button('Apply')
+            Button($r('app.string.common_apply'))
               .fontSize(14).height(32)
               .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
               .margin({ left: 12 })

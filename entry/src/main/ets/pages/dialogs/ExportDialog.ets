@@ -7,6 +7,7 @@ import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 import { picker } from '@kit.CoreFileKit';
 import common from '@ohos.app.ability.common';
+import { getAppString } from '../../components/LocaleHelper';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'ArkSciDAVis';
@@ -80,7 +81,7 @@ export struct ExportDialog {
 
   async onExport(): Promise<void> {
     if (!this.selectedTable) {
-      this.statusMsg = 'Please select a table first.';
+      this.statusMsg = getAppString('msg_select_table');
       return;
     }
     try {
@@ -106,7 +107,7 @@ export struct ExportDialog {
       this.isVisible = false; // toast arrives via the event channel
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'ExportDialog picker failed: %{public}s', (e as Error).message);
-      this.statusMsg = 'Export failed: ' + (e as Error).message;
+      this.statusMsg = getAppString('msg_export_failed') + (e as Error).message;
     }
   }
 
@@ -125,7 +126,7 @@ export struct ExportDialog {
         // Dialog box
         Column() {
           // Title
-          Text('Export ASCII Data')
+          Text($r('app.string.dlg_export_title'))
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333333')
@@ -135,7 +136,7 @@ export struct ExportDialog {
             Column() {
               // Table selection
               Row() {
-                Text('Table:')
+                Text($r('app.string.dlg_export_table'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(80)
@@ -157,7 +158,7 @@ export struct ExportDialog {
                   .height(100)
                   .border({ width: 1, color: '#D0D0D0' })
                 } else {
-                  Text('No tables available')
+                  Text($r('app.string.common_no_tables'))
                     .fontSize(12)
                     .fontColor('#999999')
                 }
@@ -167,7 +168,7 @@ export struct ExportDialog {
 
               // Separator
               Row() {
-                Text('Separator:')
+                Text($r('app.string.dlg_separator'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .width(80)
@@ -188,7 +189,7 @@ export struct ExportDialog {
 
               // Column names toggle
               Row() {
-                Text('Include column names:')
+                Text($r('app.string.dlg_export_include_names'))
                   .fontSize(13)
                   .fontColor('#555555')
                   .layoutWeight(1)
@@ -213,7 +214,7 @@ export struct ExportDialog {
 
           // Buttons
           Row() {
-            Button('Cancel')
+            Button($r('app.string.common_cancel'))
               .fontSize(14)
               .height(32)
               .backgroundColor('#E0E0E0')
@@ -222,7 +223,7 @@ export struct ExportDialog {
               .onClick(() => {
                 this.isVisible = false;
               })
-            Button('Export')
+            Button($r('app.string.dlg_export_action'))
               .fontSize(14)
               .height(32)
               .backgroundColor('#0078D7')
