@@ -20,6 +20,6 @@
 
 ## 相关规范
 
-配套开发规范见 [../specifications/](../specifications/) 目录，其中与 skill 直接相关：
+配套开发规范见 [../开发规范/](../开发规范/) 目录，其中与 skill 直接相关：
 
 - `09_DevEco_Code三层子代理调用规范.md` — tiered-dev-delegation 的完整规范与本机验证记录
