@@ -7,6 +7,7 @@
 
 # Build artifacts
 .hvigor/
+build/
 entry/.cxx/
 entry/build/
 oh_modules/
@@ -40,11 +41,19 @@ desktop.ini
 # Backup directories
 *.backup-*
 
-# Debug/diagnostic artifacts
+# Debug/diagnostic artifacts (canonical home: diagnostics/, see docs/DEVELOPMENT_GUIDE.md §7)
+diagnostics/
 hilog_*.txt
 scr*.jpeg
 screen*.jpeg
+layout_*.json
 *.bak
+
+# Tool transients (underscore prefix = scratch output)
+tools/_*.json
+tools/_*.log
+tools/__pycache__/
+_docs_export.tar
 
 # Screenshot images (debug/test captures)
 *.jpeg
