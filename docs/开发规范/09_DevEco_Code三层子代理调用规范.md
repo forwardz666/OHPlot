@@ -114,7 +114,7 @@ $jobs | ForEach-Object { Receive-Job $_ }
 2. **轮询监督**：主 AI 对每个后台任务设定监督节奏，建议每 3-5 分钟检查一次 `background_output(task_id=...)` 或会话状态。连续 2 次轮询（约 10 分钟）无任何新产出（无新消息、无工具调用、状态无变化）即判定"疑似卡死"。
 3. **核实后 cancel，禁止盲目杀**：判定疑似卡死后，先核实再处置：① 查看最近一次输出与最后工具调用，判断是否仍在推进（bash 长命令运行中、大文件构建中等属正常长任务，不得杀）；② 确认确实无进展（空转、重复相同动作、思考循环）后，才执行 `background_cancel(taskId="bg_...")`。核心原则：**宁可多等一轮，不误杀正常长任务**，防止"任务做一半被关掉"。
 4. **重派与总结**：cancel 后记录中止原因与 session 延续 ID（`ses_...`），调整策略后重新派发：换 category（如 `deep` 改为 `quick` / `unspecified-high`）、换模型、或改为文件级/更小粒度任务（参照 3.3 的文件级拆分原则）。重派用 `task(task_id="ses_...")` 延续上下文，而非从零开始新任务。
-5. **参数兜底**：底层 oh-my-openagent 的 background_task 已有自动监管（`taskTtlMs=90min` 总时长上限、`staleTimeoutMs=30min` 无进展超时、circuitBreaker 连续 8 次相同工具调用熔断）。主 AI 轮询是第一道监督，自动熔断是兜底；两者配合，主 AI 应在自动熔断触发前主动发现并处置异常任务。
+5. **参数兜底**：底层 oh-my-openagent 的 background_task 已有自动监管（`taskTtlMs=90min` 总时长上限、`staleTimeoutMs=30min` 无进展超时、circuitBreaker 连续 8 次相同工具调用熔断）。主 AI 轮询是第一道监督，自动熔断是兜底；两者配合，主 AI 应在自动熔断触发前主动发现并处置异常任务。**配置文件位置（2026-08-02 实测）**：上述 `background_task` 参数写入 `~/.omo/omo.jsonc` 的 `[opencode]` 块内（插件源码 `resolveUserOmoConfigDirectory()` = `~/.omo`，`detectUserOmoJsonPath()` 优先读 `omo.jsonc`）；`~/.config/opencode/oh-my-openagent.json` 不在插件配置发现路径内，写入该位置不生效（08-02 曾误写该处导致熔断参数未加载，30 次相同调用测试未触发熔断）。注意 `omo.jsonc` 是 JSONC 格式（可含 `//` 注释），`background_task` 必须嵌套在 `[opencode]` harness 块内。
 
 ## 4. 结果采纳规则
 
