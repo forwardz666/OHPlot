@@ -1,8 +1,27 @@
 // OHPlot toolbar — original SciDAVis desktop icons (converted from
 // scidavis/icons *.xpm and icons/light/24 *.svg), replicating the Windows
-// File / Edit / Graph / Plot toolbars 1:1; ids reuse the menu dispatch.
+// toolbar categories (ApplicationWindow::initToolBars): File / Edit /
+// Graph / Plot / Plot3D groups.  Ids reuse the menu dispatch.
+//
+// Tablet layout (task: toolbar regroup + occlusion fix):
+// - Groups sit in a Flex(wrap) container, so rows wrap instead of
+//   overflowing the screen width (the old single-row Scroll cut off the
+//   Plot3D tail on the tablet).
+// - Context groups follow the desktop enable logic but HIDE instead of
+//   grey to save width: Graph group only with an active 2D plot, Plot +
+//   Plot3D groups only with an active Table.  File/Edit are always shown.
+// - The container height is dynamic (1..n rows); MainLayout measures it
+//   via onAreaChange and forwards the chrome inset to Qt
+//   (setChromeInsets) so the MDI area is never occluded.
+// - Buttons carry component ids (tb_* / tbdrop_*) so verify scripts can
+//   locate them through `uitest dumpLayout` instead of fixed coordinates.
+//
 // Buttons are emitted directly (no ForEach) so @Prop changes always
 // refresh the greyed state (past ForEach-key defect on device).
+//
+// The 2D-plot (plot_tools) and 3D-surface groups now live in a separate
+// bottom bar (BottomToolBar.ets); this bar keeps File / Edit / Graph.
+import * as Theme from './Theme';
 
 // @Builder by-reference parameter shapes: passing one object literal keeps
 // the enabled flags reactive (see the Builders note inside ToolBar).
@@ -10,12 +29,15 @@ interface TbButtonOpts {
   id: string;
   icon: Resource;
   enabled: boolean;
+  tip: string;   // resource name of the hover tooltip (Windows-style hint)
 }
 
 interface TbDropOpts {
+  id: string;
   icon: Resource;
   enabled: boolean;
   menu: MenuElement[];
+  tip: string;
 }
 
 @Component
@@ -26,12 +48,30 @@ export struct ToolBar {
   @Prop isTable: boolean = false;     // active window is a Table
   @Prop isGraph: boolean = false;     // active window is a 2D plot (MultiLayer)
   onItemClick?: (itemId: string) => void;
+  // Right-click callback (问题4b): toolbar buttons only carried
+  // onClick/onHover, so a right press had no handler anywhere.  The root
+  // Flex now forwards Right+Press here in WINDOW coordinates (MouseEvent
+  // windowX/windowY = app-window top-left, the same space MainLayout's
+  // Stack-relative contextMenuX/Y live in), so MainLayout can pop the
+  // existing ContextMenu at the real click position.
+  onContextMenu?: (x: number, y: number) => void;
+  // Callback to show/hide a custom tooltip overlay in MainLayout (rendered
+  // at Stack level with zIndex 300, same style as BottomToolBar).  tipKey
+  // is the string resource name; x/y is the global position for the
+  // overlay; show=true → display, show=false → hide.
+  onHoverTip?: (tipKey: string, x: number, y: number, show: boolean) => void;
+  // Id of the button currently hovered by the mouse; used internally.
+  @State hoverTipId: string = '';
+  // Per-button global position [x, y], captured via onAreaChange.
+  @State btnPos: Record<string, [number, number]> = {};
 
   private fire(itemId: string): void {
     if (this.onItemClick) {
       this.onItemClick(itemId);
     }
   }
+
+
 
   // ── Dropdown menus (Windows QToolButton InstantPopup equivalents) ──
 
@@ -82,38 +122,6 @@ export struct ToolBar {
     return items;
   }
 
-  // Plot ▸ Lines and/or symbols (lpPlot.xpm button)
-  private linesMenu(): MenuElement[] {
-    const items: MenuElement[] = [
-      { value: $r('app.string.tbmenu_line'), icon: $r('app.media.tb_lplot'), action: (): void => this.fire('plot_line') },
-      { value: $r('app.string.tbmenu_scatter'), icon: $r('app.media.tb_pplot'), action: (): void => this.fire('plot_scatter') },
-      { value: $r('app.string.tbmenu_line_symbol'), icon: $r('app.media.tb_lpplot'), action: (): void => this.fire('plot_line_symbol') },
-      { value: $r('app.string.tbmenu_spline'), action: (): void => this.fire('plot_spline') },
-      { value: $r('app.string.tbmenu_vertical_drop_lines'), action: (): void => this.fire('plot_drop_lines') },
-      { value: $r('app.string.tbmenu_horizontal_steps'), action: (): void => this.fire('plot_horizontal_steps') },
-      { value: $r('app.string.tbmenu_vertical_steps'), action: (): void => this.fire('plot_vertical_steps') }
-    ];
-    return items;
-  }
-
-  // Plot ▸ Bars (vertBars.xpm button)
-  private barsMenu(): MenuElement[] {
-    const items: MenuElement[] = [
-      { value: $r('app.string.tbmenu_vertical_bars'), action: (): void => this.fire('plot_vertical_bars') },
-      { value: $r('app.string.tbmenu_horizontal_bars'), action: (): void => this.fire('plot_horizontal_bars') }
-    ];
-    return items;
-  }
-
-  // Plot ▸ Vectors (vectXYXY.xpm button)
-  private vectorsMenu(): MenuElement[] {
-    const items: MenuElement[] = [
-      { value: $r('app.string.tbmenu_vectors_xyxy'), action: (): void => this.fire('plot_vect_xyxy') },
-      { value: $r('app.string.tbmenu_vectors_xyam'), action: (): void => this.fire('plot_vect_xyam') }
-    ];
-    return items;
-  }
-
   // ── Builders ──
   // Device-verified defect: @Builder value-parameters are frozen at first
   // render (ArkTS by-value passing is not reactive), which left Edit/Plot
@@ -134,7 +142,23 @@ export struct ToolBar {
     .height(28)
     .justifyContent(FlexAlign.Center)
     .borderRadius(4)
-    .opacity($$.enabled ? 1.0 : 0.4)
+    .opacity($$.enabled ? 1.0 : Theme.OPACITY_DISABLED)
+    .id('tb_' + $$.id)
+    .onAreaChange((_o: Area, n: Area) => {
+      if (n.globalPosition) {
+        this.btnPos[$$.id] = [n.globalPosition.x as number, n.globalPosition.y as number];
+      }
+    })
+    .onHover((isHover: boolean) => {
+      if (isHover) {
+        this.hoverTipId = $$.id;
+        const p = this.btnPos[$$.id];
+        if (this.onHoverTip && p) { this.onHoverTip($$.tip, p[0], p[1] + 30, true); }
+      } else if (this.hoverTipId === $$.id) {
+        this.hoverTipId = '';
+        if (this.onHoverTip) { this.onHoverTip('', 0, 0, false); }
+      }
+    })
     .onClick(() => {
       if (!$$.enabled) {
         return;
@@ -156,8 +180,24 @@ export struct ToolBar {
     .height(28)
     .justifyContent(FlexAlign.Center)
     .borderRadius(4)
-    .opacity($$.enabled ? 1.0 : 0.4)
+    .opacity($$.enabled ? 1.0 : Theme.OPACITY_DISABLED)
     .enabled($$.enabled)
+    .id($$.id)
+    .onAreaChange((_o: Area, n: Area) => {
+      if (n.globalPosition) {
+        this.btnPos[$$.id] = [n.globalPosition.x as number, n.globalPosition.y as number];
+      }
+    })
+    .onHover((isHover: boolean) => {
+      if (isHover) {
+        this.hoverTipId = $$.id;
+        const p = this.btnPos[$$.id];
+        if (this.onHoverTip && p) { this.onHoverTip($$.tip, p[0], p[1] + 30, true); }
+      } else if (this.hoverTipId === $$.id) {
+        this.hoverTipId = '';
+        if (this.onHoverTip) { this.onHoverTip('', 0, 0, false); }
+      }
+    })
     .bindMenu($$.menu)
   }
 
@@ -166,79 +206,128 @@ export struct ToolBar {
     Row()
       .width(1)
       .height(20)
-      .backgroundColor('#CCCCCC')
+      .backgroundColor(Theme.LINE)
       .margin({ left: 4, right: 4 })
   }
 
-  build() {
-    // Horizontal Scroll = OHOS stand-in for QToolBar's overflow extension:
-    // 38 buttons x 30vp exceed narrow screens (tablet is ~1116vp @ DPR 2.2),
-    // so the tail Plot3D group must stay reachable without shrinking icons.
-    Scroll() {
-      Row() {
-      // ── File toolbar (ApplicationWindow::initToolBars file_tools) ──
-      this.ToolButton({ id: 'new_project', icon: $r('app.media.tb_new'), enabled: true })
-      this.DropButton({ icon: $r('app.media.tb_new_aspect'), enabled: true, menu: this.newAspectMenu() })
-      this.ToolButton({ id: 'open', icon: $r('app.media.tb_fileopen'), enabled: true })
-      this.ToolButton({ id: 'open_template', icon: $r('app.media.tb_open_template'), enabled: true })
-      this.ToolButton({ id: 'import', icon: $r('app.media.tb_import'), enabled: true })
-      this.ToolButton({ id: 'save', icon: $r('app.media.tb_filesave'), enabled: true })
-      this.ToolButton({ id: 'save_template', icon: $r('app.media.tb_save_template'), enabled: true })
-      this.Separator()
-      this.ToolButton({ id: 'print', icon: $r('app.media.tb_fileprint'), enabled: true })
-      this.ToolButton({ id: 'export_pdf', icon: $r('app.media.tb_pdf'), enabled: true })
-      this.Separator()
-      this.ToolButton({ id: 'project_browser', icon: $r('app.media.tb_folder'), enabled: true })
-      this.ToolButton({ id: 'log', icon: $r('app.media.tb_log'), enabled: true })
-      this.Separator()
-
-      // ── Edit toolbar (edit_tools) ──
-      this.ToolButton({ id: 'undo', icon: $r('app.media.tb_edit_undo'), enabled: this.undoEnabled })
-      this.ToolButton({ id: 'redo', icon: $r('app.media.tb_edit_redo'), enabled: this.redoEnabled })
-      this.ToolButton({ id: 'cut', icon: $r('app.media.tb_edit_cut'), enabled: this.hasWin })
-      this.ToolButton({ id: 'copy', icon: $r('app.media.tb_edit_copy'), enabled: this.hasWin })
-      this.ToolButton({ id: 'paste', icon: $r('app.media.tb_edit_paste'), enabled: this.hasWin })
-      this.ToolButton({ id: 'delete', icon: $r('app.media.tb_erase'), enabled: this.hasWin })
-      this.Separator()
-
-      // ── Graph toolbar (graph_tools; greyed unless a 2D plot is active) ──
-      this.ToolButton({ id: 'graph_pointer', icon: $r('app.media.tb_pointer'), enabled: this.isGraph })
-      this.Separator()
-      this.DropButton({ icon: $r('app.media.tb_arrangelayers'), enabled: this.isGraph, menu: this.layersMenu() })
-      this.DropButton({ icon: $r('app.media.tb_curves'), enabled: this.isGraph, menu: this.curvesMenu() })
-      this.DropButton({ icon: $r('app.media.tb_text'), enabled: this.isGraph, menu: this.enrichmentsMenu() })
-      this.Separator()
-      this.ToolButton({ id: 'zoom_in', icon: $r('app.media.tb_zoom'), enabled: this.isGraph })
-      this.ToolButton({ id: 'zoom_out', icon: $r('app.media.tb_zoomout'), enabled: this.isGraph })
-      this.ToolButton({ id: 'rescale', icon: $r('app.media.tb_unzoom'), enabled: this.isGraph })
-      this.Separator()
-      this.ToolButton({ id: 'screen_reader', icon: $r('app.media.tb_cursor_16'), enabled: this.isGraph })
-      this.ToolButton({ id: 'data_reader', icon: $r('app.media.tb_select'), enabled: this.isGraph })
-      this.ToolButton({ id: 'select_range', icon: $r('app.media.tb_cursors'), enabled: this.isGraph })
-      this.Separator()
-
-      // ── Plot toolbar (plot_tools; greyed unless a Table is active) ──
-      this.DropButton({ icon: $r('app.media.tb_lpplot'), enabled: this.isTable, menu: this.linesMenu() })
-      this.DropButton({ icon: $r('app.media.tb_vertbars'), enabled: this.isTable, menu: this.barsMenu() })
-      this.ToolButton({ id: 'plot_area', icon: $r('app.media.tb_area'), enabled: this.isTable })
-      this.ToolButton({ id: 'plot_pie', icon: $r('app.media.tb_pie'), enabled: this.isTable })
-      this.ToolButton({ id: 'plot_histogram', icon: $r('app.media.tb_histogram'), enabled: this.isTable })
-      this.ToolButton({ id: 'plot_box', icon: $r('app.media.tb_boxplot'), enabled: this.isTable })
-      this.DropButton({ icon: $r('app.media.tb_vectxyxy'), enabled: this.isTable, menu: this.vectorsMenu() })
-      this.Separator()
-      this.ToolButton({ id: 'plot3d_ribbon', icon: $r('app.media.tb_ribbon'), enabled: this.isTable })
-      this.ToolButton({ id: 'plot3d_bars', icon: $r('app.media.tb_bars'), enabled: this.isTable })
-      this.ToolButton({ id: 'plot3d_scatter', icon: $r('app.media.tb_scatter'), enabled: this.isTable })
-      this.ToolButton({ id: 'plot3d_trajectory', icon: $r('app.media.tb_trajectory'), enabled: this.isTable })
-      }
-      .padding({ left: 4 })
+  // QToolBar-style grip drawn at the left edge of every group: marks the
+  // groups as independent toolbars (visual parity with the Windows build).
+  @Builder
+  Grip() {
+    Row() {
+      Row().width(1).height(16).backgroundColor(Theme.GRIP)
+      Row().width(1).height(16).backgroundColor(Theme.GRIP).margin({ left: 2 })
     }
-    .scrollable(ScrollDirection.Horizontal)
-    .scrollBar(BarState.Off)
-    .align(Alignment.Start)
+    .margin({ left: 3, right: 5 })
+  }
+
+  // ── Toolbar groups (one per desktop QToolBar) ──
+  // Each group is a bordered rounded Row = one Windows toolbar segment.
+  // The shared container attributes are repeated per builder because
+  // @Builder functions cannot take content closures.
+
+  // file_tools (always visible)
+  @Builder
+  FileGroup() {
+    Row() {
+      this.Grip()
+      this.ToolButton({ id: 'new_project', icon: $r('app.media.tb_new'), enabled: true, tip: 'tip_new_project' })
+      this.DropButton({ id: 'tbdrop_new_aspect', icon: $r('app.media.tb_new_aspect'), enabled: true, menu: this.newAspectMenu(), tip: 'tip_new_aspect' })
+      this.ToolButton({ id: 'open', icon: $r('app.media.tb_fileopen'), enabled: true, tip: 'tip_open' })
+      this.ToolButton({ id: 'open_template', icon: $r('app.media.tb_open_template'), enabled: true, tip: 'tip_open_template' })
+      this.ToolButton({ id: 'import', icon: $r('app.media.tb_import'), enabled: true, tip: 'tip_import' })
+      this.ToolButton({ id: 'save', icon: $r('app.media.tb_filesave'), enabled: true, tip: 'tip_save' })
+      this.ToolButton({ id: 'save_template', icon: $r('app.media.tb_save_template'), enabled: true, tip: 'tip_save_template' })
+      this.Separator()
+      this.ToolButton({ id: 'print', icon: $r('app.media.tb_fileprint'), enabled: true, tip: 'tip_print' })
+      this.ToolButton({ id: 'export_pdf', icon: $r('app.media.tb_pdf'), enabled: true, tip: 'tip_export_pdf' })
+      this.Separator()
+      this.ToolButton({ id: 'project_browser', icon: $r('app.media.tb_folder'), enabled: true, tip: 'tip_project_browser' })
+      this.ToolButton({ id: 'log', icon: $r('app.media.tb_log'), enabled: true, tip: 'tip_log' })
+    }
+    .height(30)
+    .padding({ right: 3 })
+    .margin(2)
+    .borderRadius(4)
+    .border({ width: 1, color: Theme.GROUP_BORDER })
+    .backgroundColor(Theme.GROUP_BG)
+  }
+
+  // edit_tools (always visible; greying follows uiState)
+  @Builder
+  EditGroup() {
+    Row() {
+      this.Grip()
+      this.ToolButton({ id: 'undo', icon: $r('app.media.tb_edit_undo'), enabled: this.undoEnabled, tip: 'tip_undo' })
+      this.ToolButton({ id: 'redo', icon: $r('app.media.tb_edit_redo'), enabled: this.redoEnabled, tip: 'tip_redo' })
+      this.ToolButton({ id: 'cut', icon: $r('app.media.tb_edit_cut'), enabled: this.hasWin, tip: 'tip_cut' })
+      this.ToolButton({ id: 'copy', icon: $r('app.media.tb_edit_copy'), enabled: this.hasWin, tip: 'tip_copy' })
+      this.ToolButton({ id: 'paste', icon: $r('app.media.tb_edit_paste'), enabled: this.hasWin, tip: 'tip_paste' })
+      this.ToolButton({ id: 'delete', icon: $r('app.media.tb_erase'), enabled: this.hasWin, tip: 'tip_delete' })
+    }
+    .height(30)
+    .padding({ right: 3 })
+    .margin(2)
+    .borderRadius(4)
+    .border({ width: 1, color: Theme.GROUP_BORDER })
+    .backgroundColor(Theme.GROUP_BG)
+  }
+
+  // graph_tools (rendered only with an active 2D plot; the group-level
+  // show/hide replaces the desktop per-button greying)
+  @Builder
+  GraphGroup() {
+    Row() {
+      this.Grip()
+      this.ToolButton({ id: 'graph_pointer', icon: $r('app.media.tb_pointer'), enabled: true, tip: 'tip_graph_pointer' })
+      this.Separator()
+      this.DropButton({ id: 'tbdrop_layers', icon: $r('app.media.tb_arrangelayers'), enabled: true, menu: this.layersMenu(), tip: 'tip_layers' })
+      this.DropButton({ id: 'tbdrop_curves', icon: $r('app.media.tb_curves'), enabled: true, menu: this.curvesMenu(), tip: 'tip_curves' })
+      this.DropButton({ id: 'tbdrop_enrichments', icon: $r('app.media.tb_text'), enabled: true, menu: this.enrichmentsMenu(), tip: 'tip_enrichments' })
+      this.Separator()
+      this.ToolButton({ id: 'zoom_in', icon: $r('app.media.tb_zoom'), enabled: true, tip: 'tip_zoom_in' })
+      this.ToolButton({ id: 'zoom_out', icon: $r('app.media.tb_zoomout'), enabled: true, tip: 'tip_zoom_out' })
+      this.ToolButton({ id: 'rescale', icon: $r('app.media.tb_unzoom'), enabled: true, tip: 'tip_rescale' })
+      this.Separator()
+      this.ToolButton({ id: 'screen_reader', icon: $r('app.media.tb_cursor_16'), enabled: true, tip: 'tip_screen_reader' })
+      this.ToolButton({ id: 'data_reader', icon: $r('app.media.tb_select'), enabled: true, tip: 'tip_data_reader' })
+      this.ToolButton({ id: 'select_range', icon: $r('app.media.tb_cursors'), enabled: true, tip: 'tip_select_range' })
+    }
+    .height(30)
+    .padding({ right: 3 })
+    .margin(2)
+    .borderRadius(4)
+    .border({ width: 1, color: Theme.GROUP_BORDER })
+    .backgroundColor(Theme.GROUP_BG)
+  }
+
+  build() {
+    // Flex(wrap) = OHOS stand-in for QMainWindow's toolbar rows: groups
+    // that do not fit the tablet width wrap onto the next row instead of
+    // being clipped (the old single-row Scroll hid the Plot3D tail).
+    // Height is content-driven; MainLayout measures it via onAreaChange.
+    Flex({ wrap: FlexWrap.Wrap, alignItems: ItemAlign.Center }) {
+      this.FileGroup()
+      this.EditGroup()
+      if (this.isGraph) {
+        this.GraphGroup()
+      }
+    }
     .width('100%')
-    .height(32)
-    .backgroundColor('#F0F0F0')
-    .border({ width: { bottom: 1 }, color: '#CCCCCC' })
+    .padding({ left: 2, top: 1, bottom: 1 })
+    .backgroundColor(Theme.CHROME_BG)
+    .border({ width: { bottom: 1 }, color: Theme.LINE })
+    // 问题4b: the toolbar buttons have no .onMouse, so right-click had no
+    // handler.  Mouse events bubble child → root, so ONE handler here
+    // covers every button (left clicks still go through the per-button
+    // onClick).  windowX/windowY are app-window-relative, matching the
+    // MainLayout context-menu coordinate space.
+    .onMouse((event: MouseEvent) => {
+      if (event.button === MouseButton.Right && event.action === MouseAction.Press) {
+        if (this.onContextMenu) {
+          this.onContextMenu(event.windowX, event.windowY);
+        }
+      }
+    })
   }
 }
