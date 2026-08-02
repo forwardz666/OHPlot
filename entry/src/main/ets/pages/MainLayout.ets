@@ -1,4 +1,4 @@
-// OHPlot Main Layout - overlays on top of XComponent (Qt render)
+﻿// OHPlot Main Layout - overlays on top of XComponent (Qt render)
 // Phase 1: XComponent remains visible as backup underneath
 //
 // CRITICAL EVENT FLOW (device-verified 2026-07-27 via InputProbe src= field):
@@ -10,15 +10,18 @@
 // - Bluetooth LEFT clicks: ArkUI re-routes them into the touch pipeline;
 //   the QPA plugin drops them, so only the forwarded copy reaches Qt.
 // - Bluetooth RIGHT/MIDDLE clicks: ArkUI onMouse on the outer Stack catches
-//   these and forwards via sendMouse → scidavis_inject_mouse → Qt.
+//   these and forwards via sendMouse 鈫?scidavis_inject_mouse 鈫?Qt.
 // - MenuBar area: ArkTS handles all menu UI natively.
 // - Content area: HitTestMode.Transparent lets events pass through to
 //   the XComponent underneath for native QPA processing.
 // - StatusBar area: ArkTS handles status display.
-// - WARNING: Do NOT forward touch events via sendMouse — the QPA plugin
+// - WARNING: Do NOT forward touch events via sendMouse 鈥?the QPA plugin
 //   already handles them natively.  Forwarding duplicates causes crashes.
 import { MenuBar, DropdownMenu } from '../components/MenuBar';
+import { ContextMenu } from '../components/ContextMenu';
 import { ToolBar } from '../components/ToolBar';
+import { BottomToolBar } from '../components/BottomToolBar';
+import * as Theme from '../components/Theme';
 import { StatusBar } from '../components/StatusBar';
 import { QtEventHost } from '../components/QtEventHost';
 import { NoteEditor } from './NoteEditor';
@@ -33,6 +36,9 @@ import { AnalysisDialog, CorrelateDialog } from './dialogs/AnalysisDialog';
 import { PreferencesDialog } from './dialogs/PreferencesDialog';
 import { ScriptConsoleDialog } from './dialogs/ScriptConsoleDialog';
 import { GraphPropsDialog } from './dialogs/GraphPropsDialog';
+import { AddCurveDialog } from './dialogs/AddCurveDialog';
+import { ErrorBarsDialog } from './dialogs/ErrorBarsDialog';
+import { AddFunctionDialog } from './dialogs/AddFunctionDialog';
 import { ProjectTree } from '../components/ProjectTree';
 import { getAppString } from '../components/LocaleHelper';
 import hilog from '@ohos.hilog';
@@ -41,6 +47,7 @@ import { picker } from '@kit.CoreFileKit';
 import fs from '@ohos.file.fs';
 import pasteboard from '@ohos.pasteboard';
 import common from '@ohos.app.ability.common';
+import display from '@ohos.display';
 
 interface QohosInjector {
   sendMouse(x: number, y: number, button: number, action: number): boolean;
@@ -54,14 +61,19 @@ const TAG: string = 'QtInput';
 
 // ArkTS chrome bands that must NOT be forwarded to Qt (vp).  A forwarded
 // tap on the Qt menu bar (hidden underneath the ArkTS one) makes Qt call
-// QMenu::popup() → QPA window creation → SIGSEGV: the alpha_v6 plugin
+// QMenu::popup() 鈫?QPA window creation 鈫?SIGSEGV: the alpha_v6 plugin
 // supports only the single main XComponent window (device crash log
 // cppcrash-...-20260727151314, QOpenHarmonyJsObject::getJsFunction).
 const MENUBAR_HEIGHT_VP: number = 28;
-// Menu bar (28) + ArkTS toolbar (32): the whole top chrome band that must
-// never be forwarded to Qt (the hidden Qt menu bar/toolbars sit underneath).
-const TOP_CHROME_VP: number = 60;
+// The toolbar height is DYNAMIC (grouped toolbars wrap onto 1..n rows and
+// context groups show/hide with the active window type), so the full top
+// chrome band is MENUBAR_HEIGHT_VP + the measured toolbar height 鈥?see
+// topChromeVp().  That band must never be forwarded to Qt (the hidden Qt
+// menu bar sits underneath).
 const STATUSBAR_HEIGHT_VP: number = 24;
+// Results Log auto-scroll: distance (vp) from bottom at which the user
+// is considered "at the bottom" vs "scrolled up".  Smaller = stricter.
+const SCROLL_BOTTOM_THRESHOLD: number = 50;
 
 // Mirror of the Qt-side menuAction whitelist (main.cpp command registry).
 // menuAction is a *mutation* command: scidavis_call queues it and returns
@@ -70,8 +82,9 @@ const STATUSBAR_HEIGHT_VP: number = 24;
 // therefore be gated here, before calling Qt.  Keep in sync with main.cpp.
 const MENU_ACTION_SUPPORTED: string[] = [
   'new_notes', 'new_matrix', 'new_project', 'new_graph',
-  'cascade', 'maximize_window', 'minimize_window', 'close_window',
-  'about', 'undo', 'redo', 'cut', 'copy', 'paste', 'delete'
+  'cascade', 'maximize_window', 'minimize_window', 'restore_window', 'close_window',
+  'about', 'undo', 'redo', 'cut', 'copy', 'paste', 'delete',
+  'clear_selection'
 ];
 
 let leftDown: boolean = false;
@@ -109,9 +122,18 @@ interface TableStatisticsArgs {
   type: string;
 }
 
-// setClipboardText payload (Phase 2 clipboard bridge, OHOS → Qt).
+// setClipboardText payload (Phase 2 clipboard bridge, OHOS 鈫?Qt).
 interface SetClipboardArgs {
   text: string;
+}
+
+// setChromeInsets payload: physical-pixel top/bottom margins Qt applies
+// to the QMainWindow so the MDI area clears the ArkTS chrome
+// (top/bottom bands).  The Qt-native table column panel is rendered by
+// Qt itself (TableView d_control_tabs), so no right inset is needed.
+interface ChromeInsetsArgs {
+  top: number;
+  bottom: number;
 }
 
 // matrixTranspose / matrixInvert payload (Phase 3).
@@ -163,8 +185,23 @@ export struct MainLayout {
   @State showNotes: boolean = false;
   @State statusText: string = '';
   @State currentView: string = 'default';
+  // User's explicit View-menu selection (View→Tables/Plots/...).  This
+  // distinguishes a manual choice from the system's auto-switch inside
+  // refreshUiState: auto-switch only fires while this flag is false and
+  // never overrides a locked view.  It is set on every manual switch and
+  // never reset by refreshUiState (active name/type changes keep it), so
+  // the user's explicit choice always wins over the auto logic.
+  @State userViewLocked: boolean = false;
+  // 问题5: whether the active MDI window is maximized.  Drives the
+  // window-control middle button glyph (maximize '□' vs restore '❐');
+  // refreshed from uiState.windows (status===2 == MyWidget::Maximized).
+  @State activeWinMaximized: boolean = false;
   @State showImportDialog: boolean = false;
   @State showExportDialog: boolean = false;
+  // Right-click context menu state
+  @State showContextMenu: boolean = false;
+  @State contextMenuX: number = 0;
+  @State contextMenuY: number = 0;
   // Table-operation dialogs (Phase 2); tableOpsTarget is the active table
   // captured at menu-dispatch time (uiState refreshes on every menu-open).
   @State showAddColsDialog: boolean = false;
@@ -183,14 +220,54 @@ export struct MainLayout {
   @State showAnalysisDialog: boolean = false;
   @State analysisOpSel: string = 'fit_linear';
   @State showCorrelateDialog: boolean = false;
+  // Graph-edit dialogs (Phase 3b): add_curve / add_error_bars / add_function.
+  @State showAddCurveDialog: boolean = false;
+  @State showErrorBarsDialog: boolean = false;
+  @State showAddFunctionDialog: boolean = false;
   // Results Log panel (View menu): text accumulated from resultsLog
   // events by QtEventHost via AppStorage.
   @State showResultsLog: boolean = false;
-  @StorageProp('resultsLog') resultsLogText: string = '';
+  @StorageProp('resultsLog') @Watch('onResultsLogChanged') resultsLogText: string = '';
+  private scroller: Scroller = new Scroller();
+  // true = auto-scroll to bottom on next layout; set false when user
+  // manually scrolls up, re-enabled by onResultsLogChanged on new text.
+  private shouldAutoScroll: boolean = true;
+  // Measured dimensions (vp) from onAreaChange callbacks.
+  private scrollViewportHeight: number = 0;
+  // Long-press-to-right-click state (touch -> context menu)
+  private lastTouchX: number = 0;
+  private lastTouchY: number = 0;
+  private touchStartTime: number = 0;
+  private LONG_PRESS_DURATION_MS: number = 500;
+  private LONG_PRESS_MAX_MOVE_VP: number = 20;
+  private scrollContentHeight: number = 0;
   // Project browser sidebar (Phase 3): tree from getProjectTree; the tick
   // bumps on every uiState refresh so the tree stays current.
   @State showProjectTree: boolean = false;
   @State projectTreeTick: number = 0;
+  // Dynamic toolbar height (vp), measured via onAreaChange on the ToolBar:
+  // the grouped toolbar wraps onto 1..n rows and its context groups
+  // show/hide with the active window type, so the chrome band cannot be a
+  // constant any more.
+  @State toolbarHeightVp: number = 32;
+  // Height (vp) of the bottom toolbar (2D-plot + 3D-surface groups), only
+  // present while a Table is active; 0 otherwise.  Folded into the Qt
+  // bottom chrome inset so the MDI area clears the docked bar.
+  @State bottomToolbarHeightVp: number = 0;
+  // Custom tooltip overlay for BottomToolBar buttons (bindPopup is occluded
+  // by the XComponent native rendering layer; this overlay sits at Stack
+  // level with zIndex 300 to appear above XComponent).
+  @State tooltipText: string = '';
+  @State tooltipX: number = 0;
+  @State tooltipY: number = 0;
+  @State tooltipShow: boolean = false;
+  // Global y of the BottomToolBar top edge, used to position the tooltip
+  // above the hovered button.
+  @State bottomBarTopY: number = 0;
+  // setChromeInsets startup retry: the first push can race the Qt event
+  // loop ("Qt not running"), so retry until the queued ack arrives.
+  private insetsRetry: number = 0;
+  private uiRefreshRetry: number = 0;
   // Phase 3 dialogs living outside the isVisible pattern: these are
   // @CustomDialog structs, driven by controllers.
   private prefsDialogCtl: CustomDialogController = new CustomDialogController({
@@ -237,8 +314,95 @@ export struct MainLayout {
     this.rebuildMenus();
   }
 
+  onResultsLogChanged(): void {
+    // New content appended 鈥?re-enable auto-scroll so the next Text
+    // layout (onAreaChange) will scroll to the bottom automatically.
+    this.shouldAutoScroll = true;
+  }
+
   aboutToAppear(): void {
     this.rebuildMenus(); // initial static skeleton before Qt is queried
+    this.schedulePushChromeInsets(); // tell Qt to clear the ArkTS chrome
+  }
+
+  // Full ArkTS top chrome height (vp): menu bar + measured toolbar rows.
+  private topChromeVp(): number {
+    return MENUBAR_HEIGHT_VP + this.toolbarHeightVp;
+  }
+
+  // Push the chrome insets to Qt (setChromeInsets 鈫?QMainWindow content
+  // Unified hover-tip handler for both ToolBar (top) and BottomToolBar
+  // (bottom).  Renders a yellow tooltip overlay at Stack level (zIndex 300)
+  // above the XComponent native layer.  The caller supplies x/y so the
+  // overlay can appear below (top toolbar) or above (bottom toolbar) the
+  // hovered button.
+  private handleHoverTip(tipKey: string, x: number, y: number, show: boolean): void {
+    if (show) {
+      this.tooltipText = getAppString(tipKey);
+      this.tooltipX = x;
+      this.tooltipY = y;
+      this.tooltipShow = true;
+    } else {
+      this.tooltipShow = false;
+    }
+  }
+
+  // margins in physical px).  Queued fire-and-forget on the Qt side;
+  // returns false while Qt is not running yet so the retry loop keeps
+  // going.
+  private pushChromeInsets(): boolean {
+    try {
+      // Use the UIContext-bound vp2px, NOT the deprecated global vp2px():
+      // the global one falls back to the DEFAULT screen's virtual pixel
+      // ratio when the UI instance is ambiguous, which can disagree with
+      // the real UI density (device DPR=2.2).  A wrong conversion makes
+      // the Qt MDI top inset mismatch the ArkTS overlay bottom edge and
+      // the overlay covers the first rows of tables/matrices (问题3).
+      const density: number = display.getDefaultDisplaySync().densityPixels;
+      const topVp: number = this.topChromeVp();
+      const bottomVp: number = STATUSBAR_HEIGHT_VP + this.bottomToolbarHeightVp;
+      const top: number = Math.round(this.getUIContext().vp2px(topVp));
+      const bottom: number = Math.round(this.getUIContext().vp2px(bottomVp));
+      const raw: string = qtInjector.callQtCommand('setChromeInsets',
+        JSON.stringify({ top: top, bottom: bottom } as ChromeInsetsArgs));
+      const resp: CmdResult = JSON.parse(raw) as CmdResult;
+      hilog.info(DOMAIN, TAG,
+        'setChromeInsets density=%{public}s topVp=%{public}s topPx=%{public}d bottomVp=%{public}s bottomPx=%{public}d -> %{public}s',
+        String(density), String(topVp), top, String(bottomVp), bottom, raw);
+      return resp.success;
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'setChromeInsets failed: %{public}s', (e as Error).message);
+      return false;
+    }
+  }
+
+  // Startup path: Qt's event loop may not be running when the overlay
+  // first appears, so retry with a short backoff until the push succeeds
+  // (later height changes go through onAreaChange directly).  A queued
+  // ack only proves the QApplication exists, so the follow-up uiState
+  // fetch below still needs its own retry loop.
+  private schedulePushChromeInsets(): void {
+    if (this.pushChromeInsets()) {
+      this.scheduleStartupUiRefresh();
+      return;
+    }
+    if (this.insetsRetry < 20) {
+      this.insetsRetry++;
+      setTimeout(() => this.schedulePushChromeInsets(), 500);
+    }
+  }
+
+  // Startup uiState fetch: getUiState can time out (3s fallback) while
+  // the Qt event loop is still starting, leaving the toolbar context
+  // groups hidden although the default Table exists.  Poll until an
+  // active window shows up (device-verified: first fetch after install
+  // returned an empty state).
+  private scheduleStartupUiRefresh(): void {
+    this.refreshUiState();
+    if (this.uiState.activeName === '' && this.uiRefreshRetry < 10) {
+      this.uiRefreshRetry++;
+      setTimeout(() => this.scheduleStartupUiRefresh(), 1000);
+    }
   }
 
   private refreshUiState(): void {
@@ -247,6 +411,34 @@ export struct MainLayout {
       const resp: UiStateResponse = JSON.parse(raw) as UiStateResponse;
       if (resp.success && resp.data !== undefined) {
         this.uiState = resp.data;
+        // Default view passes through to Qt native rendering; the ArkTS
+        // table overlay (TablePage) is only surfaced via the explicit
+        // View menu choice.
+        // 问题①: a non-Table window (graph/matrix) becoming active must not
+        // leave the ArkTS table overlay mounted over the Qt window.  Only
+        // revert a view that the system placed automatically; a user-locked
+        // 'tables' choice stays, and 'plots' is never touched here.
+        if (resp.data.activeType !== 'Table' && this.currentView === 'tables' && !this.userViewLocked) {
+          this.currentView = 'default';
+        }
+        // 问题5: derive the maximize/restore state of the active window
+        // from the serialized status (MyWidget::Status: Maximized = 2).
+        let maximized: boolean = false;
+        for (let i = 0; i < resp.data.windows.length; i++) {
+          const w: UiWindow = resp.data.windows[i];
+          if (w.active && w.status === 2) {
+            maximized = true;
+            break;
+          }
+        }
+        this.activeWinMaximized = maximized;
+        // The bottom toolbar only exists for Tables; when it is gone its
+        // onAreaChange can no longer zero the height, so clear the bottom
+        // inset here or the MDI area keeps an empty band reserved.
+        if (resp.data.activeType !== 'Table' && this.bottomToolbarHeightVp !== 0) {
+          this.bottomToolbarHeightVp = 0;
+          this.pushChromeInsets();
+        }
         // Greying debug trail: activeType drives isTable/isGraph on the
         // toolbar; log it so device runs can prove what ETS received.
         hilog.info(DOMAIN, TAG, 'uiState: type=%{public}s name=%{public}s undo=%{public}s',
@@ -278,28 +470,28 @@ export struct MainLayout {
       { id: 'new_matrix', label: getAppString('file_new_matrix') },
       { id: 'new_notes', label: getAppString('file_new_note') },
       { id: 'new_graph', label: getAppString('file_new_graph') },
-      { id: 'sep1', label: '─' },
+      { id: 'sep1', label: '鈹€' },
       { id: 'open', label: getAppString('file_open_project'), shortcut: 'Ctrl+O' },
       { id: 'save', label: getAppString('file_save_project'), shortcut: 'Ctrl+S' },
       { id: 'save_as', label: getAppString('file_save_as') },
-      { id: 'sep2', label: '─' },
+      { id: 'sep2', label: '鈹€' },
       { id: 'import', label: getAppString('file_import_ascii') },
       { id: 'export', label: getAppString('file_export_ascii') },
-      { id: 'sep3', label: '─' },
+      { id: 'sep3', label: '鈹€' },
       { id: 'print', label: getAppString('file_print'), shortcut: 'Ctrl+P', enabled: false },
-      { id: 'sep4', label: '─' },
+      { id: 'sep4', label: '鈹€' },
       { id: 'quit', label: getAppString('file_quit'), shortcut: 'Ctrl+Q' }
     ]});
 
     defs.push({ id: 'edit', label: getAppString('menu_edit'), items: [
       { id: 'undo', label: getAppString('edit_undo'), shortcut: 'Ctrl+Z', enabled: st.undoEnabled },
       { id: 'redo', label: getAppString('edit_redo'), shortcut: 'Ctrl+Y', enabled: st.redoEnabled },
-      { id: 'sep1', label: '─' },
+      { id: 'sep1', label: '鈹€' },
       { id: 'cut', label: getAppString('edit_cut_selection'), shortcut: 'Ctrl+X', enabled: hasWin },
       { id: 'copy', label: getAppString('edit_copy_selection'), shortcut: 'Ctrl+C', enabled: hasWin },
       { id: 'paste', label: getAppString('edit_paste_selection'), shortcut: 'Ctrl+V', enabled: hasWin },
       { id: 'delete', label: getAppString('edit_delete_selection'), enabled: hasWin },
-      { id: 'sep2', label: '─' },
+      { id: 'sep2', label: '鈹€' },
       { id: 'preferences', label: getAppString('edit_preferences') }
     ]});
 
@@ -308,7 +500,7 @@ export struct MainLayout {
       { id: 'plots', label: getAppString('view_plot_list'), checked: this.currentView === 'plots' },
       { id: 'tables', label: getAppString('view_table_list'), checked: this.currentView === 'tables' },
       { id: 'notes', label: getAppString('view_note_pad'), checked: this.showNotes },
-      { id: 'sep1', label: '─' },
+      { id: 'sep1', label: '鈹€' },
       { id: 'log', label: getAppString('view_results_log'), checked: this.showResultsLog },
       { id: 'script_console', label: getAppString('view_script_console') }
     ]});
@@ -319,7 +511,7 @@ export struct MainLayout {
       defs.push({ id: 'matrix', label: getAppString('menu_matrix'), items: [
         { id: 'set_dimensions', label: getAppString('matrix_set_dimensions') },
         { id: 'set_values', label: getAppString('matrix_set_values') },
-        { id: 'sep1', label: '─' },
+        { id: 'sep1', label: '鈹€' },
         { id: 'transpose', label: getAppString('matrix_transpose') },
         { id: 'invert', label: getAppString('matrix_invert') }
       ]});
@@ -327,12 +519,12 @@ export struct MainLayout {
       defs.push({ id: 'graph', label: getAppString('menu_graph'), items: [
         { id: 'graph_props', label: getAppString('graph_properties'), enabled: st.activeType === 'MultiLayer' },
         { id: 'export_image', label: getAppString('graph_export_image'), enabled: st.activeType === 'MultiLayer' },
-        { id: 'sep0', label: '─' },
-        { id: 'add_curve', label: getAppString('graph_add_remove_curve'), enabled: false },
-        { id: 'add_error_bars', label: getAppString('graph_add_error_bars'), enabled: false },
-        { id: 'add_function', label: getAppString('graph_add_function'), enabled: false },
-        { id: 'sep1', label: '─' },
-        { id: 'rescale', label: getAppString('graph_rescale'), enabled: false }
+        { id: 'sep0', label: '鈹€' },
+        { id: 'add_curve', label: getAppString('graph_add_remove_curve'), enabled: st.activeType === 'MultiLayer' },
+        { id: 'add_error_bars', label: getAppString('graph_add_error_bars'), enabled: st.activeType === 'MultiLayer' },
+        { id: 'add_function', label: getAppString('graph_add_function'), enabled: st.activeType === 'MultiLayer' },
+        { id: 'sep1', label: '鈹€' },
+        { id: 'rescale', label: getAppString('graph_rescale'), enabled: st.activeType === 'MultiLayer' }
       ]});
     } else {
       const isTable: boolean = st.activeType === 'Table';
@@ -340,14 +532,14 @@ export struct MainLayout {
         { id: 'add_columns', label: getAppString('table_add_columns'), enabled: isTable },
         { id: 'set_values', label: getAppString('table_set_values'), enabled: isTable },
         { id: 'sort', label: getAppString('table_sort_table'), enabled: isTable },
-        { id: 'sep1', label: '─' },
+        { id: 'sep1', label: '鈹€' },
         { id: 'statistics_columns', label: getAppString('table_stats_columns'), enabled: isTable },
         { id: 'statistics_rows', label: getAppString('table_stats_rows'), enabled: isTable }
       ]});
     }
 
     // Plot menu mirrors the desktop 2D types; every entry funnels into the
-    // Plot2DDialog (column picker) → queued plot2D backend command.
+    // Plot2DDialog (column picker) 鈫?queued plot2D backend command.
     const isTablePlot: boolean = st.activeType === 'Table';
     defs.push({ id: 'plot', label: getAppString('menu_plot'), items: [
       { id: 'plot_line', label: getAppString('plot_line'), enabled: isTablePlot },
@@ -357,15 +549,15 @@ export struct MainLayout {
       { id: 'plot_horizontal_bars', label: getAppString('plot_horizontal_bars'), enabled: isTablePlot },
       { id: 'plot_area', label: getAppString('plot_area'), enabled: isTablePlot },
       { id: 'plot_pie', label: getAppString('plot_pie'), enabled: isTablePlot },
-      { id: 'sep0', label: '─' },
+      { id: 'sep0', label: '鈹€' },
       { id: 'plot_drop_lines', label: getAppString('plot_vertical_drop_lines'), enabled: isTablePlot },
       { id: 'plot_spline', label: getAppString('plot_spline'), enabled: isTablePlot },
       { id: 'plot_vertical_steps', label: getAppString('plot_vertical_steps'), enabled: isTablePlot },
       { id: 'plot_horizontal_steps', label: getAppString('plot_horizontal_steps'), enabled: isTablePlot },
-      { id: 'sep0b', label: '─' },
+      { id: 'sep0b', label: '鈹€' },
       { id: 'plot_histogram', label: getAppString('plot_histogram'), enabled: isTablePlot },
       { id: 'plot_box', label: getAppString('plot_box'), enabled: isTablePlot },
-      { id: 'sep1', label: '─' },
+      { id: 'sep1', label: '鈹€' },
       { id: 'plot_2d', label: getAppString('plot_explorer_2d') },
       { id: 'plot_3d', label: getAppString('plot_3d'), enabled: false }
     ]});
@@ -379,14 +571,14 @@ export struct MainLayout {
       { id: 'an_fit_gauss', label: getAppString('analysis_fit_gaussian'), enabled: isPlotWin },
       { id: 'an_fit_lorentz', label: getAppString('analysis_fit_lorentzian'), enabled: isPlotWin },
       { id: 'an_fit_sigmoidal', label: getAppString('analysis_fit_boltzmann'), enabled: isPlotWin },
-      { id: 'sep1', label: '─' },
+      { id: 'sep1', label: '鈹€' },
       { id: 'an_fft', label: getAppString('analysis_fft_dlg'), enabled: isPlotWin },
       { id: 'an_fft_filter', label: getAppString('analysis_fft_filter'), enabled: isPlotWin },
       { id: 'an_smooth', label: getAppString('analysis_smooth_dlg'), enabled: isPlotWin },
       { id: 'an_interpolate', label: getAppString('analysis_interpolate'), enabled: isPlotWin },
       { id: 'an_differentiate', label: getAppString('analysis_differentiate'), enabled: isPlotWin },
       { id: 'an_integrate', label: getAppString('analysis_integrate'), enabled: isPlotWin },
-      { id: 'sep2', label: '─' },
+      { id: 'sep2', label: '鈹€' },
       { id: 'correlate', label: getAppString('analysis_correlate'), enabled: st.activeType === 'Table' }
     ]});
 
@@ -398,9 +590,15 @@ export struct MainLayout {
       { id: 'close_window', label: getAppString('win_close'), shortcut: 'Ctrl+W', enabled: hasWin }
     ];
     if (st.windows.length > 0) {
-      winItems.push({ id: 'sep1', label: '─' });
+      winItems.push({ id: 'sep1', label: '鈹€' });
+      // Defensive dedup by name (device-verified: C++ dedup may miss edge cases)
+      const seenWinNames: string[] = [];
       for (let i = 0; i < st.windows.length; i++) {
         const w: UiWindow = st.windows[i];
+        if (seenWinNames.indexOf(w.name) >= 0) {
+          continue;
+        }
+        seenWinNames.push(w.name);
         winItems.push({ id: 'win:' + w.name, label: w.name + ' (' + w.type + ')', checked: w.active });
       }
     }
@@ -408,7 +606,7 @@ export struct MainLayout {
 
     defs.push({ id: 'help', label: getAppString('menu_help'), items: [
       { id: 'help', label: getAppString('help_browser'), enabled: false },
-      { id: 'sep1', label: '─' },
+      { id: 'sep1', label: '鈹€' },
       { id: 'about', label: getAppString('help_about_ohplot') }
     ]});
 
@@ -416,7 +614,7 @@ export struct MainLayout {
   }
   
   // Unified "not adapted yet" notice (menu + toolbar): an AlertDialog per
-  // spec — silent no-ops and toasts are both forbidden for unadapted items.
+  // spec 鈥?silent no-ops and toasts are both forbidden for unadapted items.
   private showNotAdapted(): void {
     this.getUIContext().showAlertDialog({
       message: $r('app.string.not_adapted'),
@@ -427,8 +625,8 @@ export struct MainLayout {
     });
   }
 
-  // NAPI defensive-programming spec (HARNESS guide §3.3): every callQtCommand
-  // must be wrapped in try-catch — a failed dlsym/route otherwise throws an
+  // NAPI defensive-programming spec (HARNESS guide 搂3.3): every callQtCommand
+  // must be wrapped in try-catch 鈥?a failed dlsym/route otherwise throws an
   // uncaught exception that kills the ArkTS UI thread.
   onMenuItemClick(itemId: string): void {
     hilog.info(DOMAIN, TAG, 'MainLayout menu click: %{public}s', itemId);
@@ -493,9 +691,17 @@ export struct MainLayout {
         this.showExportDialog = true;
         break;
       case 'add_columns':
+      case 'add_column':
         this.tableOpsTarget = this.uiState.activeName;
         AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
         this.showAddColsDialog = true;
+        break;
+      case 'table_dimensions':
+      case 'table_size':
+        // Stub: the backend dimensions command is not implemented yet —
+        // surface the unified "not adapted yet" notice (same handling as
+        // unwhitelisted menu items) instead of a silent no-op.
+        this.showNotAdapted();
         break;
       case 'set_values':
         this.tableOpsTarget = this.uiState.activeName;
@@ -522,27 +728,52 @@ export struct MainLayout {
       case 'export_image':
         this.exportImageViaPicker();
         break;
+      case 'rescale': {
+        const result: string = qtInjector.callQtCommand('rescale', '{}');
+        hilog.info(DOMAIN, TAG, 'rescale result: %{public}s', result);
+        break;
+      }
+      case 'add_curve':
+        this.showAddCurveDialog = true;
+        break;
+      case 'add_error_bars':
+        this.showErrorBarsDialog = true;
+        break;
+      case 'add_function':
+        this.showAddFunctionDialog = true;
+        break;
       case 'sort':
         this.tableOpsTarget = this.uiState.activeName;
         AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
         this.showSortDialog = true;
         break;
       case 'statistics_columns':
-      case 'statistics_rows': {
+      case 'statistics_rows':
+      case 'stats_columns':
+      case 'stats_rows': {
         // No parameters needed; queued command, result toast via events.
         const result: string = qtInjector.callQtCommand('tableStatistics',
           JSON.stringify({
             tableId: this.uiState.activeName,
-            type: itemId === 'statistics_rows' ? 'rows' : 'columns'
+            type: (itemId === 'statistics_rows' || itemId === 'stats_rows') ? 'rows' : 'columns'
           } as TableStatisticsArgs));
         hilog.info(DOMAIN, TAG, '%{public}s queued: %{public}s', itemId, result);
         break;
       }
       case 'tables':
+        // Explicit user choice: lock the view so refreshUiState's auto
+        // logic never overrides it (toggling off to 'default' also locks —
+        // the user explicitly closed the tables overlay).
+        this.userViewLocked = true;
         this.currentView = (this.currentView === 'tables') ? 'default' : 'tables';
+        // Re-push chrome insets so a side-bar-mounted right inset is
+        // cleared immediately when the view leaves 'default'.
+        this.pushChromeInsets();
         break;
       case 'plots':
+        this.userViewLocked = true;
         this.currentView = (this.currentView === 'plots') ? 'default' : 'plots';
+        this.pushChromeInsets();
         break;
       case 'notes':
         this.showNotes = !this.showNotes;
@@ -613,12 +844,24 @@ export struct MainLayout {
         AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
         this.showCorrelateDialog = true;
         break;
-      case 'paste':
-        // Clipboard bridge: pull the OHOS system pasteboard into the Qt
-        // clipboard first, then dispatch the paste (both queued → FIFO
-        // order on the Qt thread is guaranteed).
-        this.pasteWithSystemClipboard();
-        break;
+case 'paste':
+         // Clipboard bridge: pull the OHOS system pasteboard into the Qt
+         // clipboard first, then dispatch the paste (both queued → FIFO
+         // order on the Qt thread is guaranteed).
+         this.pasteWithSystemClipboard();
+         break;
+      case 'insert_row': {
+         const result: string = qtInjector.callQtCommand('insert_row', '{}');
+         hilog.info(DOMAIN, TAG, 'insert_row: %{public}s', result);
+         setTimeout(() => { this.refreshUiState(); }, 300);
+         break;
+      }
+      case 'insert_col': {
+         const result: string = qtInjector.callQtCommand('insert_col', '{}');
+         hilog.info(DOMAIN, TAG, 'insert_col: %{public}s', result);
+         setTimeout(() => { this.refreshUiState(); }, 300);
+         break;
+      }
       case 'quit':
         hilog.info(DOMAIN, TAG, 'Quit requested - terminating ability');
         (getContext(this) as common.UIAbilityContext).terminateSelf();
@@ -632,7 +875,7 @@ export struct MainLayout {
           break;
         }
         // Fallback: route whitelisted items to Qt so the backend can decide
-        // (HARNESS guide P1 — users expect a real response, not just a log).
+        // (HARNESS guide P1 鈥?users expect a real response, not just a log).
         const result: string = qtInjector.callQtCommand('menuAction',
           JSON.stringify({ itemId: itemId } as MenuActionArgs));
         hilog.info(DOMAIN, TAG, 'fallback menuAction(%{public}s): %{public}s', itemId, result);
@@ -651,21 +894,27 @@ export struct MainLayout {
     }
   }
 
-  // ── Project open/save (Phase 2) ──────────────────────────────────────
+  // 鈹€鈹€ Project open/save (Phase 2) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   // Qt only reaches sandbox paths, so the pickers copy files in/out.
 
-  // ── Clipboard bridge (Phase 2) ─────────────────────────────────
-  // Qt → OHOS runs through the clipboardChanged event (QtEventHost).
-  private async pasteWithSystemClipboard(): Promise<void> {
+  // 鈹€鈹€ Clipboard bridge (Phase 2) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // Qt 鈫?OHOS runs through the clipboardChanged event (QtEventHost).
+  // The PasteButton temp READ_PASTEBOARD authorization is one-shot and is
+  // granted on click — the read MUST complete synchronously inside this
+  // onClick chain (spec §2.2), so only getDataSync() is used here (same
+  // constraint as the JsPasteBoard bridge, spec §1.3).  An async getData()
+  // would resume after the onClick callback returns and may lose the auth.
+  private pasteWithSystemClipboard(): void {
     try {
-      const data: pasteboard.PasteData = await pasteboard.getSystemPasteboard().getData();
+      const data: pasteboard.PasteData = pasteboard.getSystemPasteboard().getDataSync();
       const text: string = data.getPrimaryText();
       if (text !== null && text !== undefined && text !== '') {
         qtInjector.callQtCommand('setClipboardText',
           JSON.stringify({ text: text } as SetClipboardArgs));
       }
     } catch (e) {
-      // Empty/non-text pasteboard throws — fall through to Qt's own clipboard.
+      // Empty/non-text pasteboard or auth window missed — fall through to
+      // Qt's own clipboard (the in-app copy already lives in Qt's cache).
       hilog.info(DOMAIN, TAG, 'pasteboard read skipped: %{public}s', (e as Error).message);
     }
     const result: string = qtInjector.callQtCommand('menuAction',
@@ -673,7 +922,7 @@ export struct MainLayout {
     hilog.info(DOMAIN, TAG, 'paste dispatched: %{public}s', result);
   }
 
-  // ── Graph image export (Phase 3) ──────────────────────────────
+  // 鈹€鈹€ Graph image export (Phase 3) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   // Same picker/copy-out pattern as ExportDialog: render into the sandbox,
   // then the imageExported event copies the file to the picked URI.
   private async exportImageViaPicker(): Promise<void> {
@@ -769,6 +1018,36 @@ export struct MainLayout {
       hilog.error(DOMAIN, TAG, 'saveProjectAsViaPicker failed: %{public}s', (e as Error).message);
     }
   }
+
+  // 问题5: one MDI window-control button (min/max/close).  Windows SciDAVis
+  // shows these at the right end of the main menu bar while a sub-window is
+  // maximized; the commands are already in the MENU_ACTION_SUPPORTED
+  // whitelist and routed through the existing dispatchMenuItem fallback.
+  // Styled with the shared Theme tokens so they blend into the chrome.
+  @Builder
+  WindowCtlButton(label: string, action: string) {
+    Text(label)
+      .width(30)
+      .height(24)
+      .fontSize(12)
+      .textAlign(TextAlign.Center)
+      .fontColor(Theme.TEXT)
+      .borderRadius(3)
+      .backgroundColor(Theme.GROUP_BG)
+      .border({ width: 1, color: Theme.GROUP_BORDER })
+      .margin({ left: 2 })
+      .onClick(() => {
+        this.onMenuItemClick(action);
+        // Menu-open refresh already covers greying; mirror the toolbar
+        // behaviour and keep uiState current after the queued mutation.
+        this.refreshUiState();
+        // The window command is QUEUED on the Qt thread, so the immediate
+        // refresh reads the pre-mutation status and would leave the
+        // maximize/restore glyph stale.  Refresh again once the queue has
+        // drained (aligned with the ToolBar 700ms pattern).
+        setTimeout(() => this.refreshUiState(), 700);
+      })
+  }
   
   build() {
     Stack() {
@@ -790,9 +1069,11 @@ export struct MainLayout {
           }
         })
 
-        // ArkTS toolbar: original SciDAVis desktop icons, Windows-layout
-        // File/Edit/Graph/Plot groups.  Ids reuse the menu dispatch so
-        // behaviour matches the menu items 1:1.
+        // ArkTS toolbar: original SciDAVis desktop icons grouped into the
+        // Windows toolbar categories (File/Edit/Graph/Plot/3D); groups wrap
+        // onto extra rows on narrow screens and the context groups follow
+        // the active window type.  Ids reuse the menu dispatch so behaviour
+        // matches the menu items 1:1.
         ToolBar({
           undoEnabled: this.uiState.undoEnabled,
           redoEnabled: this.uiState.redoEnabled,
@@ -804,8 +1085,34 @@ export struct MainLayout {
             // keep greying current (menus refresh on open; toolbar has no
             // such hook, so refresh right after each dispatch)
             this.refreshUiState();
+            // Mutations are QUEUED (new_*, activateWindow...), so the
+            // immediate refresh can read the pre-mutation state and leave
+            // stale context groups (device-verified: Graph group lingered
+            // after New Matrix).  Refresh again once the queue drained.
+            setTimeout(() => this.refreshUiState(), 700);
+          },
+          // 问题4b: toolbar right-click 鈫?reuse the existing ContextMenu.
+          // ToolBar forwards window coordinates; both live in the same
+          // full-window space as the Stack-relative contextMenuX/Y.
+          onContextMenu: (x: number, y: number) => {
+            this.contextMenuX = x;
+            this.contextMenuY = y;
+            this.showContextMenu = true;
+          },
+          onHoverTip: (tipKey: string, x: number, y: number, show: boolean) => {
+            this.handleHoverTip(tipKey, x, y, show);
           }
         })
+          // The toolbar height changes when rows wrap or context groups
+          // toggle; track it so the touch guards, floating panels and the
+          // Qt-side insets all follow the real chrome height.
+          .onAreaChange((_old: Area, now: Area) => {
+            const h: number = now.height as number;
+            if (h > 0 && h !== this.toolbarHeightVp) {
+              this.toolbarHeightVp = h;
+              this.pushChromeInsets();
+            }
+          })
 
         // Content area: shows active view (default=transparent pass-through to Qt)
         // When menu is open, touching the content area closes it
@@ -818,7 +1125,7 @@ export struct MainLayout {
         } else {
           // Default: transparent - touch events pass through to
           // the XComponent for native QPA processing.  We do NOT forward
-          // touch via sendMouse here — QPA handles it natively.
+          // touch via sendMouse here 鈥?QPA handles it natively.
           Column()
             .layoutWeight(1)
             .hitTestBehavior(HitTestMode.Transparent)
@@ -831,6 +1138,31 @@ export struct MainLayout {
             })
         }
 
+        // Bottom toolbar: 2D-plot and 3D-surface groups docked below the
+        // content area (Windows plot_tools/plot3d moved to the lower page
+        // region).  Always visible regardless of active window type.
+        BottomToolBar({
+          isTable: true,
+          onItemClick: (itemId: string) => {
+            this.onMenuItemClick(itemId);
+            this.refreshUiState();
+            setTimeout(() => this.refreshUiState(), 700);
+          },
+          onHoverTip: (tipKey: string, x: number, y: number, show: boolean) => {
+            this.handleHoverTip(tipKey, x, y, show);
+          }
+        })
+          .onAreaChange((_old: Area, now: Area) => {
+            const h: number = now.height as number;
+            if (h >= 0 && h !== this.bottomToolbarHeightVp) {
+              this.bottomToolbarHeightVp = h;
+              this.pushChromeInsets();
+            }
+            if (now.globalPosition) {
+              this.bottomBarTopY = now.globalPosition.y as number;
+            }
+          })
+
         // Status bar
         StatusBar({ statusText: this.statusText })
       }
@@ -839,7 +1171,7 @@ export struct MainLayout {
 
       // Scrim while a menu is open: covers everything below the menu bar,
       // closes the menu when tapped, and (being hit-test opaque) blocks
-      // both ETS forwarding and native QPA delivery of that tap — desktop
+      // both ETS forwarding and native QPA delivery of that tap 鈥?desktop
       // menus dismiss on outside-click without acting on the content.
       // It starts at MENUBAR_HEIGHT_VP so the titles keep their toggle and
       // hover-switch behaviour, and is rendered BELOW DropdownMenu so the
@@ -873,6 +1205,67 @@ export struct MainLayout {
         .position({ x: this.dropdownX, y: MENUBAR_HEIGHT_VP })
         .zIndex(101)
 
+      // Right-click context menu: floating popup positioned at the click
+      // coordinates.  Always rendered (like DropdownMenu) so the @Link
+      // isVisible drives its internal show/hide.  zIndex above the sidebar
+      // and regular dropdown so menu items stay clickable.
+      ContextMenu({
+        isVisible: $showContextMenu,
+        positionX: this.contextMenuX,
+        positionY: this.contextMenuY,
+        activeType: this.uiState.activeType,
+        onItemClick: (itemId: string) => this.onMenuItemClick(itemId)
+      })
+        .zIndex(200)
+
+      // 问题5: MDI window controls (min/max/close) at the right end of the
+      // SAME row as the "files"/menu titles (Windows SciDAVis puts them
+      // there when a sub-window is maximized).  A full-width transparent
+      // Row keeps the MenuBar titles clickable below it; only the buttons
+      // (its children) grab clicks.  Shown whenever an MDI window is
+      // active (activeName !== ''); the middle button toggles between
+      // maximize '□' and restore '❐' following activeWinMaximized.
+      if (this.uiState.activeName !== '') {
+        Row() {
+          this.WindowCtlButton('—', 'minimize_window')
+          if (this.activeWinMaximized) {
+            this.WindowCtlButton('❐', 'restore_window')
+          } else {
+            this.WindowCtlButton('□', 'maximize_window')
+          }
+          this.WindowCtlButton('✕', 'close_window')
+        }
+        .width('100%')
+        .height(MENUBAR_HEIGHT_VP)
+        .justifyContent(FlexAlign.End)
+        .padding({ right: 4 })
+        .position({ x: 0, y: 0 })
+        .zIndex(300)
+        // Do not swallow menu-title taps: self+children hit-test but the
+        // siblings below (MenuBar) stay reachable; clicks on the buttons
+        // themselves are still delivered.
+        .hitTestBehavior(HitTestMode.Transparent)
+      }
+
+      // Custom tooltip overlay for ToolBar and BottomToolBar buttons.
+      // bindPopup is occluded by the XComponent (native rendering layer);
+      // this Text sits at Stack level with zIndex 300 so it renders above
+      // XComponent.  Position (x/y) is supplied by the caller via
+      // handleHoverTip: top toolbar → below button (btnY+30), bottom
+      // toolbar → above button (btnY-34).
+      if (this.tooltipShow && this.tooltipText) {
+        Text(this.tooltipText)
+          .fontSize(12)
+          .fontColor('#333333')
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor('#FFFFE1')
+          .borderRadius(4)
+          .border({ width: 1, color: '#C0C0C0' })
+          .position({ x: this.tooltipX, y: this.tooltipY })
+          .zIndex(300)
+          .hitTestBehavior(HitTestMode.Transparent)
+      }
+
       // Note editor overlay
       if (this.showNotes) {
         NoteEditor()
@@ -900,16 +1293,20 @@ export struct MainLayout {
         }
         .width('22%')
         .height('70%')
-        // Below the full top chrome (menubar + toolbar): at MENUBAR_HEIGHT
-        // the panel used to overlap the toolbar band and swallow its
-        // clicks (device-verified via uitest hit-test at y=96px).
-        .position({ x: 8, y: TOP_CHROME_VP + 8 })
+        // Below the full top chrome (menubar + toolbar rows): at
+        // MENUBAR_HEIGHT the panel used to overlap the toolbar band and
+        // swallow its clicks (device-verified via uitest hit-test).
+        .position({ x: 8, y: this.topChromeVp() + 8 })
         .backgroundColor('#F8F8F8')
         .borderRadius(8)
         .border({ width: 1, color: '#C0C0C0' })
         .shadow({ radius: 10, color: '#50000000', offsetX: 2, offsetY: 2 })
         .clip(true)
       }
+
+      // Column-properties sidebar is intentionally NOT mounted: the user
+      // wants the Qt-native table column control panel (TableView
+      // d_control_tabs) rendered by Qt itself, like the matrix one.
 
       // Results Log panel (View menu): analysis output from resultsLog events.
       if (this.showResultsLog) {
@@ -933,7 +1330,7 @@ export struct MainLayout {
           .width('100%')
           .padding({ left: 12, right: 12, top: 8, bottom: 8 })
 
-          Scroll() {
+          Scroll(this.scroller) {
             Text(this.resultsLogText === '' ? getAppString('common_empty') : this.resultsLogText)
               .fontSize(11)
               .fontColor('#444444')
@@ -941,7 +1338,34 @@ export struct MainLayout {
               .textAlign(TextAlign.Start)
               .width('100%')
               .padding({ left: 12, right: 12, bottom: 12 })
+              .onAreaChange((oldValue: Area, newValue: Area) => {
+                // Text content has been laid out 鈥?the Scroll is also
+                // fully laid out by this point, so scrollEdge is safe.
+                this.scrollContentHeight = newValue.height as number;
+                if (this.shouldAutoScroll) {
+                  this.scroller.scrollEdge(Edge.Bottom);
+                  this.shouldAutoScroll = false;
+                }
+              })
           }
+          .scrollBar(BarState.Auto)
+          .edgeEffect(EdgeEffect.Spring)
+          .onAreaChange((oldValue: Area, newValue: Area) => {
+            // Capture the Scroll viewport height (vp) so onScroll can
+            // compute the real distance from the bottom edge.
+            this.scrollViewportHeight = newValue.height as number;
+          })
+          .onScroll((xOffset: number, yOffset: number) => {
+            // Use measured dimensions 鈥?no hardcoded magic numbers.
+            if (this.scrollContentHeight > 0 && this.scrollViewportHeight > 0) {
+              const maxScrollOffset: number = Math.max(0,
+                this.scrollContentHeight - this.scrollViewportHeight);
+              const distanceFromBottom: number = maxScrollOffset - yOffset;
+              if (distanceFromBottom > SCROLL_BOTTOM_THRESHOLD) {
+                this.shouldAutoScroll = false;
+              }
+            }
+          })
           .layoutWeight(1)
           .width('100%')
           .align(Alignment.TopStart)
@@ -949,7 +1373,7 @@ export struct MainLayout {
         .width('46%')
         .height('60%')
         // Same toolbar-occlusion fix as the project browser panel above.
-        .position({ x: '52%', y: TOP_CHROME_VP + 8 })
+        .position({ x: '52%', y: this.topChromeVp() + 8 })
         .backgroundColor('#F8F8F8')
         .borderRadius(8)
         .border({ width: 1, color: '#C0C0C0' })
@@ -967,9 +1391,12 @@ export struct MainLayout {
       MatrixValuesDialog({ isVisible: $showMatrixValuesDialog, matrixId: this.tableOpsTarget })
       AnalysisDialog({ isVisible: $showAnalysisDialog, op: this.analysisOpSel })
       CorrelateDialog({ isVisible: $showCorrelateDialog, tableId: this.tableOpsTarget })
+      AddCurveDialog({ isVisible: $showAddCurveDialog })
+      ErrorBarsDialog({ isVisible: $showErrorBarsDialog })
+      AddFunctionDialog({ isVisible: $showAddFunctionDialog })
 
       // Qt backend event host: renders ArkUI replacements for QMessageBox /
-      // context menus / combo popups pushed via scidavis_emit → onQtEvent.
+      // context menus / combo popups pushed via scidavis_emit 鈫?onQtEvent.
       // Fully hit-test transparent while no overlay is visible.
       QtEventHost()
 
@@ -981,7 +1408,7 @@ export struct MainLayout {
     .height('100%')
     // Transparent normally (touches fall through to the XComponent for
     // native QPA delivery).  While a menu is open, switch to Default so
-    // the dismissing tap stays inside ArkTS — the scrim alone cannot stop
+    // the dismissing tap stays inside ArkTS 鈥?the scrim alone cannot stop
     // the native pipeline because an opaque child does not override the
     // outer Stack's Transparent mode (device-verified: src=2 press reached
     // Qt at the dismiss tap position).
@@ -990,12 +1417,12 @@ export struct MainLayout {
     // via sendMouse.  ETS CANNOT tell them apart: both report
     // source=TouchScreen, sourceTool=Finger (device-verified).  Finger
     // touches are also delivered natively by the QPA plugin, so Qt would
-    // see them twice — the Qt side (InputProbe) drops the duplicate by
+    // see them twice 鈥?the Qt side (InputProbe) drops the duplicate by
     // matching type+pos+button across different event sources within 60ms.
     // Right/middle Bluetooth clicks stay as MouseEvent and go via onMouse.
     // COORDINATES: ETS delivers vp; Qt runs with HighDpi scaling disabled
-    // (DPR=1) and therefore expects PHYSICAL pixels — convert with vp2px()
-    // before forwarding (DEVELOPMENT_GUIDE §1.3, device 2456x1600, ~1.5x).
+    // (DPR=1) and therefore expects PHYSICAL pixels 鈥?convert with vp2px()
+    // before forwarding (DEVELOPMENT_GUIDE 搂1.3, device 2456x1600, ~1.5x).
     .onTouch((event: TouchEvent) => {
       // Never forward while an ArkTS menu is open (dropdown interactions),
       // nor within the ArkTS menu-bar / status-bar bands: the Qt menu bar
@@ -1011,12 +1438,32 @@ export struct MainLayout {
           // Band guard applies to Down only; Move/Up follow leftDown so a
           // drag that ends inside a chrome band still delivers its release
           // (otherwise Qt is left with a stuck pressed button).
-          if (t.y < TOP_CHROME_VP || t.y > stackHeight - STATUSBAR_HEIGHT_VP) {
-            continue; // ArkTS chrome band — handled natively, not Qt's
+          if (t.y < this.topChromeVp() || t.y > stackHeight - STATUSBAR_HEIGHT_VP) {
+            continue; // ArkTS chrome band - handled natively, not Qt's
           }
+          // Record long-press start position and time
+          this.lastTouchX = t.x;
+          this.lastTouchY = t.y;
+          this.touchStartTime = Date.now();
+          hilog.info(DOMAIN, TAG,
+            'touch start recorded for long-press at (%{public}d,%{public}d)',
+            Math.round(t.x), Math.round(t.y));
           action = 0; leftDown = true;
         } else if (t.type === TouchType.Up) {
           if (!leftDown) { continue; }
+          // Long-press detection: check if held long enough with minimal movement
+          const elapsed = Date.now() - this.touchStartTime;
+          const dx = t.x - this.lastTouchX;
+          const dy = t.y - this.lastTouchY;
+          if (elapsed >= this.LONG_PRESS_DURATION_MS &&
+              (dx * dx + dy * dy) <= this.LONG_PRESS_MAX_MOVE_VP * this.LONG_PRESS_MAX_MOVE_VP) {
+            hilog.info(DOMAIN, TAG,
+              'long-press detected at (%{public}d,%{public}d) after %{public}dms',
+              Math.round(this.lastTouchX), Math.round(this.lastTouchY), elapsed);
+            this.contextMenuX = this.lastTouchX;
+            this.contextMenuY = this.lastTouchY;
+            this.showContextMenu = true;
+          }
           action = 1; leftDown = false;
         } else if (t.type === TouchType.Move && leftDown) {
           action = 2;
@@ -1027,7 +1474,7 @@ export struct MainLayout {
           if (dbgCount < 50) {
             dbgCount++;
             hilog.info(DOMAIN, TAG,
-              'touch→mouse action=%{public}d vp=(%{public}d,%{public}d) px=(%{public}d,%{public}d)',
+              'touch鈫抦ouse action=%{public}d vp=(%{public}d,%{public}d) px=(%{public}d,%{public}d)',
               action, Math.round(t.x), Math.round(t.y), Math.round(px), Math.round(py));
           }
           try {
@@ -1046,11 +1493,23 @@ export struct MainLayout {
     // (handled above), so skip it here to avoid duplicates.
     .onMouse((event: MouseEvent) => {
       if (event.button === MouseButton.Left) return;
+      // Show ArkTS context menu on right-click press in the content area.
+      // Runs BEFORE the openMenu guard so the context menu appears even when
+      // a dropdown menu is open (desktop parity: right-click always shows
+      // the context menu regardless of the menu bar state).
+      if (event.button === MouseButton.Right && event.action === MouseAction.Press) {
+        const sh: number = event.target.area.height as number;
+        if (event.y >= this.topChromeVp() && event.y <= sh - STATUSBAR_HEIGHT_VP) {
+          this.contextMenuX = event.x;
+          this.contextMenuY = event.y;
+          this.showContextMenu = true;
+        }
+      }
       // Same chrome-band guard as onTouch: keep forwarded clicks out of
       // the Qt menu bar underneath the ArkTS one (popup crash).
       if (this.openMenu !== null) return;
       const stackHeight: number = event.target.area.height as number;
-      if (event.y < TOP_CHROME_VP || event.y > stackHeight - STATUSBAR_HEIGHT_VP) {
+      if (event.y < this.topChromeVp() || event.y > stackHeight - STATUSBAR_HEIGHT_VP) {
         return;
       }
       let btn: number = 0;
@@ -1067,7 +1526,7 @@ export struct MainLayout {
       if (dbgCount < 50) {
         dbgCount++;
         hilog.info(DOMAIN, TAG,
-          'mouse→mouse action=%{public}d btn=%{public}d vp=(%{public}d,%{public}d) px=(%{public}d,%{public}d)',
+          'mouse鈫抦ouse action=%{public}d btn=%{public}d vp=(%{public}d,%{public}d) px=(%{public}d,%{public}d)',
           act, btn, Math.round(event.x), Math.round(event.y), Math.round(px), Math.round(py));
       }
       try {
