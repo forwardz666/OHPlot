@@ -44,6 +44,7 @@ interface PlotMargin {
 export struct PlotCanvas {
   @Prop plotTitle: string = '';
   @Prop curves: CurveData[] = [];
+  @Prop graphIdx: number = 0;
   private canvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
 
   aboutToAppear(): void {

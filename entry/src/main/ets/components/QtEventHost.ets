@@ -58,6 +58,8 @@ interface QtEvent {
   // projectSaved / asciiExported
   ok?: boolean;
   path?: string;
+  // tableDataChanged
+  tableId?: string;
 }
 
 interface QtMenuItem {
@@ -217,6 +219,21 @@ export struct QtEventHost {
         }
         break;
       }
+      case 'tableDataChanged': {
+        // Append timestamp so every event produces a unique value.
+        // A bare tableId would not retrigger the @StorageProp Watch when
+        // the same table is edited twice in a row.
+        const tid: string = ev.tableId ?? '';
+        const uniqueVal: string = tid + '|' + Date.now().toString();
+        AppStorage.setOrCreate<string>('pendingTableRefresh', uniqueVal);
+        break;
+      }
+      case 'tableListChanged':
+        AppStorage.setOrCreate<string>('pendingTableListRefresh', Date.now().toString());
+        break;
+      case 'plotListChanged':
+        AppStorage.setOrCreate<string>('pendingPlotListRefresh', Date.now().toString());
+        break;
       default:
         hilog.info(DOMAIN, TAG, 'unhandled event kind: %{public}s', ev.kind);
         break;

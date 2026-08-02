@@ -1,7 +1,28 @@
 import { getAppLanguage, setAppLanguage } from '../../components/LocaleHelper';
+import qohos from 'libqohos.so';
+import hilog from '@ohos.hilog';
+
+const DOMAIN = 0x0001;
+const TAG = 'PreferencesDialog';
+
+interface QohosInjector {
+  callQtCommand(cmd: string, argsJson: string): string;
+}
+
+interface PreferenceResponse {
+  success: boolean;
+  value?: string;
+  error?: string;
+}
 
 // Language choice index → i18n.System.setAppPreferredLanguage tag.
 const LANG_TAGS: string[] = ['default', 'en-Latn-US', 'zh-Hans'];
+
+// QSettings keys matching the preferences exposed in this dialog.
+const KEY_AUTOSAVE = 'autosave';
+const KEY_AUTOSAVE_INTERVAL = 'autosaveInterval';
+const KEY_SHOW_COMMENTS = 'showComments';
+const KEY_ANTIALIASING = 'antialiasing';
 
 @CustomDialog
 export struct PreferencesDialog {
@@ -29,6 +50,40 @@ export struct PreferencesDialog {
     // system language), so the initial selection mirrors the effective
     // language; picking "Follow System" resets via 'default'.
     this.langIndex = getAppLanguage().startsWith('zh') ? 2 : 1;
+
+    // Load persisted preferences from Qt QSettings.
+    let v = this.getPreference(KEY_AUTOSAVE);
+    if (v !== '') this.autosave = v === 'true';
+
+    v = this.getPreference(KEY_AUTOSAVE_INTERVAL);
+    if (v !== '') this.autosaveInterval = v;
+
+    v = this.getPreference(KEY_SHOW_COMMENTS);
+    if (v !== '') this.showComments = v === 'true';
+
+    v = this.getPreference(KEY_ANTIALIASING);
+    if (v !== '') this.antialiasing = v === 'true';
+  }
+
+  private getPreference(key: string): string {
+    try {
+      let injector = qohos as QohosInjector;
+      let result = injector.callQtCommand('getPreference', JSON.stringify({ key: key }));
+      let parsed = JSON.parse(result) as PreferenceResponse;
+      if (parsed.success && parsed.value !== undefined) return parsed.value;
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'getPreference error: %{public}s', JSON.stringify(e));
+    }
+    return '';
+  }
+
+  private setPreference(key: string, value: string): void {
+    try {
+      let injector = qohos as QohosInjector;
+      injector.callQtCommand('setPreference', JSON.stringify({ key: key, value: value }));
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'setPreference error: %{public}s', JSON.stringify(e));
+    }
   }
 
   build() {
@@ -160,7 +215,11 @@ export struct PreferencesDialog {
             if (this.langDirty) {
               setAppLanguage(LANG_TAGS[this.langIndex]);
             }
-            // TODO: call get/setPreference commands to persist other settings
+            // Persist all settings via QSettings.
+            this.setPreference(KEY_AUTOSAVE, this.autosave.toString());
+            this.setPreference(KEY_AUTOSAVE_INTERVAL, this.autosaveInterval);
+            this.setPreference(KEY_SHOW_COMMENTS, this.showComments.toString());
+            this.setPreference(KEY_ANTIALIASING, this.antialiasing.toString());
             this.controller.close();
           })
       }

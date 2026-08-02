@@ -3,6 +3,7 @@
 // - onClick: toggle current menu open/close
 // - onHover: switch to current menu only if another menu is already open
 import hilog from '@ohos.hilog';
+import * as Theme from './Theme';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -40,8 +41,8 @@ export struct MenuBar {
       Row() {
         ForEach(this.menus, (menu: MenuItemData) => {
           Text(menu.label)
-            .fontSize(14)
-            .fontColor(this.openMenu === menu.id ? '#000000' : '#333333')
+            .fontSize(Theme.FS_MENU)
+            .fontColor(this.openMenu === menu.id ? Theme.TEXT_ACTIVE : Theme.TEXT)
             .padding({ left: 10, right: 10, top: 4, bottom: 4 })
             .onAreaChange((_old: Area, area: Area) => {
               if (this.onAnchorChange) {
@@ -69,10 +70,10 @@ export struct MenuBar {
           })
       }
       .width('100%')
-      .height(28)
-      .backgroundColor('#F0F0F0')
+      .height(Theme.H_MENU)
+      .backgroundColor(Theme.CHROME_BG)
       .padding({ left: 2 })
-      .border({ width: { bottom: 1 }, color: '#CCCCCC' })
+      .border({ width: { bottom: 1 }, color: Theme.LINE })
     }
     .alignItems(HorizontalAlign.Start)
   }
@@ -94,7 +95,7 @@ export struct DropdownMenu {
       }
       .width(200)
       .backgroundColor('#FFFFFF')
-      .border({ width: 1, color: '#CCCCCC' })
+      .border({ width: 1, color: Theme.LINE })
       .shadow({ radius: 6, color: '#40000000', offsetX: 2, offsetY: 2 })
     }
   }
@@ -154,7 +155,7 @@ struct SubMenuItems {
             Row() {
               Text(subItem.checked === true ? '✓ ' + subItem.label : subItem.label)
                 .fontSize(14)
-                .fontColor(subItem.enabled === false ? '#A8A8A8' : '#000000')
+                .fontColor(subItem.enabled === false ? Theme.TEXT_DISABLED : Theme.TEXT_ACTIVE)
                 .layoutWeight(1)
               if (subItem.shortcut) {
                 Text(subItem.shortcut)

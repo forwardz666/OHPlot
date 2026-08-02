@@ -2,6 +2,7 @@ import UIAbility from '@ohos.app.ability.UIAbility';
 import window from '@ohos.window';
 import { Want, AbilityConstant, Configuration } from '@kit.AbilityKit';
 import hilog from '@ohos.hilog';
+import fs from '@ohos.file.fs';
 import display from '@ohos.display';
 import font from '@ohos.font';
 import deviceInfo from '@ohos.deviceInfo';
@@ -11,6 +12,7 @@ import qpaRaw from 'libplugins_platforms_qopenharmony.so';
 // free for NAPI TSFN callbacks (createJsObject / deleteJsObject).
 import qohosNative from 'libqohos.so';
 import { JsLocale } from '../native/JsLocale';
+import { getSystemLanguage } from '../components/LocaleHelper';
 import { JsStandardPaths, ApplicationDirs } from '../native/JsStandardPaths';
 import { SimpleJsWindowManager, SimpleJsWindow } from '../native/JsWindowManager';
 import { JsInputMethod, QpaInput } from '../native/JsInputMethod';
@@ -20,6 +22,22 @@ import { JsPasteBoard } from '../native/JsPasteBoard';
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
 const WINDOW_NAME: string = 'openharmony_qt_mainwindow';
+
+// Structured chain logging: mirror the native side (qohos.cpp CHAIN_TAG) so a
+// single filter `hilog -x | grep SciDAVisChain` shows the full
+// trigger -> boundary -> failure -> result path across the ArkTS/native seam.
+const CHAIN_TAG: string = 'SciDAVisChain';
+let g_chainSeq: number = 0;
+function nextCid(): number {
+  g_chainSeq = g_chainSeq + 1;
+  return g_chainSeq;
+}
+function chainLog(cid: number, phase: string, msg: string): void {
+  hilog.info(DOMAIN, CHAIN_TAG, '[cid=%{public}d][%{public}s] %{public}s', cid, phase, msg);
+}
+function chainErr(cid: number, phase: string, msg: string): void {
+  hilog.error(DOMAIN, CHAIN_TAG, '[cid=%{public}d][%{public}s] %{public}s', cid, phase, msg);
+}
 
 interface QpaModule extends QpaInput {
   setDeviceType(deviceType: string): void;
@@ -48,7 +66,8 @@ interface QtCoreNapi {
 }
 
 interface QohosNativeModule {
-  startQtNative(bundleCodeDir: string, cacheDir: string, qmlDir: string): void;
+  preloadLibs(bundleCodeDir: string, cacheDir: string, qmlDir: string, language: string): void;
+  startQtNative(bundleCodeDir: string, cacheDir: string, qmlDir: string, language: string): void;
 }
 
 const qpa = qpaRaw as QpaModule;
@@ -169,18 +188,28 @@ export default class OHPlotAbility extends UIAbility {
     windowManager = new SimpleJsWindowManager(windowStage);
     // Set geometry-change callback so windows notify the QPA plugin (triggers rendering).
     windowManager.onGeometryChange = (name: string, rect: window.Rect): void => {
+      const cid: number = nextCid();
+      chainLog(cid, 'trigger', 'onGeometryChange ' + name + ' rect=' + JSON.stringify(rect));
       hilog.info(DOMAIN, TAG, 'onGeometryChange: %{public}s rect=%{public}s', name, JSON.stringify(rect));
       try {
+        chainLog(cid, 'boundary', 'qpa.handleGeometryChange ' + name);
         qpa.handleGeometryChange(name, rect);
+        chainLog(cid, 'result', 'handleGeometryChange ok ' + name);
         hilog.info(DOMAIN, TAG, 'handleGeometryChange OK');
       } catch (e) {
+        chainErr(cid, 'failure', 'handleGeometryChange ' + name + ': ' + JSON.stringify(e));
         hilog.error(DOMAIN, TAG, 'handleGeometryChange failed: %{public}s', JSON.stringify(e));
       }
     };
     windowManager.onWindowEvent = (name: string, type: number): void => {
+      const cid: number = nextCid();
+      chainLog(cid, 'trigger', 'onWindowEvent ' + name + ' type=' + type);
       try {
+        chainLog(cid, 'boundary', 'qpa.handleWindowEvent ' + name + ' type=' + type);
         qpa.handleWindowEvent(name, type);
+        chainLog(cid, 'result', 'handleWindowEvent ok ' + name);
       } catch (e) {
+        chainErr(cid, 'failure', 'handleWindowEvent ' + name + ': ' + JSON.stringify(e));
         hilog.error(DOMAIN, TAG, 'handleWindowEvent failed: %{public}s', JSON.stringify(e));
       }
     };
@@ -193,6 +222,20 @@ export default class OHPlotAbility extends UIAbility {
     mainJsWindow.startListener();
     jsObjectCache.set('JsWindowManager', windowManager);
     hilog.info(DOMAIN, TAG, 'JsWindowManager created, main window "%{public}s" registered', WINDOW_NAME);
+
+    // ── Preload Qt environment variables from the ArkTS thread so they
+    // are in effect before QPA plugin init, dlopen, and QApplication
+    // construction.  This mirrors the AirStars approach: env vars set
+    // early avoid deadlocks and ensure QPA finds the right plugin paths.
+    // The native side (qohos.cpp::SetupQtEnv) also re-sets them as a
+    // belt-and-braces measure inside the C++ launcher thread.
+    const sysLang: string = getSystemLanguage();
+    try {
+      qohos.preloadLibs(dirs.bundleCodeDir, dirs.cacheDir, dirs.qmlDir, sysLang);
+      hilog.info(DOMAIN, TAG, 'preloadLibs ok, language=%{public}s', sysLang);
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'preloadLibs failed: %{public}s', JSON.stringify(e));
+    }
 
     // ── CRITICAL: initialise the Qt Core JS-object bridge BEFORE the
     // XComponent is created.  Match the template's JsQtCore.loadQtCore()
@@ -233,14 +276,29 @@ export default class OHPlotAbility extends UIAbility {
             }, 2000);
           });
 
-          // ── Start Qt on a C++ thread via our native helper module.
-          // The C++ thread sets env vars, dlopen's libentry.so, and calls
-          // its main() — completely bypassing the NAPI layer so the main
-          // JS thread stays free for TSFN callbacks (createJsObject).
+          // Ship the Qt translation catalogues into the sandbox before Qt
+          // starts.  main.cpp installs a QTranslator that loads them from
+          // TS_PATH = /data/storage/el2/base/haps/entry/files/translations,
+          // which is the MODULE-level files dir (this.context.filesDir), not
+          // the app-level dirs.filesDir (getApplicationContext, .../base/files).
+          // The .qm files travel in the HAP rawfile and are copied on first launch.
+          this.copyRawTranslations(this.context.filesDir);
+
+          // ── Start Qt on a C++ thread via the native helper module.
+          // Always go through qohos.startQtNative (NOT qpa.startQtApplication):
+          // qohos.cpp's qt_thread_func dlopen's libentry.so and sets
+          // g_appHandle, which all command-channel calls (callQtCommand /
+          // sendMouse → setChromeInsets / getUiState / menuAction) depend on.
+          // qpa.startQtApplication returns true but launches a separate
+          // dlopen instance that never sets g_appHandle, silently breaking
+          // every command-channel RPC ("not ready").  startQtNative mirrors
+          // the same logic (setenv → dlopen libentry.so → dlsym main()) on a
+          // dedicated pthread, leaving the main JS thread free for TSFN
+          // callbacks (createJsObject).
           hilog.info(DOMAIN, TAG, 'starting Qt via C++ thread (startQtNative)...');
-          hilog.info(DOMAIN, TAG, 'bundleCodeDir=%{public}s', dirs.bundleCodeDir);
-          hilog.info(DOMAIN, TAG, 'cacheDir=%{public}s', dirs.cacheDir);
-          qohos.startQtNative(dirs.bundleCodeDir, dirs.cacheDir, dirs.qmlDir);
+          hilog.info(DOMAIN, TAG, 'bundleCodeDir=%{public}s systemLanguage=%{public}s',
+            dirs.bundleCodeDir, sysLang);
+          qohos.startQtNative(dirs.bundleCodeDir, dirs.cacheDir, dirs.qmlDir, sysLang);
           hilog.info(DOMAIN, TAG, 'startQtNative dispatched – main thread free');
 
           // Heartbeat: proves the JS event loop is still running after
@@ -305,4 +363,36 @@ export default class OHPlotAbility extends UIAbility {
   onForeground() { hilog.info(DOMAIN, TAG, 'onForeground'); }
   onBackground() { hilog.info(DOMAIN, TAG, 'onBackground'); }
   onDestroy() { hilog.info(DOMAIN, TAG, 'onDestroy'); }
+
+  // Copy the bundled Qt .qm translation catalogues from the HAP rawfile
+  // (resources/rawfile/translations) into the app sandbox so the Qt-side
+  // QTranslator (main.cpp) can load them from TS_PATH.  Best-effort: a
+  // missing catalogue or write error just leaves the UI in English.
+  private copyRawTranslations(filesDir: string): void {
+    const qmFiles: string[] = ['scidavis_zh-cn.qm', 'scidavis_zh-tw.qm'];
+    const destDir: string = filesDir + '/translations';
+    try {
+      if (!fs.accessSync(destDir)) {
+        fs.mkdirSync(destDir);
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'mkdir translations failed: %{public}s', JSON.stringify(e));
+    }
+    const rm = this.context.resourceManager;
+    for (const qm of qmFiles) {
+      const dest: string = destDir + '/' + qm;
+      try {
+        if (fs.accessSync(dest)) {
+          continue; // already copied on a previous launch
+        }
+        const data: Uint8Array = rm.getRawFileContentSync('translations/' + qm);
+        const file = fs.openSync(dest, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC);
+        fs.writeSync(file.fd, data.buffer);
+        fs.closeSync(file);
+        hilog.info(DOMAIN, TAG, 'copied translation %{public}s (%{public}d bytes)', qm, data.length);
+      } catch (e) {
+        hilog.warn(DOMAIN, TAG, 'translation %{public}s not shipped/copied: %{public}s', qm, JSON.stringify(e));
+      }
+    }
+  }
 }

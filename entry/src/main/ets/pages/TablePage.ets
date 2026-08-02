@@ -2,6 +2,7 @@
 // Displays spreadsheet data loaded from Qt backend.
 // Used in Level 2 to replace the Qt table view.
 import { DataTable } from '../components/DataTable';
+import { ColumnSidebar } from '../components/ColumnSidebar';
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 import { getAppString } from '../components/LocaleHelper';
@@ -30,17 +31,52 @@ interface QohosInjector {
 export struct TablePage {
   @State tableName: string = '';
   @State refreshKey: number = 0;
+  @State selectedRow: number = -1;
+  @State selectedCol: number = -1;
   @State tableList: TableInfo[] = [];
+  @StorageProp('pendingTableRefresh') @Watch('onPendingTableRefreshChange') pendingTableRefresh: string = '';
+  @StorageProp('pendingTableListRefresh') @Watch('onPendingTableListRefreshChange') pendingTableListRefresh: string = '';
+  private lastRefreshTime: number = 0;
+  private lastListRefreshTime: number = 0;
 
   aboutToAppear(): void {
     this.loadTableList();
   }
 
+  onPendingTableRefreshChange(): void {
+    if (this.pendingTableRefresh === '') return;
+    this.debouncedRefreshData(this.pendingTableRefresh);
+  }
+
+  onPendingTableListRefreshChange(): void {
+    if (this.pendingTableListRefresh === '') return;
+    this.debouncedRefreshList();
+  }
+
+  private debouncedRefreshData(value: string): void {
+    const now: number = Date.now();
+    if (now - this.lastRefreshTime < 500) return;
+    this.lastRefreshTime = now;
+    const tid: string = (value.indexOf('|') >= 0) ? value.split('|')[0] : value;
+    hilog.info(DOMAIN, TAG, 'Auto-refresh table data for %{public}s (raw: %{public}s)', tid, value);
+    if (this.tableName) {
+      this.refreshKey++;
+    }
+  }
+
+  private debouncedRefreshList(): void {
+    const now: number = Date.now();
+    if (now - this.lastListRefreshTime < 500) return;
+    this.lastListRefreshTime = now;
+    hilog.info(DOMAIN, TAG, 'Auto-refresh table list');
+    this.loadTableList();
+  }
+
   loadTableList(): void {
-    let injector = qohos as QohosInjector;
-    let result = injector.callQtCommand('getTableList', '{}');
-    hilog.info(DOMAIN, TAG, 'TablePage getTableList: %{public}s', result);
     try {
+      let injector = qohos as QohosInjector;
+      let result = injector.callQtCommand('getTableList', '{}');
+      hilog.info(DOMAIN, TAG, 'TablePage getTableList: %{public}s', result);
       let parsed = JSON.parse(result) as TableListResponse;
       if (parsed.success && parsed.data && parsed.data.length > 0) {
         this.tableList = parsed.data;
@@ -50,7 +86,7 @@ export struct TablePage {
         }
       }
     } catch (e) {
-      hilog.error(DOMAIN, TAG, 'TablePage parse error: %{public}s', JSON.stringify(e));
+      hilog.error(DOMAIN, TAG, 'TablePage parse error: %{public}s', (e as Error).message);
     }
   }
 
@@ -106,9 +142,22 @@ export struct TablePage {
       .alignItems(VerticalAlign.Center)
       .border({ width: { bottom: 1 }, color: '#E0E0E0' })
 
-      // Data table
-      DataTable({ tableName: this.tableName, refreshKey: this.refreshKey })
-        .layoutWeight(1)
+      // Data table + column sidebar
+      Row() {
+        DataTable({
+          tableName: this.tableName,
+          refreshKey: this.refreshKey,
+          selectedRow: $selectedRow,
+          selectedCol: $selectedCol
+        })
+          .layoutWeight(1)
+
+        ColumnSidebar({
+          selectedCol: $selectedCol,
+          tableName: this.tableName
+        })
+      }
+      .layoutWeight(1)
     }
     .width('100%')
     .height('100%')

@@ -35,6 +35,11 @@ interface CurveData {
   yColumn?: string;
 }
 
+interface GraphCurveData {
+  graphIdx: number;
+  curves: CurveData[];
+}
+
 interface PlotListResponse {
   success: boolean;
   data?: PlotInfo[];
@@ -58,19 +63,36 @@ export struct PlotPage {
   @State selectedGraphIdx: number = 0;
   @State selectedCurveIdxs: number[] = [];
   @State curveDataList: CurveData[] = [];
+  @State graphCurveDataList: GraphCurveData[] = [];
   @State isLoading: boolean = false;
   @State currentPlot: PlotInfo | null = null;
   @State currentGraph: GraphInfo | null = null;
+  @StorageProp('pendingPlotListRefresh') @Watch('onPendingPlotListRefreshChange') pendingPlotListRefresh: string = '';
+  @State showAllGraphs: boolean = false;
+  private lastRefreshTime: number = 0;
 
   aboutToAppear(): void {
     this.loadPlotList();
   }
 
+  onPendingPlotListRefreshChange(): void {
+    if (this.pendingPlotListRefresh === '') return;
+    this.debouncedRefreshPlotList();
+  }
+
+  private debouncedRefreshPlotList(): void {
+    const now: number = Date.now();
+    if (now - this.lastRefreshTime < 500) return;
+    this.lastRefreshTime = now;
+    hilog.info(DOMAIN, TAG, 'Auto-refresh plot list');
+    this.loadPlotList();
+  }
+
   loadPlotList(): void {
-    let injector = qohos as QohosInjector;
-    let result = injector.callQtCommand('getPlotList', '{}');
-    hilog.info(DOMAIN, TAG, 'PlotPage getPlotList: %{public}s', result);
     try {
+      let injector = qohos as QohosInjector;
+      let result = injector.callQtCommand('getPlotList', '{}');
+      hilog.info(DOMAIN, TAG, 'PlotPage getPlotList: %{public}s', result);
       let parsed = JSON.parse(result) as PlotListResponse;
       if (parsed.success && parsed.data && parsed.data.length > 0) {
         this.plotList = parsed.data;
@@ -82,7 +104,7 @@ export struct PlotPage {
         this.plotList = [];
       }
     } catch (e) {
-      hilog.error(DOMAIN, TAG, 'PlotPage parse error: %{public}s', JSON.stringify(e));
+      hilog.error(DOMAIN, TAG, 'PlotPage parse error: %{public}s', (e as Error).message);
     }
   }
 
@@ -91,51 +113,101 @@ export struct PlotPage {
     let plot = this.plotList.find(p => p.name === this.selectedPlotName);
     if (!plot || plot.graphs.length === 0) {
       this.curveDataList = [];
+      this.graphCurveDataList = [];
       this.currentPlot = null;
       this.currentGraph = null;
       return;
     }
     this.currentPlot = plot;
-    this.currentGraph = plot.graphs[0];
     this.selectedGraphIdx = 0;
+    this.showAllGraphs = false;
+    
+    // Initialize curve selection for current graph
     this.selectedCurveIdxs = [];
-
-    // Load all curves from the first graph
-    this.selectedCurveIdxs = plot.graphs[0].curveNames.map((_, idx) => idx);
-    this.loadCurveData();
+    if (plot.graphs.length > 0) {
+      this.selectedCurveIdxs = plot.graphs[0].curveNames.map((_, idx) => idx);
+    }
+    
+    // Reset and prepare to load ALL graphs' curves
+    this.graphCurveDataList = [];
+    
+    // Load curves for each graph in the plot
+    hilog.info(DOMAIN, TAG, 'onPlotSelected: loading %{public}d graphs', plot.graphs.length);
+    for (let gi = 0; gi < plot.graphs.length; gi++) {
+      let graph = plot.graphs[gi];
+      let graphCurves: CurveData[] = [];
+      
+      // Load all curves for this graph
+      try {
+        let injector = qohos as QohosInjector;
+        let args = JSON.stringify({
+          plotId: this.selectedPlotName,
+          graphIdx: gi,
+          curveIdx: 0
+        });
+        // First call to get number of curves
+        let result = injector.callQtCommand('getPlotData', args);
+        let parsed = JSON.parse(result) as PlotDataResponse;
+        if (parsed.success && parsed.data) {
+          let numCurves = graph.curves;
+          for (let ci = 0; ci < numCurves; ci++) {
+            let curveArgs = JSON.stringify({
+              plotId: this.selectedPlotName,
+              graphIdx: gi,
+              curveIdx: ci
+            });
+            let curveResult = injector.callQtCommand('getPlotData', curveArgs);
+            let curveParsed = JSON.parse(curveResult) as PlotDataResponse;
+            if (curveParsed.success && curveParsed.data) {
+              graphCurves.push(curveParsed.data);
+            }
+          }
+        }
+      } catch (e) {
+        hilog.error(DOMAIN, TAG, 'Failed to load curves for graph %{public}s: %{public}s', 
+          (e as Error).message);
+      }
+      
+      this.graphCurveDataList.push({
+        graphIdx: gi,
+        curves: graphCurves
+      });
+    }
+    
+    // Initialize curveDataList with only the first graph's curves for single-graph view
+    if (this.graphCurveDataList.length > 0) {
+      this.curveDataList = this.graphCurveDataList[0].curves.slice();
+    } else {
+      this.curveDataList = [];
+    }
+    
+    this.currentGraph = plot.graphs[this.selectedGraphIdx];
   }
 
   loadCurveData(): void {
     if (!this.selectedPlotName) return;
     this.isLoading = true;
-    this.curveDataList = [];
-    let injector = qohos as QohosInjector;
 
+    // For now, use pre-loadded data during onPlotSelected
+    // This maintains full backward compatibility while supporting multi-graph
+    this.isLoading = false;
+  }
+
+  onGraphSwitch(graphIdx: number): void {
+    this.selectedGraphIdx = graphIdx;
+    this.showAllGraphs = false;
     let plot = this.plotList.find(p => p.name === this.selectedPlotName);
-    if (!plot || !plot.graphs[this.selectedGraphIdx]) {
-      this.isLoading = false;
-      return;
-    }
-
-    let graph = plot.graphs[this.selectedGraphIdx];
-    for (let ci of this.selectedCurveIdxs) {
-      if (ci < 0 || ci >= graph.curves) continue;
-      let args = JSON.stringify({
-        plotId: this.selectedPlotName,
-        graphIdx: this.selectedGraphIdx,
-        curveIdx: ci
-      });
-      let result = injector.callQtCommand('getPlotData', args);
-      try {
-        let parsed = JSON.parse(result) as PlotDataResponse;
-        if (parsed.success && parsed.data) {
-          this.curveDataList.push(parsed.data);
-        }
-      } catch (e) {
-        hilog.error(DOMAIN, TAG, 'PlotData parse error: %{public}s', JSON.stringify(e));
+    if (plot && plot.graphs[graphIdx]) {
+      let graph = plot.graphs[graphIdx];
+      this.selectedCurveIdxs = graph.curveNames.map((_, idx) => idx);
+      this.currentGraph = graph;
+      
+      // Get only curves for the selected graph
+      let targetGraphData = this.graphCurveDataList.find(gcd => gcd.graphIdx === graphIdx);
+      if (targetGraphData) {
+        this.curveDataList = targetGraphData.curves;
       }
     }
-    this.isLoading = false;
   }
 
   onCurveToggle(curveIdx: number): void {
@@ -147,7 +219,19 @@ export struct PlotPage {
     }
     // Re-sort
     this.selectedCurveIdxs.sort((a, b) => a - b);
-    this.loadCurveData();
+    
+    // Get only visible curves for the current graph
+    let targetGraphData = this.graphCurveDataList.find(gcd => gcd.graphIdx === this.selectedGraphIdx);
+    if (!targetGraphData) return;
+    
+    // Filter curve data based on selection
+    this.curveDataList = [];
+    for (let ci of this.selectedCurveIdxs) {
+      let curve = targetGraphData.curves[ci];
+      if (curve) {
+        this.curveDataList.push(curve);
+      }
+    }
   }
 
   build() {
@@ -192,6 +276,50 @@ export struct PlotPage {
       .alignItems(VerticalAlign.Center)
       .border({ width: { bottom: 1 }, color: '#E0E0E0' })
 
+      // --- Graph layer selector (only when multiple layers exist) ---
+      if (this.currentPlot && this.currentPlot.graphs.length > 1) {
+        Row() {
+          Text('All')
+            .fontSize(11)
+            .fontColor(this.showAllGraphs ? '#FFFFFF' : '#666666')
+            .fontWeight(this.showAllGraphs ? FontWeight.Bold : FontWeight.Normal)
+            .backgroundColor(this.showAllGraphs ? '#0078D7' : '#F0F0F0')
+            .borderRadius(10)
+            .padding({ left: 10, right: 10, top: 2, bottom: 2 })
+            .onClick(() => {
+              this.showAllGraphs = true;
+            })
+
+          Scroll() {
+            Row() {
+              ForEach(this.currentPlot.graphs, (graph: GraphInfo) => {
+                Text('Layer ' + (graph.graphIdx + 1))
+                  .fontSize(11)
+                  .fontColor((!this.showAllGraphs && graph.graphIdx === this.selectedGraphIdx) ? '#FFFFFF' : '#666666')
+                  .fontWeight((!this.showAllGraphs && graph.graphIdx === this.selectedGraphIdx) ? FontWeight.Bold : FontWeight.Normal)
+                  .backgroundColor((!this.showAllGraphs && graph.graphIdx === this.selectedGraphIdx) ? '#0078D7' : '#F0F0F0')
+                  .borderRadius(10)
+                  .padding({ left: 10, right: 10, top: 2, bottom: 2 })
+                  .margin({ left: 4 })
+                  .onClick(() => {
+                    this.showAllGraphs = false;
+                    this.onGraphSwitch(graph.graphIdx);
+                  })
+              }, (graph: GraphInfo) => graph.graphIdx.toString())
+            }
+          }
+          .layoutWeight(1)
+          .scrollBar(BarState.Off)
+        }
+        .width('100%')
+        .height(30)
+        .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+        .backgroundColor('#FAFAFA')
+        .alignItems(VerticalAlign.Center)
+        .border({ width: { bottom: 1 }, color: '#E8E8E8' })
+      }
+
+      // --- Canvas area (fills remaining space) ---
       if (this.plotList.length === 0 && !this.isLoading) {
         // Empty state
         Column() {
@@ -204,6 +332,7 @@ export struct PlotPage {
             .margin({ top: 4 })
         }
         .layoutWeight(1)
+        .width('100%')
         .justifyContent(FlexAlign.Center)
         .alignItems(HorizontalAlign.Center)
       } else if (this.isLoading) {
@@ -213,50 +342,36 @@ export struct PlotPage {
             .fontColor('#999999')
         }
         .layoutWeight(1)
+        .width('100%')
         .justifyContent(FlexAlign.Center)
         .alignItems(HorizontalAlign.Center)
-      } else {
-        // Plot canvas area
-        Row() {
-          // Main plot area
-          PlotCanvas({
-            plotTitle: this.selectedPlotName + ' - Graph ' + (this.selectedGraphIdx + 1),
-            curves: this.curveDataList
-          })
-          .layoutWeight(1)
-          .height('100%')
-
-          // Curve list sidebar
-          if (this.currentGraph) {
-            Column() {
-              Text($r('app.string.panel_curves'))
-                .fontSize(12)
-                .fontWeight(FontWeight.Bold)
-                .fontColor('#333333')
-                .padding({ top: 4, bottom: 4 })
-              ForEach(this.currentGraph.curveNames, (name: string, idx: number) => {
-                  Row() {
-                    Text(this.selectedCurveIdxs.indexOf(idx) >= 0 ? '☑' : '☐')
-                      .fontSize(14)
-                      .width(20)
-                    Text(name)
-                      .fontSize(12)
-                      .fontColor('#333333')
-                  }
-                  .width('100%')
-                  .padding({ top: 2, bottom: 2, left: 4 })
-                  .onClick(() => this.onCurveToggle(idx))
-                }, (name: string, idx: number) => 'c' + idx.toString())
-              }
-              .width(100)
-              .height('100%')
-              .padding({ left: 4, right: 4 })
-              .backgroundColor('#FAFAFA')
-              .border({ width: { left: 1 }, color: '#E0E0E0' })
-            }
+      } else if (this.showAllGraphs && this.currentPlot && this.currentPlot.graphs.length > 1) {
+        // Stacked multi-layer view —independent canvas per graph
+        Scroll() {
+          Column() {
+            ForEach(this.graphCurveDataList, (gcd: GraphCurveData) => {
+              PlotCanvas({
+                plotTitle: this.selectedPlotName + ' - Layer ' + (gcd.graphIdx + 1),
+                curves: gcd.curves,
+                graphIdx: gcd.graphIdx
+              })
+              .width('100%')
+              .height(320)
+            }, (gcd: GraphCurveData) => gcd.graphIdx.toString())
           }
+        }
+        .layoutWeight(1)
+        .scrollBar(BarState.Auto)
+      } else {
+        // Single graph view
+        PlotCanvas({
+          plotTitle: this.selectedPlotName + ' - Layer ' + (this.selectedGraphIdx + 1),
+          curves: this.curveDataList,
+          graphIdx: this.selectedGraphIdx
+        })
         .layoutWeight(1)
         .width('100%')
+        .height('100%')
       }
     }
     .width('100%')
