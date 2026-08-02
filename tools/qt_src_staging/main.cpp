@@ -26,12 +26,17 @@
  *   Boston, MA  02110-1301  USA                                           *
  *                                                                         *
  ***************************************************************************/
+#include <QMenuBar>
 #include "ApplicationWindow.h"
 #include "globals.h"
+#include "Note.h"
 #include "ohos_bridge.h"
 #include "TableStatistics.h"
+#include "Table.h"
 #include "Matrix.h"
 #include "future/matrix/MatrixView.h"
+#include "future/table/TableView.h"
+#include "future/core/column/Column.h"
 #include "Correlation.h"
 #include "Differentiation.h"
 #include "FFT.h"
@@ -50,6 +55,7 @@
 #include <QSplashScreen>
 #include <QTimer>
 #include <QToolBar>
+#include <QDockWidget>
 #include <QWindow>
 #include <QPointer>
 #include <QSemaphore>
@@ -73,6 +79,7 @@
 #include <qwt_data.h>
 
 #include <typeinfo>
+#include <cmath>
 #include <cstdio>
 #include <string>
 #include <chrono>
@@ -123,8 +130,34 @@ static QString printableTextFor(int key, Qt::KeyboardModifiers mods)
         static const char digitShift[] = ")!@#$%^&*("; // US layout
         if (key >= Qt::Key_0 && key <= Qt::Key_9)
             c = QLatin1Char(digitShift[key - Qt::Key_0]);
-    } else if (c.isLetter()) {
-        c = c.toLower();
+        static const struct { int key; char shifted; } symbolShift[] = {
+            { Qt::Key_Minus, '_' },
+            { Qt::Key_Equal, '+' },
+            { Qt::Key_BracketLeft, '{' },
+            { Qt::Key_BracketRight, '}' },
+            { Qt::Key_Backslash, '|' },
+            { Qt::Key_Semicolon, ':' },
+            { Qt::Key_Apostrophe, '"' },
+            { Qt::Key_Comma, '<' },
+            { Qt::Key_Period, '>' },
+            { Qt::Key_Slash, '?' },
+            { Qt::Key_AsciiTilde, '~' },
+        };
+        for (const auto &s : symbolShift) {
+            if (key == s.key) {
+                c = QLatin1Char(s.shifted);
+                break;
+            }
+        }
+    }
+    if (c.isLetter()) {
+        bool shift = mods & Qt::ShiftModifier;
+#ifdef Q_OS_OHOS
+        bool caps = false; // CapsLockModifier not available on OHOS Qt
+#else
+        bool caps = mods & Qt::CapsLockModifier;
+#endif
+        c = (shift ^ caps) ? c.toUpper() : c.toLower();
     }
     return QString(c);
 }
@@ -220,6 +253,25 @@ protected:
                 const QString fixed = printableTextFor(ke->key(), ke->modifiers());
                 if (!fixed.isEmpty()) {
                     QKeyEvent fixedEv(QEvent::KeyPress, ke->key(), ke->modifiers(),
+                                      fixed, ke->isAutoRepeat(), ke->count());
+                    QCoreApplication::sendEvent(obj, &fixedEv);
+                    return true;
+                }
+            }
+            break;
+        }
+        case QEvent::KeyRelease: {
+            auto *ke = static_cast<QKeyEvent *>(ev);
+            qWarning("[InputProbe] key release recv=%s key=0x%x text='%s'",
+                     obj->metaObject()->className(), ke->key(), qPrintable(ke->text()));
+            // Same text-less fix as KeyPress: on a Bluetooth keyboard a
+            // Shift combo (Shift+digit/symbol/letter) arrives with empty text
+            // on release too.  Re-send a copy carrying the synthesized
+            // character so editors that consume release events also see it.
+            if (ev->spontaneous() && ke->text().isEmpty()) {
+                const QString fixed = printableTextFor(ke->key(), ke->modifiers());
+                if (!fixed.isEmpty()) {
+                    QKeyEvent fixedEv(QEvent::KeyRelease, ke->key(), ke->modifiers(),
                                       fixed, ke->isAutoRepeat(), ke->count());
                     QCoreApplication::sendEvent(obj, &fixedEv);
                     return true;
@@ -503,7 +555,19 @@ static std::string uiStateJson()
         o["active"] = (w == aw);
         wins.append(o);
     }
-    root["windows"] = wins;
+    // Additional dedup by name (pointer dedup above may miss duplicates
+    // from windowsList() concatenating folder + hiddenWindows + outWindows
+    // where the same window appears as different pointer entries)
+    QSet<QString> seenNames;
+    QJsonArray dedupedWins;
+    for (int i = 0; i < wins.size(); i++) {
+        const QJsonObject &o = wins[i].toObject();
+        const QString name = o["name"].toString();
+        if (seenNames.contains(name)) continue;
+        seenNames.insert(name);
+        dedupedWins.append(o);
+    }
+    root["windows"] = dedupedWins;
     QAction *undo = g_mainWindow->ohosActionUndo();
     QAction *redo = g_mainWindow->ohosActionRedo();
     root["undoEnabled"] = undo && undo->isEnabled();
@@ -547,10 +611,20 @@ static std::string jsonError(const std::string &msg)
 static const std::set<std::string> &queryCommands()
 {
     static const std::set<std::string> q = { "ping",        "getTableList", "getTableData",
-                                             "getPlotList", "getPlotData",  "getUiState",
-                                             "getClipboardText", "getGraphCurves", "getProjectTree" };
+                                             "getColumnInfo", "getPlotList", "getPlotData",
+                                             "getUiState", "getClipboardText", "getGraphCurves",
+                                             "getProjectTree", "getPreference", "getNoteData" };
     return q;
 }
+
+// setViewportMargins() is protected in QAbstractScrollArea. Expose it via a
+// minimal accessor (standard idiom) so setChromeInsets can deterministically
+// shift the QMdiArea viewport to clear the ArkTS chrome overlay.
+class ViewportMarginAccessor : public QAbstractScrollArea
+{
+public:
+    using QAbstractScrollArea::setViewportMargins;
+};
 
 static const std::map<std::string, CommandHandler> &commandRegistry()
 {
@@ -575,6 +649,55 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               return "{\"success\":true,\"data\":" + tableDataJson(id) + "}";
           } },
 
+        { "getColumnInfo",
+          [](const QJsonObject &args) -> std::string {
+              Table *t = resolveTable(args);
+              if (!t) return jsonError("table not found");
+              int cols = t->columnCount();
+              QJsonArray arr;
+              for (int c = 0; c < cols; c++) {
+                  Column *col = t->column(c);
+                  if (!col) continue;
+                  QJsonObject obj;
+                  obj["col"] = c;
+                  obj["name"] = col->name();
+                  // Column mode / type
+                  QString type;
+                  switch (col->columnMode()) {
+                  case SciDAVis::ColumnMode::Numeric:  type = QStringLiteral("Numeric");  break;
+                  case SciDAVis::ColumnMode::Text:     type = QStringLiteral("Text");     break;
+                  case SciDAVis::ColumnMode::DateTime: type = QStringLiteral("DateTime"); break;
+                  case SciDAVis::ColumnMode::Month:    type = QStringLiteral("Month");    break;
+                  case SciDAVis::ColumnMode::Day:      type = QStringLiteral("Day");      break;
+                  default: type = QStringLiteral("Numeric"); break;
+                  }
+                  obj["type"] = type;
+                  // Description — use comment(), or fall back to name
+                  QString desc = col->comment();
+                  if (desc.isEmpty()) desc = col->name();
+                  obj["description"] = desc;
+                  // Formula for row 0
+                  obj["formula"] = col->formula(0);
+                  // Plot designation
+                  QString pd;
+                  switch (col->plotDesignation()) {
+                  case SciDAVis::X:             pd = QStringLiteral("X");      break;
+                  case SciDAVis::Y:             pd = QStringLiteral("Y");      break;
+                  case SciDAVis::Z:             pd = QStringLiteral("Z");      break;
+                  case SciDAVis::xErr:          pd = QStringLiteral("XError"); break;
+                  case SciDAVis::yErr:          pd = QStringLiteral("YError"); break;
+                  case SciDAVis::noDesignation: pd = QStringLiteral("None");   break;
+                  default:                      pd = QStringLiteral("None");   break;
+                  }
+                  obj["plotDesignation"] = pd;
+                  arr.append(obj);
+              }
+              QJsonObject root;
+              root["success"] = true;
+              root["data"] = arr;
+              return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
         { "getUiState",
           [](const QJsonObject &) -> std::string {
               return "{\"success\":true,\"data\":" + uiStateJson() + "}";
@@ -594,6 +717,8 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               if (!g_mainWindow) return jsonError("no mw");
               Table *t = g_mainWindow->newTable();
               if (!t) return jsonError("failed");
+              // Notify ArkTS that the table list changed
+              scidavisEmitEvent(QStringLiteral("tableListChanged"));
               return "{\"success\":true,\"data\":" + tableListJson() + "}";
           } },
 
@@ -618,6 +743,12 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               if (!t || row < 0 || row >= t->rowCount() || col < 0 || col >= t->columnCount())
                   return jsonError("invalid cell");
               t->setText(row, col, args["value"].toString());
+              // Notify ArkTS to refresh table data
+              {
+                  QJsonObject ep;
+                  ep["tableId"] = args["tableId"].toString();
+                  scidavisEmitEvent(QStringLiteral("tableDataChanged"), ep);
+              }
               return "{\"success\":true}";
           } },
 
@@ -646,6 +777,8 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               p["text"] = QObject::tr("Imported: ") + QFileInfo(fn).fileName();
               p["icon"] = QStringLiteral("information");
               scidavisEmitEvent(QStringLiteral("message"), p);
+              // Notify ArkTS that table list changed after import
+              scidavisEmitEvent(QStringLiteral("tableListChanged"));
               return "{\"success\":true,\"data\":" + tableListJson() + "}";
           } },
 
@@ -686,6 +819,13 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               int count = qBound(1, args["count"].toInt(1), 100);
               for (int i = 0; i < count; i++)
                   t->addCol();
+              // Notify ArkTS to refresh table data + list
+              {
+                  QJsonObject ep;
+                  ep["tableId"] = args["tableId"].toString();
+                  scidavisEmitEvent(QStringLiteral("tableDataChanged"), ep);
+              }
+              scidavisEmitEvent(QStringLiteral("tableListChanged"));
               QJsonObject p;
               p["title"] = QObject::tr("Add Columns");
               p["text"] = QObject::tr("Added %1 column(s) to %2").arg(count).arg(t->name());
@@ -711,6 +851,12 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                              : QObject::tr("Formula error: ") + formula;
               p["icon"] = ok ? QStringLiteral("information") : QStringLiteral("critical");
               scidavisEmitEvent(QStringLiteral("message"), p);
+              // Notify ArkTS to refresh table data after column recalculation
+              {
+                  QJsonObject ep;
+                  ep["tableId"] = args["tableId"].toString();
+                  scidavisEmitEvent(QStringLiteral("tableDataChanged"), ep);
+              }
               return ok ? std::string("{\"success\":true}") : jsonError("recalculate failed");
           } },
 
@@ -734,6 +880,12 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                       .arg(asc ? QObject::tr("ascending") : QObject::tr("descending"));
               p["icon"] = QStringLiteral("information");
               scidavisEmitEvent(QStringLiteral("message"), p);
+              // Notify ArkTS to refresh table data after sort
+              {
+                  QJsonObject ep;
+                  ep["tableId"] = args["tableId"].toString();
+                  scidavisEmitEvent(QStringLiteral("tableDataChanged"), ep);
+              }
               return "{\"success\":true}";
           } },
 
@@ -759,6 +911,8 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                       targets);
               if (!s) return jsonError("failed");
               s->showNormal();
+              // Notify ArkTS that the table list changed (new statistics table created)
+              scidavisEmitEvent(QStringLiteral("tableListChanged"));
               QJsonObject p;
               p["title"] = QObject::tr("Statistics");
               p["text"] = QObject::tr("Created %1").arg(s->name());
@@ -856,6 +1010,8 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               p["text"] = QObject::tr("Created plot from %1").arg(colList.join(", "));
               p["icon"] = QStringLiteral("information");
               scidavisEmitEvent(QStringLiteral("message"), p);
+              // Notify ArkTS to refresh plot list
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
               return "{\"success\":true}";
           } },
 
@@ -1229,6 +1385,16 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               return "{\"success\":true}";
           } },
 
+        { "toggleColumnEditor",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              auto *tableView = g_mainWindow->findChild<TableView *>();
+              if (!tableView) return jsonError("not a table");
+              if (tableView->isControlTabBarVisible())
+                  tableView->toggleControlTabBar();
+              return "{\"success\":true}";
+          } },
+
         { "openProject",
           [](const QJsonObject &args) -> std::string {
               // ArkTS DocumentViewPicker copies the picked .sciprj into the
@@ -1293,10 +1459,29 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               if (!g_mainWindow) return jsonError("no mw");
               QString itemId = args["itemId"].toString();
               bool ok = true;
-              if (itemId == "new_notes")
-                  g_mainWindow->newNote();
-              else if (itemId == "new_matrix")
-                  g_mainWindow->newMatrix();
+               if (itemId == "new_notes") {
+                   Note *note = g_mainWindow->newNote();
+                   if (note) {
+                       note->showNormal();
+                       note->setFocus();
+                   }
+               }
+              else if (itemId == "new_matrix") {
+                  // newMatrix() only registers the matrix in the project tree
+                  // (d_project->addChild) — it never adds the widget to the MDI
+                  // workspace nor shows it, so the matrix is created but stays
+                  // invisible.  Mirror the display steps of initMatrix() here.
+                  Matrix *m = g_mainWindow->newMatrix(32, 32);
+                  if (m) {
+                      g_mainWindow->d_workspace.addSubWindow(m);
+                      // newMatrix() already generates and sets a unique name.
+                      g_mainWindow->currentFolder()->addWindow(m);
+                      g_mainWindow->addListViewItem(m);
+                      m->showNormal();
+                      m->setFocus();
+                      g_mainWindow->modifiedProject(m);
+                  }
+              }
               else if (itemId == "new_project") {
                   // Cannot call newProject() — it creates a second
                   // ApplicationWindow which SIGSEGVs on the single-window QPA.
@@ -1314,14 +1499,26 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                   p["icon"] = QStringLiteral("information");
                   scidavisEmitEvent(QStringLiteral("message"), p);
               }
-              else if (itemId == "new_graph")
-                  g_mainWindow->newGraph();
+               else if (itemId == "new_graph") {
+                   // newGraph() → multilayerPlot() → initMultilayerPlot() now
+                   // shows the subwindow in Normal state (initMultilayerPlot
+                   // uses showNormal(), not show()) so a new graph opens
+                   // already small — no "fullscreen then shrink" flash.  The
+                   // showNormal()/setFocus() below keep the final state Normal.
+                   MultiLayer *ml = g_mainWindow->newGraph();
+                   if (ml) {
+                       ml->showNormal();
+                       ml->setFocus();
+                   }
+               }
               else if (itemId == "cascade")
                   g_mainWindow->cascade();
               else if (itemId == "maximize_window")
                   g_mainWindow->maximizeWindow();
               else if (itemId == "minimize_window")
                   g_mainWindow->minimizeWindow();
+              else if (itemId == "restore_window")
+                  g_mainWindow->restoreWindow();
               else if (itemId == "close_window") {
                   // Suppress confirmation dialogs — the single-window QPA
                   // cannot show a QMessageBox (never let the close path
@@ -1353,12 +1550,365 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                   g_mainWindow->copySelection();
               else if (itemId == "paste")
                   g_mainWindow->pasteSelection();
-              else if (itemId == "delete")
-                  g_mainWindow->clearSelection();
-              else
-                  ok = false;
+else if (itemId == "delete")
+                   g_mainWindow->clearSelection();
+               else if (itemId == "clear_selection")
+                   g_mainWindow->clearSelection();
+else if (itemId == "insert_row") {
+                     ok = false;
+                 }
+                 else if (itemId == "insert_col") {
+                     ok = false;
+                 }
+               else
+                   ok = false;
               if (!ok)
                   return jsonError("unsupported on device: " + itemId.toStdString());
+              return "{\"success\":true}";
+          } },
+
+        // ── Graph interaction (Phase 4) ──────────────────────────────
+        // Direct ApplicationWindow method calls for zoom, rescale, and
+        // pointer tools.  QMessageBox warnings inside these methods are
+        // caught by the ohos_bridge interposer.
+        { "rescale",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              g_mainWindow->setAutoScale();
+              return "{\"success\":true}";
+          } },
+
+        { "graph_pointer",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              g_mainWindow->pickPointerCursor();
+              return "{\"success\":true}";
+          } },
+
+        { "zoom_in",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              g_mainWindow->zoomIn();
+              return "{\"success\":true}";
+          } },
+
+        { "zoom_out",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              g_mainWindow->zoomOut();
+              return "{\"success\":true}";
+          } },
+
+        { "screen_reader",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              g_mainWindow->showScreenReader();
+              return "{\"success\":true}";
+          } },
+
+        { "data_reader",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              g_mainWindow->showCursor();
+              return "{\"success\":true}";
+          } },
+
+        // ── Function / curve / error-bar commands (Phase 4) ───────────
+        // add_curve / add_error_bars / add_function receive JSON
+        // parameters from the ArkTS dialogs and call the Qt engine API
+        // directly.  They never open QDialogs (the OHOS single-window
+        // QPA blocks them), so all errors are reported via jsonError.
+        { "new_function",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              // newFunctionPlot requires formula parameters normally
+              // obtained from a FunctionDialog.  Without a dialog,
+              // create a default y=x function plot (type=0 normal).
+              int type = 0;
+              QStringList formulas{ QStringLiteral("x") };
+              QString var = QStringLiteral("x");
+              QList<double> ranges{ 0.0, 1.0 };
+              int points = 1000;
+              bool ok = g_mainWindow->newFunctionPlot(type, formulas, var, ranges, points);
+              if (!ok)
+                  return jsonError("newFunctionPlot failed");
+              return "{\"success\":true}";
+          } },
+
+        { "add_curve",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              static const std::map<std::string, int> styles = {
+                  { "line", Graph::Line },
+                  { "scatter", Graph::Scatter },
+                  { "line_symbol", Graph::LineSymbols },
+                  { "vertical_bars", Graph::VerticalBars },
+                  { "horizontal_bars", Graph::HorizontalBars },
+                  { "area", Graph::Area },
+                  { "pie", Graph::Pie },
+                  { "drop_lines", Graph::VerticalDropLines },
+                  { "spline", Graph::Spline },
+                  { "vertical_steps", Graph::VerticalSteps },
+                  { "horizontal_steps", Graph::HorizontalSteps },
+                  { "histogram", Graph::Histogram },
+                  { "box", Graph::Box },
+              };
+              // No QDialog: minimal replica of CurvesDialog::addCurve --
+              // insert each requested column as a curve on the active
+              // graph with the requested style, then replot.  Column
+              // colours/symbols are left at Graph defaults.
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              const QString tableId = args["tableId"].toString();
+              if (tableId.isEmpty()) return jsonError("missing tableId");
+              Table *t = g_mainWindow->table(tableId);
+              if (!t) return jsonError("table not found");
+              auto it = styles.find(args["style"].toString(QStringLiteral("line")).toStdString());
+              if (it == styles.end()) return jsonError("unknown style");
+              const int style = it->second;
+              if (!args["cols"].isArray()) return jsonError("missing cols");
+              int added = 0;
+              for (const QJsonValue &v : args["cols"].toArray()) {
+                  int idx = v.toInt(-1);
+                  if (idx >= 0 && idx < t->numCols()) {
+                      if (g->insertCurve(t, t->colName(idx), style))
+                          added++;
+                  }
+              }
+              if (added == 0) return jsonError("no valid columns");
+              g->updatePlot();
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              QJsonObject r;
+              r["success"] = true;
+              r["added"] = added;
+              return QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "add_error_bars",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              // No QDialog: replicate both
+              // ApplicationWindow::defineErrorBars() overloads with the
+              // graph resolved from plotId instead of the active MDI
+              // subwindow.
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              const QString curveName = args["curveName"].toString();
+              if (curveName.isEmpty()) return jsonError("missing curveName");
+              DataCurve *master = static_cast<DataCurve *>(g->curve(curveName));
+              if (!master) return jsonError("curve not found");
+              const QString xColName = master->xColumnName();
+              if (xColName.isEmpty()) return jsonError("no x column");
+              // QwtErrorPlotCurve::Horizontal == 0, Vertical == 1
+              const int direction =
+                  args["direction"].toString(QStringLiteral("y")) == QStringLiteral("x") ? 0 : 1;
+              const QString mode = args["mode"].toString();
+              if (mode == QStringLiteral("compute")) {
+                  // Curve source table = curveName with the "_<col>"
+                  // suffix stripped (ApplicationWindow::table() does the
+                  // same truncation).
+                  const int pos = curveName.indexOf(QStringLiteral("_"));
+                  const QString tableName = pos >= 0 ? curveName.left(pos) : curveName;
+                  Table *w = g_mainWindow->table(tableName);
+                  if (!w) return jsonError("table not found");
+                  Column *errors = new Column(QStringLiteral("1"), SciDAVis::ColumnMode::Numeric);
+                  errors->setPlotDesignation(direction == 0 ? SciDAVis::xErr : SciDAVis::yErr);
+                  Column *data = w->d_future_table->column(direction == 0 ? xColName : curveName);
+                  if (!data) {
+                      delete errors;
+                      return jsonError("data column not found");
+                  }
+                  const int rows = data->rowCount();
+                  if (args["type"].toInt(0) == 0) {
+                      // percent of the data values
+                      const double fraction = args["percent"].toDouble(5.0) / 100.0;
+                      for (int i = 0; i < rows; i++)
+                          errors->setValueAt(i, data->valueAt(i) * fraction);
+                  } else {
+                      // standard deviation of the data column
+                      double average = 0.0;
+                      for (int i = 0; i < rows; i++)
+                          average += data->valueAt(i);
+                      average /= rows;
+                      double dev = 0.0;
+                      for (int i = 0; i < rows; i++)
+                          dev += (data->valueAt(i) - average) * (data->valueAt(i) - average);
+                      dev = std::sqrt(dev / rows);
+                      for (int i = 0; i < rows; i++)
+                          errors->setValueAt(i, dev);
+                  }
+                  w->d_future_table->addChild(errors);
+                  if (!g->addErrorBars(xColName, curveName, w, errors->name(), direction))
+                      return jsonError("addErrorBars failed");
+              } else if (mode == QStringLiteral("column")) {
+                  const QString errTableId = args["errTableId"].toString();
+                  const QString errColumnName = args["errColumnName"].toString();
+                  if (errTableId.isEmpty()) return jsonError("missing errTableId");
+                  if (errColumnName.isEmpty()) return jsonError("missing errColumnName");
+                  Table *errTable = g_mainWindow->table(errTableId);
+                  if (!errTable) return jsonError("err table not found");
+                  if (!g->addErrorBars(curveName, errTable, errColumnName, direction))
+                      return jsonError("addErrorBars failed");
+              } else {
+                  return jsonError("unknown mode");
+              }
+              emit g_mainWindow->modified();
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "add_function",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              // No QDialog: replicate the dialog-free path of
+              // addFunctionCurve(); without an active graph fall back to
+              // newFunctionPlot(), which creates a new plot window.
+              const int type = args["type"].toInt(0);
+              QStringList formulas;
+              if (args["formulas"].isArray()) {
+                  for (const QJsonValue &v : args["formulas"].toArray())
+                      formulas << v.toString();
+              }
+              if (formulas.isEmpty()) return jsonError("missing formulas");
+              // normal needs 1 formula, parametric / polar need 2
+              if (formulas.count() != (type == 0 ? 1 : 2)) return jsonError("wrong formula count");
+              const QString var = args["var"].toString(QStringLiteral("x"));
+              const QJsonArray rangeArr = args["ranges"].toArray();
+              if (rangeArr.count() != 2) return jsonError("missing ranges");
+              QList<double> ranges;
+              for (const QJsonValue &v : rangeArr)
+                  ranges << v.toDouble();
+              if (!(ranges[0] < ranges[1])) return jsonError("invalid range");
+              const int points = args["points"].toInt(1000);
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) {
+                  if (!g_mainWindow->newFunctionPlot(type, formulas, var, ranges, points))
+                      return jsonError("newFunctionPlot failed");
+                  scidavisEmitEvent(QStringLiteral("plotListChanged"));
+                  QJsonObject r;
+                  r["success"] = true;
+                  r["newPlot"] = true;
+                  return QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString();
+              }
+              if (!g->addFunctionCurve(g_mainWindow, type, formulas, var, ranges, points))
+                  return jsonError("function parse failed");
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "getPreference",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              QSettings &s = ApplicationWindow::getSettings();
+              QString key = args["key"].toString();
+              if (key.isEmpty()) return jsonError("missing key");
+              QVariant v = s.value(key);
+              QJsonObject r;
+              r["success"] = true;
+              r["value"] = v.toString();
+              return QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "setPreference",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              QSettings &s = ApplicationWindow::getSettings();
+              QString key = args["key"].toString();
+              if (key.isEmpty()) return jsonError("missing key");
+              s.setValue(key, args["value"].toString());
+              return "{\"success\":true}";
+          } },
+
+        { "setChromeInsets",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              int top = args["top"].toInt(0);
+              int bottom = args["bottom"].toInt(0);
+              if (auto *sa = qobject_cast<QAbstractScrollArea *>(g_mainWindow->centralWidget()))
+                  static_cast<ViewportMarginAccessor *>(sa)->setViewportMargins(0, top, 0, bottom);
+              if (auto *cw = g_mainWindow->centralWidget())
+                  cw->update();
+              return "{\"success\":true}";
+          } },
+
+        { "getNoteData",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              QString name = args["noteId"].toString();
+              Note *note = nullptr;
+              if (name.isEmpty()) {
+                  note = qobject_cast<Note *>(g_mainWindow->d_workspace.activeSubWindow());
+              } else {
+                  for (MyWidget *w : g_mainWindow->windowsList()) {
+                      if (w->inherits("Note") && w->name() == name) {
+                          note = static_cast<Note *>(w);
+                          break;
+                      }
+                  }
+              }
+              if (!note) return jsonError("note not found");
+              QJsonObject r;
+              r["success"] = true;
+              r["text"] = note->text();
+              r["name"] = note->name();
+              r["label"] = note->windowLabel();
+              return QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "setNoteData",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              QString name = args["noteId"].toString();
+              Note *note = nullptr;
+              if (name.isEmpty()) {
+                  note = qobject_cast<Note *>(g_mainWindow->d_workspace.activeSubWindow());
+              } else {
+                  for (MyWidget *w : g_mainWindow->windowsList()) {
+                      if (w->inherits("Note") && w->name() == name) {
+                          note = static_cast<Note *>(w);
+                          break;
+                      }
+                  }
+              }
+              if (!note) return jsonError("note not found");
+              note->setText(args["text"].toString());
+return "{\"success\":true}";
+           } },
+
+        { "insert_row",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              QMdiSubWindow *sub = g_mainWindow->d_workspace.activeSubWindow();
+              MyWidget *w = qobject_cast<MyWidget *>(sub);
+              if (!w || !w->inherits("Table"))
+                  return jsonError("no active table");
+              static_cast<Table *>(w)->insertRow();
+              {
+                  QJsonObject ep;
+                  ep["tableId"] = w->name();
+                  scidavisEmitEvent(QStringLiteral("tableDataChanged"), ep);
+              }
+              scidavisEmitEvent(QStringLiteral("tableListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "insert_col",
+          [](const QJsonObject &) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              QMdiSubWindow *sub = g_mainWindow->d_workspace.activeSubWindow();
+              MyWidget *w = qobject_cast<MyWidget *>(sub);
+              if (!w || !w->inherits("Table"))
+                  return jsonError("no active table");
+              static_cast<Table *>(w)->insertCol();
+              {
+                  QJsonObject ep;
+                  ep["tableId"] = w->name();
+                  scidavisEmitEvent(QStringLiteral("tableDataChanged"), ep);
+              }
+              scidavisEmitEvent(QStringLiteral("tableListChanged"));
               return "{\"success\":true}";
           } },
     };
@@ -1491,6 +2041,15 @@ int main(int argc, char **argv)
         // (single-window QPA -> SIGSEGV).  The toolbar is rebuilt in ArkTS.
         for (QToolBar *tb : mw->findChildren<QToolBar *>())
             tb->hide();
+        // OHOS: hide the native QMenuBar — the ArkTS MenuBar replaces it
+        if (auto *mb = mw->menuBar())
+            mb->hide();
+#ifdef SCIDAVIS_OHOS
+        // OHOS: hide all QDockWidgets — restoreState() may have made them visible.
+        // The ArkTS shell provides its own panels (ProjectTree, ResultsLog).
+        for (QDockWidget *dw : mw->findChildren<QDockWidget *>())
+            dw->hide();
+#endif
         // Disable all "Save changes?" confirmation switches — the
         // single-window QPA cannot show the Save changes QMessageBox.
         mw->confirmCloseTable = false;
