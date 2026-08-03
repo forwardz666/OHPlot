@@ -237,6 +237,37 @@ protected:
                      me->globalY(), int(me->button()), int(me->source()));
             break;
         }
+        case QEvent::MouseMove: {
+            auto *me = static_cast<QMouseEvent *>(ev);
+            // Finger drags reach Qt twice -- natively via the QPA touch
+            // pipeline (MouseEventSynthesizedByQt) and again via the ETS
+            // overlay (MouseEventSynthesizedByApplication) -- so every move
+            // would otherwise be processed twice by the widgets (drag lag).
+            // Coalesce the cross-source duplicate at the QWindow delivery
+            // level: a near-identical move from the OTHER source within 60ms
+            // is the same finger position re-delivered, so swallow it before
+            // the widget dispatch runs.  Moves from the SAME source always
+            // pass (the QPA native stream is singular, and the injected
+            // stream is a single source too).  Separate state from the
+            // press/release dedup above so the two never interfere.
+            if (obj->isWindowType()) {
+                static int sMoveSrc = -1;
+                static QPoint sMovePos;
+                static QElapsedTimer sMoveTimer;
+                const bool dup = sMoveTimer.isValid() && !sMoveTimer.hasExpired(60)
+                        && int(me->source()) != sMoveSrc
+                        && (me->globalPos() - sMovePos).manhattanLength() < 5;
+                if (dup) {
+                    qWarning("[InputProbe] dropped cross-source duplicate move src=%d pos=(%d,%d)",
+                             int(me->source()), me->globalPos().x(), me->globalPos().y());
+                    return true;
+                }
+                sMovePos = me->globalPos();
+                sMoveSrc = int(me->source());
+                sMoveTimer.restart();
+            }
+            break;
+        }
         case QEvent::ContextMenu:
             // Context menus are QMenu popups too -- unsupported by the
             // single-window QPA (same SIGSEGV as the menu bar).  Swallow.
@@ -254,8 +285,31 @@ protected:
             break;
         case QEvent::KeyPress: {
             auto *ke = static_cast<QKeyEvent *>(ev);
-            qWarning("[InputProbe] key press recv=%s key=0x%x text='%s'",
-                     obj->metaObject()->className(), ke->key(), qPrintable(ke->text()));
+            qWarning("[InputProbe] key press recv=%s key=0x%x nativeVk=%u text='%s'",
+                     obj->metaObject()->className(), ke->key(), unsigned(ke->nativeVirtualKey()), qPrintable(ke->text()));
+            // Diagnostic markers for the Bluetooth-keyboard Del problem: flag
+            // Del/Backspace explicitly so the device log shows whether the key
+            // reaches Qt and which Qt key code it carries.
+            if (ke->key() == Qt::Key_Delete)
+                qWarning("[InputProbe] DEL key reached Qt key=0x%x text='%s'", ke->key(), qPrintable(ke->text()));
+            else if (ke->key() == Qt::Key_Backspace)
+                qWarning("[InputProbe] BACKSPACE key reached Qt key=0x%x text='%s'", ke->key(), qPrintable(ke->text()));
+            // Del-key fix (2026-08-04): the deployed QPA plugin (alpha_v6) fails to
+            // map OHOS KEYCODE_DEL(67)/KEYCODE_FORWARD_DEL(112) to Qt::Key_Delete,
+            // so a Bluetooth keyboard Del arrives as Qt::Key_unknown.  Remap via the
+            // nativeVirtualKey the plugin forwards (device-verified: uinput DEL → key=0x1ffffff).
+            // Safety: map ONLY when nativeVk exactly equals a known Del-family code,
+            // never for other unknown keys (system Back(2) must keep its own semantics).
+            const quint32 nativeVk = ke->nativeVirtualKey();
+            const bool isDeleteKey = (ke->key() == Qt::Key_unknown || ke->key() == 0x1000061)
+                    && (nativeVk == 67 || nativeVk == 112 || nativeVk == 2055);
+            if (isDeleteKey) {
+                qWarning("[InputProbe] Del remap nativeVk=%u key=0x%x -> Qt::Key_Delete", nativeVk, ke->key());
+                QKeyEvent delEv(ev->type(), Qt::Key_Delete, ke->modifiers(),
+                                QString(), ke->isAutoRepeat(), ke->count());
+                QCoreApplication::sendEvent(obj, &delEv);
+                return true; // consume original
+            }
             // QPA delivers spontaneous key events with empty text: swallow the
             // original and re-send a copy carrying the synthesized character.
             if (ev->spontaneous() && ke->text().isEmpty()) {
@@ -271,8 +325,29 @@ protected:
         }
         case QEvent::KeyRelease: {
             auto *ke = static_cast<QKeyEvent *>(ev);
-            qWarning("[InputProbe] key release recv=%s key=0x%x text='%s'",
-                     obj->metaObject()->className(), ke->key(), qPrintable(ke->text()));
+            qWarning("[InputProbe] key release recv=%s key=0x%x nativeVk=%u text='%s'",
+                     obj->metaObject()->className(), ke->key(), unsigned(ke->nativeVirtualKey()), qPrintable(ke->text()));
+            // Diagnostic markers for the Bluetooth-keyboard Del problem (same
+            // tags as KeyPress, so the press→release pair is greppable in the
+            // device log).
+            if (ke->key() == Qt::Key_Delete)
+                qWarning("[InputProbe] DEL key reached Qt key=0x%x text='%s'", ke->key(), qPrintable(ke->text()));
+            else if (ke->key() == Qt::Key_Backspace)
+                qWarning("[InputProbe] BACKSPACE key reached Qt key=0x%x text='%s'", ke->key(), qPrintable(ke->text()));
+            // Del-key fix (2026-08-04): mirror of the KeyPress remap -- the QPA
+            // plugin (alpha_v6) fails to map KEYCODE_DEL(67)/KEYCODE_FORWARD_DEL(112)
+            // on release too, so remap identically so press/release stay paired for
+            // widgets that consume release events.
+            const quint32 nativeVk = ke->nativeVirtualKey();
+            const bool isDeleteKey = (ke->key() == Qt::Key_unknown || ke->key() == 0x1000061)
+                    && (nativeVk == 67 || nativeVk == 112 || nativeVk == 2055);
+            if (isDeleteKey) {
+                qWarning("[InputProbe] Del remap nativeVk=%u key=0x%x -> Qt::Key_Delete", nativeVk, ke->key());
+                QKeyEvent delEv(ev->type(), Qt::Key_Delete, ke->modifiers(),
+                                QString(), ke->isAutoRepeat(), ke->count());
+                QCoreApplication::sendEvent(obj, &delEv);
+                return true; // consume original
+            }
             // Same text-less fix as KeyPress: on a Bluetooth keyboard a
             // Shift combo (Shift+digit/symbol/letter) arrives with empty text
             // on release too.  Re-send a copy carrying the synthesized
@@ -582,6 +657,23 @@ static std::string uiStateJson()
     root["undoEnabled"] = undo && undo->isEnabled();
     root["redoEnabled"] = redo && redo->isEnabled();
     return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
+}
+
+// Qt → ArkTS push for MDI subwindow activation: the ArkTS menu bar rebuilds
+// on windowActivated, mirroring the activeType/activeName getUiState reports
+// (className() of the active MyWidget, e.g. "Table"/"Matrix"/"MultiLayer").
+// Connected to QMdiArea::subWindowActivated in main() so BOTH activation by
+// clicking a window in the workspace AND activation via the Windows→win:*
+// menu (activateSubWindow → setActiveSubWindow) fire the event.
+static void emitWindowActivated(QMdiSubWindow *sub)
+{
+    MyWidget *aw = qobject_cast<MyWidget *>(sub);
+    if (!aw)
+        return;
+    QJsonObject p;
+    p[QStringLiteral("activeType")] = QString::fromLatin1(aw->metaObject()->className());
+    p[QStringLiteral("activeName")] = aw->name();
+    scidavisEmitEvent(QStringLiteral("windowActivated"), p);
 }
 
 static QJsonObject projectTreeJson(Folder *f)
@@ -1553,8 +1645,21 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                if (itemId == "new_notes") {
                    Note *note = g_mainWindow->newNote();
                    if (note) {
-                       note->showNormal();
-                       note->setFocus();
+                       // Defer the display to the next event-loop tick: a
+                       // synchronous showNormal()+setFocus() blocks the Qt GUI
+                       // thread (QMdiArea activation chain + first-frame
+                       // render) until the whole menuAction command finishes,
+                       // which the UI perceives as a freeze before the window
+                       // appears.  QTimer::singleShot(0,...) lets the loop
+                       // flush other events first.  Note* is owned by
+                       // ApplicationWindow, so the bare pointer stays valid
+                       // across one event-loop turn (null-checked anyway).
+                       QTimer::singleShot(0, [note]() {
+                           if (note) {
+                               note->showNormal();
+                               note->setFocus();
+                           }
+                       });
                    }
                }
               else if (itemId == "new_matrix") {
@@ -1564,13 +1669,26 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                   // invisible.  Mirror the display steps of initMatrix() here.
                   Matrix *m = g_mainWindow->newMatrix(32, 32);
                   if (m) {
+                      // Registration steps stay synchronous (must complete in
+                      // this command)…
                       g_mainWindow->d_workspace.addSubWindow(m);
                       // newMatrix() already generates and sets a unique name.
                       g_mainWindow->currentFolder()->addWindow(m);
                       g_mainWindow->addListViewItem(m);
-                      m->showNormal();
-                      m->setFocus();
                       g_mainWindow->modifiedProject(m);
+                      // …but the display is deferred to the next event-loop
+                      // tick: synchronous showNormal()/setFocus() blocks the
+                      // GUI thread (MDI activation + first-frame render) until
+                      // the command finishes.  Deferring lets the loop flush
+                      // first, so the window appears without the perceived
+                      // freeze.  Matrix* is owned by ApplicationWindow, so the
+                      // bare pointer stays valid (null-checked anyway).
+                      QTimer::singleShot(0, [m]() {
+                          if (m) {
+                              m->showNormal();
+                              m->setFocus();
+                          }
+                      });
                   }
               }
               else if (itemId == "new_project") {
@@ -1598,8 +1716,17 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
                    // showNormal()/setFocus() below keep the final state Normal.
                    MultiLayer *ml = g_mainWindow->newGraph();
                    if (ml) {
-                       ml->showNormal();
-                       ml->setFocus();
+                       // Defer the display to the next event-loop tick like the
+                       // other new-window commands (see new_notes above).
+                       // MultiLayer* is owned by ApplicationWindow, so the bare
+                       // pointer stays valid across one event-loop turn
+                       // (null-checked anyway).
+                       QTimer::singleShot(0, [ml]() {
+                           if (ml) {
+                               ml->showNormal();
+                               ml->setFocus();
+                           }
+                       });
                    }
                }
               else if (itemId == "cascade")
@@ -2843,6 +2970,15 @@ int main(int argc, char **argv)
     } else {
         ApplicationWindow *mw = new ApplicationWindow;
         g_mainWindow = mw;
+        // MDI activation → ArkTS menu refresh.  QMdiArea::subWindowActivated
+        // fires for every real active-window change: clicking a subwindow in
+        // the workspace, the Windows→win:* menu entries (activateSubWindow →
+        // setActiveSubWindow), and the F5/F6 next/prev-window actions.  This
+        // single hook keeps the ArkTS menu in sync for all of them without
+        // redundant emissions (the signal only fires when the active window
+        // actually changes).
+        QObject::connect(&mw->d_workspace, &QMdiArea::subWindowActivated, mw,
+                         [](QMdiSubWindow *sub) { emitWindowActivated(sub); });
         // Clipboard bridge (Phase 2): mirror Qt-side clipboard changes to
         // ArkTS, which writes them into the OHOS system pasteboard.  Large
         // payloads are truncated — the NAPI event channel is not meant for
