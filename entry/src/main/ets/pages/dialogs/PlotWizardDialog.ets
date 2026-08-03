@@ -280,21 +280,21 @@ export struct PlotWizardDialog {
   }
 
   onPlot(): void {
+    if (this.curves.length === 0) {
+      this.statusMsg = getAppString('dlg_pw_add_curve_first');
+      return;
+    }
     // Validate all curves have at least X and Y
     for (let i = 0; i < this.curves.length; i++) {
       const entry: CurveEntry = this.curves[i];
       if (entry.xCol.length === 0) {
-        this.statusMsg = getAppString('dlg_pw_need_y');
+        this.statusMsg = getAppString('dlg_pw_define_x_first');
         return;
       }
       if (entry.yCol.length === 0) {
         this.statusMsg = getAppString('dlg_pw_need_y');
         return;
       }
-    }
-    if (this.curves.length === 0) {
-      this.statusMsg = getAppString('dlg_pw_add_curve_first');
-      return;
     }
     try {
       const injector = qohos as QohosInjector;

@@ -17,6 +17,7 @@ interface QohosInjector {
 interface TableStatisticsArgs {
   tableId: string;
   type: string;
+  targets?: number[];
 }
 
 interface StatColumn {
@@ -47,6 +48,7 @@ interface StatRow {
 
 interface TableStatisticsResponse {
   success: boolean;
+  queued?: boolean;
   type: string;
   columns?: StatColumn[];
   rows?: StatRow[];
@@ -89,6 +91,7 @@ const ROW_STAT_HEADERS: string[] = [
 @Component
 export struct TableStatisticsDialog {
   @Link @Watch('onVisibleChanged') isVisible: boolean;
+  @Prop statType: string = 'columns';
   @State tables: TableInfo[] = [];
   @State selTableIdx: number = -1;
   @State colNames: string[] = [];
@@ -112,10 +115,21 @@ export struct TableStatisticsDialog {
     }
   }
 
+  @Watch('statType')
+  onStatTypeChanged(): void {
+    // Sync prop change to local index
+    if (this.statType === 'rows') {
+      this.statTypeIdx = 1;
+    } else {
+      this.statTypeIdx = 0;
+    }
+  }
+
   private reload(): void {
     this.tables = this.fetchTables();
     this.selTableIdx = this.tables.length > 0 ? 0 : -1;
-    this.statTypeIdx = 0;
+    // Prefer prop value, fallback to 'columns' default
+    this.statTypeIdx = this.statType === 'rows' ? 1 : 0;
     this.colResults = [];
     this.rowResults = [];
     this.hasResults = false;
@@ -200,22 +214,26 @@ export struct TableStatisticsDialog {
     const statType: string = this.statTypeIdx === 1 ? 'rows' : 'columns';
     const args: TableStatisticsArgs = {
       tableId: t.name,
-      type: statType
+      type: statType,
+      targets: cols
     };
     try {
       const injector = qohos as QohosInjector;
       const result: string = injector.callQtCommand('tableStatistics', JSON.stringify(args));
       const parsed = JSON.parse(result) as TableStatisticsResponse;
-      if (parsed.success) {
-        if (statType === 'columns' && parsed.columns) {
-          this.colResults = parsed.columns;
-        } else if (statType === 'rows' && parsed.rows) {
-          this.rowResults = parsed.rows;
-        }
-        this.hasResults = true;
-        this.statusMsg = '';
+      // tableStatistics is fire-and-forget: returns {"success":true,"queued":true}
+      // No columns/rows data expected in response.
+      if (parsed.success && parsed.queued) {
+        this.statusMsg = getAppString('msg_done') || 'OK';
+        // Show toast-like message that stats window was created
+        // Reuse statusMsg mechanism for now
+      } else if (parsed.success) {
+        // Fallback: success but no queued flag — still treat as fire-and-forget
+        this.statusMsg = getAppString('msg_done') || 'OK';
+      } else if (parsed.error) {
+        this.statusMsg = parsed.error;
       } else {
-        this.statusMsg = parsed.error ? parsed.error : getAppString('msg_no_table_selected');
+        this.statusMsg = getAppString('msg_no_table_selected');
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'tableStatistics failed: %{public}s', (e as Error).message);

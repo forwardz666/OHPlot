@@ -45,6 +45,8 @@
 #include "Interpolation.h"
 #include "PolynomialFit.h"
 #include "SmoothFilter.h"
+#include "Convolution.h"
+#include "ArrowMarker.h"
 
 #include <QAction>
 #include <QApplication>
@@ -75,8 +77,15 @@
 #include "Folder.h"
 #include "MultiLayer.h"
 #include "Graph.h"
+#include "Legend.h"
 #include "PlotCurve.h"
+#include "ImageMarker.h"
+#include "Grid.h"
 #include <qwt_data.h>
+#include <qwt_scale_div.h>
+#include <qwt_scale_draw.h>
+#include <qwt_scale_engine.h>
+#include <qwt_scale_map.h>
 
 #include <typeinfo>
 #include <cmath>
@@ -612,8 +621,11 @@ static const std::set<std::string> &queryCommands()
 {
     static const std::set<std::string> q = { "ping",        "getTableList", "getTableData",
                                              "getColumnInfo", "getPlotList", "getPlotData",
-                                             "getUiState", "getClipboardText", "getGraphCurves",
-                                             "getProjectTree", "getPreference", "getNoteData" };
+                                              "getUiState", "getClipboardText", "getGraphCurves",
+                                              "getProjectTree", "getPreference", "getNoteData",
+                                              "getMatrixData", "tableSize", "getAxisConfig",
+                                              "getPlotAssociations", "getCurveInfo",
+                                              "getActiveWindowInfo", "getStartPath" };
     return q;
 }
 
@@ -1363,11 +1375,90 @@ static const std::map<std::string, CommandHandler> &commandRegistry()
               const QwtScaleDiv *scDiv = g->plotWidget()->axisScaleDiv(axis);
               double start = std::min(scDiv->lowerBound(), scDiv->upperBound());
               double end = std::max(scDiv->lowerBound(), scDiv->upperBound());
+              // Honor explicit from/to bounds (AxesDialog sends {axis, scale,
+              // from, to}); fall back to the current axis bounds when omitted
+              // (GraphPropsDialog toggles the scale type only).
+              if (args.contains("from"))
+                  start = args["from"].toDouble(start);
+              if (args.contains("to"))
+                  end = args["to"].toDouble(end);
+              if (start > end)
+                  std::swap(start, end);
               int type = (args["scale"].toString() == "log") ? 1 : 0;
               if (type == 1 && start <= 0)
                   start = 1e-3;
               g->setScale(axis, start, end, 0.0, 5, 5, type, false);
               g->replot();
+              return "{\"success\":true}";
+          } },
+
+        { "setAxisGrid",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              int axis = args["axis"].toInt(0);
+              if (axis < 0 || axis > 3) return jsonError("bad axis");
+              Grid *grid = g->grid();
+              if (!grid) return jsonError("no grid");
+              // Same axis->grid mapping as getAxisConfig: yLeft/yRight drive
+              // the Y grid lines, xBottom/xTop the X lines.
+              const bool major = args.contains("majorGrid")
+                      ? args["majorGrid"].toBool()
+                      : (axis == QwtPlot::yLeft || axis == QwtPlot::yRight)
+                              ? grid->yEnabled()
+                              : grid->xEnabled();
+              const bool minor = args.contains("minorGrid")
+                      ? args["minorGrid"].toBool()
+                      : (axis == QwtPlot::yLeft || axis == QwtPlot::yRight)
+                              ? grid->yMinEnabled()
+                              : grid->xMinEnabled();
+              if (axis == QwtPlot::yLeft || axis == QwtPlot::yRight) {
+                  grid->enableY(major);
+                  grid->enableYMin(minor);
+              } else {
+                  grid->enableX(major);
+                  grid->enableXMin(minor);
+              }
+              g->replot();
+              QJsonObject p;
+              p["title"] = QObject::tr("Axes");
+              p["text"] = QObject::tr("Grid updated for axis %1").arg(axis);
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "setAxisFrame",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              const bool showAxis = args.contains("showAxis") ? args["showAxis"].toBool() : true;
+              const bool backbones = args.contains("backbones") ? args["backbones"].toBool() : true;
+              const int lineWidth = args["lineWidth"].toInt(1);
+              g->drawAxesBackbones(backbones);
+              g->setAxesLinewidth(lineWidth);
+              // AxesDialog's frame tab sends no per-axis key; apply the axis
+              // on/off state to every axis in that case, otherwise only to the
+              // requested one.
+              if (args.contains("axis")) {
+                  int axis = qBound(0, args["axis"].toInt(0), 3);
+                  g->enableAxis(axis, showAxis);
+              } else {
+                  for (int a = QwtPlot::yLeft; a <= QwtPlot::xTop; a++)
+                      g->enableAxis(a, showAxis);
+              }
+              g->replot();
+              QJsonObject p;
+              p["title"] = QObject::tr("Axes");
+              p["text"] = QObject::tr("Frame updated");
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
               return "{\"success\":true}";
           } },
 
@@ -1911,6 +2002,741 @@ return "{\"success\":true}";
               scidavisEmitEvent(QStringLiteral("tableListChanged"));
               return "{\"success\":true}";
           } },
+
+        { "normalize",
+          [](const QJsonObject &args) -> std::string {
+              // future::Table::normalizeColumns — no-dialog core of
+              // NormalizeDialog.  columns (optional) filters which columns
+              // are normalised; default = every column in the table.
+              Table *t = resolveTable(args);
+              if (!t || !t->d_future_table) return jsonError("table not found");
+              QList<Column *> cols;
+              if (args["columns"].isArray()) {
+                  QSet<QString> wanted;
+                  for (const QJsonValue &v : args["columns"].toArray())
+                      wanted.insert(v.toString());
+                  for (int i = 0; i < t->numCols(); i++) {
+                      Column *c = t->column(i);
+                      if (c && wanted.contains(c->name()))
+                          cols << c;
+                  }
+              } else {
+                  for (int i = 0; i < t->numCols(); i++)
+                      cols << t->column(i);
+              }
+              if (cols.isEmpty()) return jsonError("no matching columns");
+              t->d_future_table->normalizeColumns(cols);
+              QJsonObject p;
+              p["title"] = QObject::tr("Normalize");
+              p["text"] = QObject::tr("Normalized %1").arg(t->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              // Notify ArkTS to refresh table data after normalize
+              {
+                  QJsonObject ep;
+                  ep["tableId"] = args["tableId"].toString();
+                  scidavisEmitEvent(QStringLiteral("tableDataChanged"), ep);
+              }
+              return "{\"success\":true}";
+          } },
+
+        { "convolve",
+          [](const QJsonObject &args) -> std::string {
+              // Convolution filter (libscidavis Convolution.h) — convolves
+              // signalCol with responseCol and appends a result curve.
+              Table *t = resolveTable(args);
+              if (!t) return jsonError("table not found");
+              QString signalCol = args["signalCol"].toString();
+              QString responseCol = args["responseCol"].toString();
+              if (signalCol.isEmpty() || responseCol.isEmpty())
+                  return jsonError("missing signalCol/responseCol");
+              bool ok = false;
+              try {
+                  Convolution *conv =
+                          new Convolution(g_mainWindow, t, signalCol, responseCol);
+                  ok = conv->run();
+                  delete conv;
+              } catch (...) {
+                  ok = false;
+              }
+              QJsonObject p;
+              p["title"] = QObject::tr("Convolution");
+              p["text"] = ok ? QObject::tr("Convolved %1").arg(t->name())
+                             : QObject::tr("Convolution failed on %1").arg(t->name());
+              p["icon"] = ok ? QStringLiteral("information") : QStringLiteral("critical");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              if (ok) scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return ok ? std::string("{\"success\":true}") : jsonError("convolution failed");
+          } },
+
+        { "getMatrixData",
+          [](const QJsonObject &args) -> std::string {
+              // Read-only: return the full matrix cell contents as a 2-D
+              // JSON array (rows of cols).  Mirrors getTableData.
+              Matrix *m = resolveMatrix(args);
+              if (!m) return jsonError("matrix not found");
+              QJsonArray rows;
+              for (int r = 0; r < m->numRows(); r++) {
+                  QJsonArray rowArr;
+                  for (int c = 0; c < m->numCols(); c++)
+                      rowArr.append(m->text(r, c));
+                  rows.append(rowArr);
+              }
+              QJsonObject data;
+              data["rows"] = m->numRows();
+              data["cols"] = m->numCols();
+              data["cells"] = rows;
+              QJsonObject root;
+              root["success"] = true;
+              root["data"] = data;
+              return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "addText",
+          [](const QJsonObject &args) -> std::string {
+              // Add a legend/text marker to the active graph layer and
+              // consume the 11 styling keys sent by TextDialog
+              // (text/fontFamily/fontSize/bold/italic/textColor/bgFrame/
+              // bgOpacity/bgColor/alignment/angle).
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              const QString text = args["text"].toString();
+              Legend *l;
+              if (text.isEmpty())
+                  l = g->newLegend();
+              else
+                  l = g->newLegend(text);
+              if (!l) return jsonError("failed to create text marker");
+              QFont f = l->font();
+              const QString family = args["fontFamily"].toString();
+              if (!family.isEmpty())
+                  f.setFamily(family);
+              if (args.contains("fontSize"))
+                  f.setPointSizeF(args["fontSize"].toDouble(f.pointSizeF()));
+              f.setBold(args["bold"].toBool(false));
+              f.setItalic(args["italic"].toBool(false));
+              l->setFont(f);
+              const QString textColor = args["textColor"].toString();
+              if (!textColor.isEmpty())
+                  l->setTextColor(QColor(textColor));
+              const QString bgColor = args["bgColor"].toString();
+              if (!bgColor.isEmpty()) {
+                  QColor bg(bgColor);
+                  // bgOpacity is sent as an alpha in the 0-255 range.
+                  if (args.contains("bgOpacity"))
+                      bg.setAlpha(qBound(0, args["bgOpacity"].toInt(255), 255));
+                  l->setBackgroundColor(bg);
+              }
+              // TextDialog's bgFrameIdx maps directly onto the Legend frame
+              // styles (None=0/Line=1/Shadow=2).
+              if (args.contains("bgFrame"))
+                  l->setFrameStyle(args["bgFrame"].toInt(int(Legend::None)));
+              if (args.contains("angle"))
+                  l->setAngle(args["angle"].toInt(0));
+              // "alignment" has no Qt Legend equivalent: the desktop build
+              // only uses it for axis titles, so it is intentionally
+              // ignored here.
+              g->updatePlot();
+              QJsonObject p;
+              p["title"] = QObject::tr("Add Text");
+              p["text"] = QObject::tr("Added text to %1").arg(ml->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "drawArrow",
+          [](const QJsonObject &args) -> std::string {
+              // Draw an arrow marker (axes-value coordinates) on the graph.
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              // LineDialog sends xStart/yStart/xEnd/yEnd; keep x1/y1/x2/y2
+              // as a legacy fallback.
+              double x1 = args["xStart"].toDouble(args["x1"].toDouble(0.0));
+              double y1 = args["yStart"].toDouble(args["y1"].toDouble(0.0));
+              double x2 = args["xEnd"].toDouble(args["x2"].toDouble(0.0));
+              double y2 = args["yEnd"].toDouble(args["y2"].toDouble(0.0));
+              auto *mrk = new ArrowMarker();
+              mrk->setStartPoint(x1, y1);
+              mrk->setEndPoint(x2, y2);
+              mrk->setWidth(args["width"].toInt(1));
+              mrk->setColor(QColor(args["color"].toString(QStringLiteral("black"))));
+              // drawArrow defaults to arrow heads at both ends when the
+              // flags are absent.
+              const bool startArrow = args.contains("arrowStart")
+                      ? args["arrowStart"].toBool() : true;
+              const bool endArrow = args.contains("arrowEnd")
+                      ? args["arrowEnd"].toBool() : true;
+              mrk->drawStartArrow(startArrow);
+              mrk->drawEndArrow(endArrow);
+              if (args.contains("headLength"))
+                  mrk->setHeadLength(args["headLength"].toInt(mrk->headLength()));
+              if (args.contains("headAngle"))
+                  mrk->setHeadAngle(args["headAngle"].toInt(mrk->headAngle()));
+              if (args.contains("headFilled"))
+                  mrk->fillArrowHead(args["headFilled"].toBool(true));
+              g->addArrow(mrk);
+              QJsonObject p;
+              p["title"] = QObject::tr("Draw Arrow");
+              p["text"] = QObject::tr("Arrow added to %1").arg(ml->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "drawLine",
+          [](const QJsonObject &args) -> std::string {
+              // Draw a plain line marker (no arrow heads) on the graph.
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              // LineDialog sends xStart/yStart/xEnd/yEnd; keep x1/y1/x2/y2
+              // as a legacy fallback.
+              double x1 = args["xStart"].toDouble(args["x1"].toDouble(0.0));
+              double y1 = args["yStart"].toDouble(args["y1"].toDouble(0.0));
+              double x2 = args["xEnd"].toDouble(args["x2"].toDouble(0.0));
+              double y2 = args["yEnd"].toDouble(args["y2"].toDouble(0.0));
+              auto *mrk = new ArrowMarker();
+              mrk->setStartPoint(x1, y1);
+              mrk->setEndPoint(x2, y2);
+              mrk->setWidth(args["width"].toInt(1));
+              mrk->setColor(QColor(args["color"].toString(QStringLiteral("black"))));
+              // drawLine defaults to no arrow heads when the flags are
+              // absent.
+              const bool startArrow = args.contains("arrowStart")
+                      ? args["arrowStart"].toBool() : false;
+              const bool endArrow = args.contains("arrowEnd")
+                      ? args["arrowEnd"].toBool() : false;
+              mrk->drawStartArrow(startArrow);
+              mrk->drawEndArrow(endArrow);
+              if (args.contains("headLength"))
+                  mrk->setHeadLength(args["headLength"].toInt(mrk->headLength()));
+              if (args.contains("headAngle"))
+                  mrk->setHeadAngle(args["headAngle"].toInt(mrk->headAngle()));
+              if (args.contains("headFilled"))
+                  mrk->fillArrowHead(args["headFilled"].toBool(true));
+              g->addArrow(mrk);
+              QJsonObject p;
+              p["title"] = QObject::tr("Draw Line");
+              p["text"] = QObject::tr("Line added to %1").arg(ml->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "timeStamp",
+          [](const QJsonObject &args) -> std::string {
+              // One-liner: add a timestamp text marker to the graph.
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              g->addTimeStamp();
+              QJsonObject p;
+              p["title"] = QObject::tr("Time Stamp");
+              p["text"] = QObject::tr("Timestamp added to %1").arg(ml->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "addImage",
+          [](const QJsonObject &args) -> std::string {
+              // Insert an image file as an image marker on the graph and
+              // consume the 5 keys sent by ImageDialog (originX/originY/
+              // width/height/keepAspect), all in paint/pixel coordinates.
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              const QString filePath = args["filePath"].toString();
+              if (filePath.isEmpty()) return jsonError("missing filePath");
+              if (!QFile::exists(filePath)) return jsonError("file not found");
+              ImageMarker *m = g->addImage(filePath);
+              if (!m) return jsonError("failed to add image");
+              int x = args["originX"].toInt(0);
+              int y = args["originY"].toInt(0);
+              int w = args["width"].toInt(0);
+              int h = args["height"].toInt(0);
+              const bool keepAspect = args["keepAspect"].toBool(false);
+              if (w <= 0 && h <= 0) {
+                  // No explicit size: keep the canvas-clamped default sizing
+                  // that addImage() already applied.
+              } else {
+                  const QSize src = m->pixmap().size();
+                  if (w <= 0) w = src.width();
+                  if (h <= 0) h = src.height();
+                  // Preserve the source pixmap aspect ratio when requested
+                  // (same ratio source as Graph::addImage).
+                  if (keepAspect && src.width() > 0 && src.height() > 0) {
+                      const double ratio = double(src.width()) / double(src.height());
+                      if (w / double(h) > ratio)
+                          w = qRound(h * ratio);
+                      else
+                          h = qRound(w / ratio);
+                  }
+                  m->setRect(x, y, w, h);
+              }
+              g->updatePlot();
+              QJsonObject p;
+              p["title"] = QObject::tr("Add Image");
+              p["text"] = QObject::tr("Image added to %1").arg(ml->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "newLegend",
+          [](const QJsonObject &args) -> std::string {
+              // Add a legend to the graph; auto-generated from curve titles
+              // when no explicit text is supplied.
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              QString text = args["text"].toString();
+              if (text.isEmpty())
+                  g->newLegend();
+              else
+                  g->newLegend(text);
+              QJsonObject p;
+              p["title"] = QObject::tr("New Legend");
+              p["text"] = QObject::tr("Legend added to %1").arg(ml->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "tableSize",
+          [](const QJsonObject &args) -> std::string {
+              // Read-only: return the row/column count of a table.
+              Table *t = resolveTable(args);
+              if (!t) return jsonError("table not found");
+              QJsonObject root;
+              root["success"] = true;
+              root["rows"] = t->rowCount();
+              root["cols"] = t->columnCount();
+              return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "resizeTable",
+          [](const QJsonObject &args) -> std::string {
+              // Mutation: resize a table to the given dimensions
+              // (TableSizeDialog "Table Size").  Existing cell data is kept;
+              // rows/cols below 1 are rejected.
+              Table *t = resolveTable(args);
+              if (!t) return jsonError("table not found");
+              int rows = args["rows"].toInt(0);
+              int cols = args["cols"].toInt(0);
+              if (rows < 1 || cols < 1) return jsonError("bad dimensions");
+              t->setNumRows(rows);
+              t->setNumCols(cols);
+              QJsonObject p;
+              p["title"] = QObject::tr("Table Size");
+              p["text"] = QObject::tr("Resized %1 to %2 × %3")
+                      .arg(t->name()).arg(rows).arg(cols);
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              QJsonObject ep;
+              ep["tableId"] = t->name();
+              scidavisEmitEvent(QStringLiteral("tableDataChanged"), ep);
+              return "{\"success\":true}";
+          } },
+
+        // ── Dialog suite (batch 4) ─────────────────────────────────────
+        // One command per ArkTS dialog: PlotWizard, Axes, Associations,
+        // Curve Range, Arrange Layers, Rename Window, Find.  Each dialog
+        // was read to match its exact arg keys and response shape.
+        { "plotWizard",
+          [](const QJsonObject &args) -> std::string {
+              if (!g_mainWindow) return jsonError("no mw");
+              if (!args["curves"].isArray()) return jsonError("missing curves");
+              // Reuse the desktop PlotWizard path: build the same
+              // "Table: XCol(X), YCol(Y)" spec strings that
+              // ApplicationWindow::multilayerPlot(const QStringList&)
+              // parses (it handles the X/Y curves and xErr/yErr error
+              // bars).  Master curves first, error bars appended last,
+              // mirroring PlotWizard::accept().
+              QStringList colList, errList;
+              int plotted = 0;
+              bool zSkipped = false;
+              for (const QJsonValue &v : args["curves"].toArray()) {
+                  const QJsonObject cv = v.toObject();
+                  const QString tableId = cv["tableId"].toString();
+                  const QString xCol = cv["xCol"].toString();
+                  const QString yCol = cv["yCol"].toString();
+                  if (tableId.isEmpty() || xCol.isEmpty() || yCol.isEmpty())
+                      continue;
+                  if (!cv["zCol"].toString().isEmpty()) {
+                      zSkipped = true; // 3-D curves have no 2-D wizard path
+                      continue;
+                  }
+                  const QString master = tableId + ": " + xCol + "(X), " + yCol + "(Y)";
+                  colList << master;
+                  if (!cv["xErrCol"].toString().isEmpty())
+                      errList << master + ", " + cv["xErrCol"].toString() + "(xErr)";
+                  if (!cv["yErrCol"].toString().isEmpty())
+                      errList << master + ", " + cv["yErrCol"].toString() + "(yErr)";
+                  plotted++;
+              }
+              if (colList.isEmpty() && errList.isEmpty())
+                  return jsonError("no valid curves");
+              colList += errList;
+              MultiLayer *ml = g_mainWindow->multilayerPlot(colList);
+              if (!ml) return jsonError("plot failed");
+              QJsonObject p;
+              p["title"] = QObject::tr("Plot Wizard");
+              p["text"] = QObject::tr("Plotted %1 curve(s)").arg(plotted);
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              if (zSkipped) {
+                  QJsonObject pz;
+                  pz["title"] = QObject::tr("Plot Wizard");
+                  pz["text"] = QObject::tr("3-D (Z) curves are not supported and were skipped");
+                  pz["icon"] = QStringLiteral("warning");
+                  scidavisEmitEvent(QStringLiteral("message"), pz);
+              }
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "getAxisConfig",
+          [](const QJsonObject &args) -> std::string {
+              // Read-only: one axis at a time (Qwt axis id: Bottom=2,
+              // Left=0, Top=3, Right=1).  Shape matches AxesDialog's
+              // AxisConfigData.  Fields with no clean getter fall back to
+              // safe defaults rather than failing.
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              int axis = qBound(0, args["axis"].toInt(0), 3);
+              const QwtScaleDiv *scDiv = g->plotWidget()->axisScaleDiv(axis);
+              const QwtScaleEngine *se = g->plotWidget()->axisScaleEngine(axis);
+              QJsonObject data;
+              data["from"] = std::min(scDiv->lowerBound(), scDiv->upperBound());
+              data["to"] = std::max(scDiv->lowerBound(), scDiv->upperBound());
+              data["scaleType"] =
+                      (se && se->transformation()
+                       && se->transformation()->type() == QwtScaleTransformation::Log10)
+                              ? QStringLiteral("log")
+                              : QStringLiteral("linear");
+              data["inverted"] = se ? se->testAttribute(QwtScaleEngine::Inverted) : false;
+              data["title"] = g->axisTitle(axis);
+              data["visible"] = g->plotWidget()->axisEnabled(axis);
+              // Grid: the axis id is a QwtPlot axis (yLeft=0, yRight=1,
+              // xBottom=2, xTop=3).  Y axes drive the grid's Y lines,
+              // X axes its X lines (same mapping as setAxisGrid).
+              Grid *grid = g->grid();
+              if (axis == QwtPlot::yLeft || axis == QwtPlot::yRight) {
+                  data["majorGrid"] = grid && grid->yEnabled();
+                  data["minorGrid"] = grid && grid->yMinEnabled();
+              } else {
+                  data["majorGrid"] = grid && grid->xEnabled();
+                  data["minorGrid"] = grid && grid->xMinEnabled();
+              }
+              data["backbones"] = g->axesBackbones();
+              data["lineWidth"] = 1; // no per-axis line-width getter exposed
+              QJsonObject root;
+              root["success"] = true;
+              root["data"] = data;
+              return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "getPlotAssociations",
+          [](const QJsonObject &args) -> std::string {
+              // Read-only: per-curve X/Y/xErr/yErr column associations for
+              // the active graph.  Shape matches AssociationsDialog's
+              // PlotAssociationEntry (curveName, tableName, xCol, yCol,
+              // xErrCol, yErrCol).
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              const QStringList names = g->analysableCurvesList();
+              QJsonArray arr;
+              for (int i = 0; i < names.count(); i++) {
+                  QJsonObject o;
+                  o["curveName"] = names[i];
+                  // analysableCurvesList() skips error-bar curves, so look
+                  // the curve up by name (not by index) to stay aligned.
+                  if (auto *dc = dynamic_cast<DataCurve *>(g->curve(names[i]))) {
+                      Table *t = dc->table();
+                      const QString tname = t ? t->name() : QString();
+                      // Strip the "Table_" prefix so the dialog shows the
+                      // bare column names (as the desktop AssociationsDialog
+                      // does).
+                      auto strip = [&tname](const QString &full) {
+                          if (!tname.isEmpty() && full.startsWith(tname + "_"))
+                              return full.mid(tname.length() + 1);
+                          return full;
+                      };
+                      o["tableName"] = tname;
+                      o["xCol"] = strip(dc->xColumnName());
+                      o["yCol"] = strip(dc->yColumnName());
+                      // Error-bar associations live in separate curves and
+                      // are not exposed by DataCurve::plotAssociation().
+                      o["xErrCol"] = QString();
+                      o["yErrCol"] = QString();
+                  } else {
+                      o["tableName"] = QString();
+                      o["xCol"] = QString();
+                      o["yCol"] = QString();
+                      o["xErrCol"] = QString();
+                      o["yErrCol"] = QString();
+                  }
+                  arr.append(o);
+              }
+              QJsonObject root;
+              root["success"] = true;
+              root["data"] = arr;
+              return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "updatePlotAssociation",
+          [](const QJsonObject &args) -> std::string {
+              // Re-associate a curve's X/Y data columns.  Consumes the
+              // structured contract sent by AssociationsDialog:
+              // {curveIdx, tableName, xCol, yCol, xErrCol, yErrCol}.
+              // Mirrors AssociationsDialog::changePlotAssociation() for the
+              // plain 2-column case: column ids are of the form
+              // "<tableName>_<colName>".  Error-bar reassignment
+              // (xErrCol/yErrCol) would require re-targeting a separate
+              // QwtErrorPlotCurve and is downgraded to a warning log (no UI
+              // dialog) until supported.
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              const int idx = args["curveIdx"].toInt(-1);
+              const QStringList names = g->analysableCurvesList();
+              if (idx < 0 || idx >= names.count())
+                  return jsonError("curve index out of range");
+              auto *dc = dynamic_cast<DataCurve *>(g->curve(names[idx]));
+              if (!dc) return jsonError("curve not a data curve");
+              const QString tableName = args["tableName"].toString();
+              const QString xCol = args["xCol"].toString();
+              const QString yCol = args["yCol"].toString();
+              if (tableName.isEmpty() || xCol.isEmpty() || yCol.isEmpty())
+                  return jsonError("missing table/column association");
+              const QString fullX = tableName + "_" + xCol;
+              const QString fullY = tableName + "_" + yCol;
+              if (dc->xColumnName() != fullX || dc->yColumnName() != fullY) {
+                  dc->setXColumnName(fullX);
+                  dc->setYColumnName(fullY);
+                  dc->loadData();
+              }
+              const QString xErrCol = args["xErrCol"].toString();
+              const QString yErrCol = args["yErrCol"].toString();
+              if (!xErrCol.isEmpty() || !yErrCol.isEmpty())
+                  qWarning("[SciDAVis] updatePlotAssociation: error-bar reassociation "
+                           "(xErr=%s, yErr=%s) not supported yet; X/Y reassigned only",
+                           qPrintable(xErrCol), qPrintable(yErrCol));
+              g->updatePlot();
+              g->notifyChanges();
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "getCurveInfo",
+          [](const QJsonObject &args) -> std::string {
+              // Read-only: row range + max rows for one curve.  Shape
+              // matches CurveRangeDialog's CurveInfoData (curveIdx,
+              // curveName, startRow, endRow, maxRows; the dialog displays
+              // the 0-based rows as 1-based).
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              int idx = args["curveIdx"].toInt(-1);
+              const QStringList names = g->analysableCurvesList();
+              if (idx < 0 || idx >= names.count())
+                  return jsonError("curve index out of range");
+              QJsonObject data;
+              data["curveIdx"] = idx;
+              data["curveName"] = names[idx];
+              if (auto *dc = dynamic_cast<DataCurve *>(g->curve(names[idx]))) {
+                  data["startRow"] = dc->startRow();
+                  data["endRow"] = dc->endRow();
+                  data["maxRows"] = dc->table() ? dc->table()->numRows() : 0;
+              } else {
+                  data["startRow"] = 0;
+                  data["endRow"] = 0;
+                  data["maxRows"] = 0;
+              }
+              QJsonObject root;
+              root["success"] = true;
+              root["data"] = data;
+              return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "setCurveRange",
+          [](const QJsonObject &args) -> std::string {
+              // Apply a 0-based row range to a curve (mirrors
+              // CurveRangeDialog::accept -> DataCurve::setRowRange).
+              MultiLayer *ml = resolvePlot(args);
+              Graph *g = ml ? ml->activeGraph() : nullptr;
+              if (!g) return jsonError("no active graph");
+              int idx = args["curveIdx"].toInt(-1);
+              const QStringList names = g->analysableCurvesList();
+              if (idx < 0 || idx >= names.count())
+                  return jsonError("curve index out of range");
+              auto *dc = dynamic_cast<DataCurve *>(g->curve(names[idx]));
+              if (!dc) return jsonError("curve not a data curve");
+              const int maxRows = dc->table() ? dc->table()->numRows() : 0;
+              const int start = qBound(0, args["startRow"].toInt(0), qMax(0, maxRows - 1));
+              int end = args["endRow"].toInt(-1);
+              if (end < 0)
+                  end = qMax(0, maxRows - 1);
+              else
+                  end = qBound(0, end, qMax(0, maxRows - 1));
+              dc->setRowRange(qMin(start, end), qMax(start, end));
+              g->updatePlot();
+              QJsonObject p;
+              p["title"] = QObject::tr("Curve Range");
+              p["text"] = QObject::tr("Set range of %1 to rows %2..%3")
+                                  .arg(dc->yColumnName())
+                                  .arg(qMin(start, end) + 1)
+                                  .arg(qMax(start, end) + 1);
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "arrangeLayers",
+          [](const QJsonObject &args) -> std::string {
+              // No-dialog core of LayerDialog::update() minus the
+              // QMessageBox popups: set layer count, grid, canvas,
+              // alignment, margins and spacing, then lay them out.
+              MultiLayer *ml = resolvePlot(args);
+              if (!ml) return jsonError("no active plot");
+              const int graphs = qBound(0, args["layers"].toInt(ml->layers()), 100);
+              ml->setLayersNumber(graphs);
+              if (!graphs) {
+                  QJsonObject p;
+                  p["title"] = QObject::tr("Arrange Layers");
+                  p["text"] = QObject::tr("Removed all layers from %1").arg(ml->name());
+                  p["icon"] = QStringLiteral("information");
+                  scidavisEmitEvent(QStringLiteral("message"), p);
+                  scidavisEmitEvent(QStringLiteral("plotListChanged"));
+                  return "{\"success\":true}";
+              }
+              const bool fit = args["autoLayout"].toBool(false);
+              if (!fit) {
+                  ml->setCols(qMax(1, args["gridCols"].toInt(1)));
+                  ml->setRows(qMax(1, args["gridRows"].toInt(1)));
+              }
+              if (args["customCanvas"].toBool(false))
+                  ml->setLayerCanvasSize(args["canvasWidth"].toInt(600),
+                                         args["canvasHeight"].toInt(400));
+              ml->setAlignement(args["alignH"].toInt(0), args["alignV"].toInt(0));
+              ml->setMargins(args["marginLeft"].toInt(0), args["marginRight"].toInt(0),
+                             args["marginTop"].toInt(0), args["marginBottom"].toInt(0));
+              // setSpacing(rowGap, colGap) — row gap first, then column gap.
+              ml->setSpacing(args["rowsGap"].toInt(5), args["colsGap"].toInt(5));
+              ml->arrangeLayers(fit, args["customCanvas"].toBool(false));
+              QJsonObject p;
+              p["title"] = QObject::tr("Arrange Layers");
+              p["text"] = QObject::tr("Arranged %1 layer(s) of %2").arg(graphs).arg(ml->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "getActiveWindowInfo",
+          [](const QJsonObject &) -> std::string {
+              // Read-only: name/label/caption-policy of the active MDI
+              // subwindow (RenameWindowDialog's ActiveWindowInfo).
+              if (!g_mainWindow) return jsonError("no mw");
+              QMdiSubWindow *sub = g_mainWindow->d_workspace.activeSubWindow();
+              MyWidget *w = qobject_cast<MyWidget *>(sub);
+              if (!w) return jsonError("no active window");
+              QJsonObject data;
+              data["name"] = w->name();
+              data["label"] = w->windowLabel();
+              data["type"] = QString::fromLatin1(w->metaObject()->className());
+              data["captionPolicy"] = int(w->captionPolicy());
+              QJsonObject root;
+              root["success"] = true;
+              root["data"] = data;
+              return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "renameWindow",
+          [](const QJsonObject &args) -> std::string {
+              // No-dialog replica of RenameWindowDialog::accept():
+              // rename (via ApplicationWindow::renameWindow), then update
+              // label + caption policy and sync the project tree.
+              if (!g_mainWindow) return jsonError("no mw");
+              const QString windowName = args["windowName"].toString();
+              MyWidget *w = nullptr;
+              if (!windowName.isEmpty()) {
+                  for (MyWidget *cand : g_mainWindow->windowsList())
+                      if (cand->name() == windowName) { w = cand; break; }
+              }
+              if (!w)
+                  w = qobject_cast<MyWidget *>(g_mainWindow->d_workspace.activeSubWindow());
+              if (!w) return jsonError("window not found");
+              const QString text = args["newName"].toString();
+              const QString label = args["newLabel"].toString();
+              const int policy = args["captionPolicy"].toInt(int(w->captionPolicy()));
+              if (!text.isEmpty() && text != w->name()) {
+                  if (!g_mainWindow->renameWindow(w, text))
+                      return jsonError("rename failed");
+              }
+              w->setWindowLabel(label);
+              w->setCaptionPolicy(static_cast<MyWidget::CaptionPolicy>(qBound(0, policy, 2)));
+              g_mainWindow->setListViewLabel(w->name(), label);
+              g_mainWindow->modifiedProject(w);
+              QJsonObject p;
+              p["title"] = QObject::tr("Rename Window");
+              p["text"] = QObject::tr("Renamed %1").arg(w->name());
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              // No dedicated window-list event on the ArkTS side; refresh
+              // the list the renamed window belongs to so the new name
+              // propagates to the UI.
+              if (w->inherits("Table"))
+                  scidavisEmitEvent(QStringLiteral("tableListChanged"));
+              else if (w->inherits("MultiLayer"))
+                  scidavisEmitEvent(QStringLiteral("plotListChanged"));
+              return "{\"success\":true}";
+          } },
+
+        { "getStartPath",
+          [](const QJsonObject &) -> std::string {
+              // FindDialog shows this as the search start folder; the
+              // project folder is not exposed, so default to the root.
+              QJsonObject root;
+              root["success"] = true;
+              root["path"] = QStringLiteral("/");
+              return QJsonDocument(root).toJson(QJsonDocument::Compact).toStdString();
+          } },
+
+        { "find",
+          [](const QJsonObject &args) -> std::string {
+              // Minimal search over window names/labels/folder names; the
+              // found subwindow is activated (same as the desktop Find).
+              if (!g_mainWindow) return jsonError("no mw");
+              const QString text = args["text"].toString();
+              if (text.isEmpty()) return jsonError("empty search text");
+              g_mainWindow->find(text, args["searchWindowNames"].toBool(true),
+                                 args["searchWindowLabels"].toBool(false),
+                                 args["searchFolderNames"].toBool(false),
+                                 args["caseSensitive"].toBool(false),
+                                 args["partialMatch"].toBool(true),
+                                 args["includeSubfolders"].toBool(true));
+              QJsonObject p;
+              p["title"] = QObject::tr("Find");
+              p["text"] = QObject::tr("Searched for \"%1\"").arg(text);
+              p["icon"] = QStringLiteral("information");
+              scidavisEmitEvent(QStringLiteral("message"), p);
+              return "{\"success\":true}";
+          } },
+
     };
     return reg;
 }

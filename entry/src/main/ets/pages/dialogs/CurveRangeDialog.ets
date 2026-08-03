@@ -58,7 +58,24 @@ export struct CurveRangeDialog {
 
   private loadData(): void {
     this.statusMsg = '';
-    const idx: number = AppStorage.get<number>('curveRangeIdx') ?? this.curveIdx;
+    let idx: number = -1;
+    try {
+      const storageVal: number | undefined = AppStorage.get<number>('curveRangeIdx');
+      if (storageVal !== undefined && storageVal >= 0) {
+        idx = storageVal;
+      } else if (this.curveIdx >= 0) {
+        idx = this.curveIdx;
+      } else {
+        idx = 0;
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'AppStorage.get curveRangeIdx fallback to curveIdx: %{public}s', (e as Error).message);
+      if (this.curveIdx >= 0) {
+        idx = this.curveIdx;
+      } else {
+        idx = 0;
+      }
+    }
     if (idx < 0) {
       this.curveName = '';
       return;
@@ -81,7 +98,24 @@ export struct CurveRangeDialog {
   }
 
   onOk(): void {
-    const idx: number = AppStorage.get<number>('curveRangeIdx') ?? this.curveIdx;
+    let idx: number = -1;
+    try {
+      const storageVal: number | undefined = AppStorage.get<number>('curveRangeIdx');
+      if (storageVal !== undefined && storageVal >= 0) {
+        idx = storageVal;
+      } else if (this.curveIdx >= 0) {
+        idx = this.curveIdx;
+      } else {
+        idx = 0;
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'AppStorage.get curveRangeIdx fallback to curveIdx: %{public}s', (e as Error).message);
+      if (this.curveIdx >= 0) {
+        idx = this.curveIdx;
+      } else {
+        idx = 0;
+      }
+    }
     if (idx < 0) {
       this.statusMsg = getAppString('dlg_curve_range_no_curve');
       return;

@@ -53,7 +53,11 @@ interface PlotAssociationEntry {
 
 interface UpdatePlotAssociationArgs {
   curveIdx: number;
-  association: string;
+  tableName: string;
+  xCol: string;
+  yCol: string;
+  xErrCol: string;
+  yErrCol: string;
 }
 
 // Column role assignment for the grid
@@ -206,19 +210,40 @@ export struct AssociationsDialog {
   }
 
   onUpdateCurves(): void {
-    // Dispatch the updated column role assignments
-    for (let i = 0; i < this.associations.length; i++) {
-      const entry: PlotAssociationEntry = this.associations[i];
-      const assocStr: string = this.buildAssociationString(entry);
+    // Dispatch the updated column role assignments from colRoles (user-switched state)
+    // Build structured args per curve: {curveIdx, tableName, xCol, yCol, xErrCol, yErrCol}
+    if (this.colRoles.length === 0 || this.selTableIdx < 0 || this.selTableIdx >= this.tables.length) {
+      hilog.warn(DOMAIN, TAG, 'onUpdateCurves: no column roles or invalid table index');
+      return;
+    }
+    const currentTable: TableInfo = this.tables[this.selTableIdx];
+    for (let i = 0; i < this.colRoles.length; i++) {
+      const cr: ColRoleAssignment = this.colRoles[i];
+      // Extract column names based on checked roles
+      let xCol: string = '';
+      let yCol: string = '';
+      let xErrCol: string = '';
+      let yErrCol: string = '';
+      if (cr.xChecked) { xCol = cr.colName; }
+      if (cr.yChecked) { yCol = cr.colName; }
+      if (cr.xErrChecked) { xErrCol = cr.colName; }
+      if (cr.yErrChecked) { yErrCol = cr.colName; }
       try {
         const injector = qohos as QohosInjector;
         injector.callQtCommand('updatePlotAssociation',
-          JSON.stringify({ curveIdx: i, association: assocStr } as UpdatePlotAssociationArgs));
+          JSON.stringify({
+            curveIdx: i,
+            tableName: currentTable.name,
+            xCol: xCol,
+            yCol: yCol,
+            xErrCol: xErrCol,
+            yErrCol: yErrCol
+          } as UpdatePlotAssociationArgs));
       } catch (e) {
         hilog.error(DOMAIN, TAG, 'updatePlotAssociation failed: %{public}s', (e as Error).message);
       }
     }
-    hilog.info(DOMAIN, TAG, 'AssociationsDialog: curves updated');
+    hilog.info(DOMAIN, TAG, 'AssociationsDialog: curves updated with structured args');
   }
 
   onOk(): void {

@@ -27,6 +27,7 @@ import { QtEventHost } from '../components/QtEventHost';
 import { NoteEditor } from './NoteEditor';
 import { TablePage } from './TablePage';
 import { PlotPage } from './PlotPage';
+import { MatrixPage } from './MatrixPage';
 import { ImportDialog } from './dialogs/ImportDialog';
 import { ExportDialog } from './dialogs/ExportDialog';
 import { AddColumnsDialog, SetColumnValuesDialog, SortTableDialog, TableSizeDialog } from './dialogs/TableOpsDialog';
@@ -266,6 +267,7 @@ export struct MainLayout {
   @State showRenameWindowDialog: boolean = false;
   @State showFindDialog: boolean = false;
   @State showTableStatisticsDialog: boolean = false;
+  @State statisticsType: string = 'columns';
   // Results Log panel (View menu): text accumulated from resultsLog
   // events by QtEventHost via AppStorage.
   @State showResultsLog: boolean = false;
@@ -461,6 +463,14 @@ export struct MainLayout {
         // revert a view that the system placed automatically; a user-locked
         // 'tables' choice stays, and 'plots' is never touched here.
         if (resp.data.activeType !== 'Table' && this.currentView === 'tables' && !this.userViewLocked) {
+          this.currentView = 'default';
+        }
+        // Matrix auto-switch: when active window is Matrix, show MatrixPage;
+        // when it's no longer Matrix, revert to default (unless user-locked).
+        if (resp.data.activeType === 'Matrix' && this.currentView === 'default' && !this.userViewLocked) {
+          this.currentView = 'matrix';
+        }
+        if (resp.data.activeType !== 'Matrix' && this.currentView === 'matrix' && !this.userViewLocked) {
           this.currentView = 'default';
         }
         // 问题5: derive the maximize/restore state of the active window
@@ -877,10 +887,14 @@ export struct MainLayout {
         AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
         this.showSortDialog = true;
         break;
-      case 'statistics_columns':
       case 'statistics_rows':
-      case 'stats_columns':
       case 'stats_rows':
+        this.statisticsType = 'rows';
+        this.showTableStatisticsDialog = true;
+        break;
+      case 'statistics_columns':
+      case 'stats_columns':
+        this.statisticsType = 'columns';
         this.showTableStatisticsDialog = true;
         break;
       case 'tables':
@@ -1043,6 +1057,9 @@ case 'paste':
         this.showAssociationsDialog = true;
         break;
       case 'curve_range':
+        // 当前无曲线索引来源，用 0 兜底（CurveRangeDialog 内部三段式兜底：
+        // AppStorage 'curveRangeIdx' → @Prop curveIdx → 0）
+        AppStorage.setOrCreate('curveRangeIdx', 0);
         this.showCurveRangeDialog = true;
         break;
       case 'symbol':
@@ -1312,6 +1329,9 @@ case 'paste':
             .layoutWeight(1)
         } else if (this.currentView === 'plots') {
           PlotPage()
+            .layoutWeight(1)
+        } else if (this.currentView === 'matrix') {
+          MatrixPage({ matrixName: this.uiState.activeName })
             .layoutWeight(1)
         } else {
           // Default: transparent - touch events pass through to
@@ -1599,7 +1619,7 @@ case 'paste':
       LayerDialog({ isVisible: $showLayerDialog })
       RenameWindowDialog({ isVisible: $showRenameWindowDialog })
       FindDialog({ isVisible: $showFindDialog })
-      TableStatisticsDialog({ isVisible: $showTableStatisticsDialog })
+      TableStatisticsDialog({ isVisible: $showTableStatisticsDialog, statType: this.statisticsType })
 
       // Qt backend event host: renders ArkUI replacements for QMessageBox /
       // context menus / combo popups pushed via scidavis_emit 鈫?onQtEvent.

@@ -14,6 +14,10 @@ interface QohosInjector {
   callQtCommand(cmd: string, argsJson: string): string;
 }
 
+interface AddTextArgs {
+  text: string;
+}
+
 interface CharCategoryDef {
   id: string;
   label: string;
@@ -108,7 +112,16 @@ export struct SymbolDialog {
   }
 
   private onOk(): void {
-    // Dispatch the inserted text via addText or return directly
+    if (this.outputText.trim().length > 0) {
+      try {
+        const injector = qohos as QohosInjector;
+        const args: AddTextArgs = { text: this.outputText };
+        const result: string = injector.callQtCommand('addText', JSON.stringify(args));
+        hilog.info(DOMAIN, TAG, 'addText queued from SymbolDialog: %{public}s', result);
+      } catch (e) {
+        hilog.error(DOMAIN, TAG, 'addText failed from SymbolDialog: %{public}s', (e as Error).message);
+      }
+    }
     this.isVisible = false;
   }
 
