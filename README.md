@@ -71,7 +71,7 @@
 ohos/
 ├── AppScope/              # 应用级配置（app.json5 应用名 SciDAVis、图标）
 ├── entry/
-│   ├── libs/arm64-v8a/    # 预编译 native 库（libentry.so + Qt 运行库 + QPA 插件）
+│   ├── libs/arm64-v8a/    # 预编译 Qt 运行库 + QPA 插件（libentry.so 本地编译，不入库）
 │   └── src/main/
 │       ├── cpp/           # qohos.cpp（NAPI 桥接、Qt 启动器）
 │       ├── ets/
@@ -92,6 +92,7 @@ ohos/
 ```
 
 > **注意**: SciDAVis Qt 源码不在本仓库内，需从上游单独获取并通过 CMake 交叉编译生成 `libentry.so`。
+> `libentry.so` 因超过 GitHub 100MB 文件限制而**不入库**（见 `.gitignore`），clone 后须按下方「编译 Qt 应用层」本地生成并复制到 `entry/libs/arm64-v8a/` 才能构建 HAP。
 > 2026-08-04 已清理无关目录（stellarium、AI skill 包、构建产物），以上结构反映清理后现状。
 
 ---

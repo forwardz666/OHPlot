@@ -32,6 +32,9 @@ tools/t6_*.patch
 # Native build
 *.o
 *.so.bak
+# libentry.so is built locally from the Qt cross-compile tree (see README);
+# it exceeds GitHub's 100MB file limit so it must not be committed.
+entry/libs/arm64-v8a/libentry.so
 
 # OS
 .DS_Store
