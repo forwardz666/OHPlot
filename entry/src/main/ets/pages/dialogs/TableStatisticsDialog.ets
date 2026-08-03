@@ -91,7 +91,7 @@ const ROW_STAT_HEADERS: string[] = [
 @Component
 export struct TableStatisticsDialog {
   @Link @Watch('onVisibleChanged') isVisible: boolean;
-  @Prop statType: string = 'columns';
+  @Prop @Watch('onStatTypeChanged') statType: string = 'columns';
   @State tables: TableInfo[] = [];
   @State selTableIdx: number = -1;
   @State colNames: string[] = [];
@@ -115,7 +115,6 @@ export struct TableStatisticsDialog {
     }
   }
 
-  @Watch('statType')
   onStatTypeChanged(): void {
     // Sync prop change to local index
     if (this.statType === 'rows') {

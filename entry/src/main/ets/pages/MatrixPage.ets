@@ -237,14 +237,13 @@ export struct MatrixPage {
                     .border({ width: { right: 1, bottom: 1 }, color: '#E0E0E0' })
 
                   ForEach(rowData, (cell: string, colIdx: number) => {
-                    const textAlign: TextAlign = this.isNumeric(cell) ? TextAlign.End : TextAlign.Start;
                     Text(cell || '')
                       .width(this.colWidths[colIdx] ?? 60)
                       .height(24)
                       .fontSize(12)
                       .fontColor('#000000')
                       .padding({ left: 6, right: 6 })
-                      .textAlign(textAlign)
+                      .textAlign(this.isNumeric(cell) ? TextAlign.End : TextAlign.Start)
                       .backgroundColor('#FFFFFF')
                       .border({ width: { right: 1, bottom: 1 }, color: '#E8E8E8' })
                   }, (cell: string, colIdx: number) => 'c' + rowIdx.toString() + '_' + colIdx.toString())
