@@ -1,4 +1,4 @@
-{
+﻿{
   "string": [
     {
       "name": "module_desc",
@@ -2043,6 +2043,379 @@
     {
       "name": "sidebar_type_numeric",
       "value": "Numeric"
+    }
+,
+    {
+      "name": "analysis_autocorrelate",
+      "value": "Autocorrelate..."
+    },
+    {
+      "name": "analysis_convolute",
+      "value": "Convolute..."
+    },
+    {
+      "name": "analysis_deconvolute",
+      "value": "Deconvolute..."
+    },
+    {
+      "name": "analysis_fft_filter_dlg",
+      "value": "FFT Filter..."
+    },
+    {
+      "name": "analysis_translate",
+      "value": "Translate..."
+    },
+    {
+      "name": "analysis_translate_horizontal",
+      "value": "Translate Horizontal"
+    },
+    {
+      "name": "analysis_translate_vertical",
+      "value": "Translate Vertical"
+    },
+    {
+      "name": "edit_clear_log_info",
+      "value": "Clear Log Info"
+    },
+    {
+      "name": "edit_delete_fit_tables",
+      "value": "Delete Fit Tables"
+    },
+    {
+      "name": "file_export_graph",
+      "value": "Export Graph..."
+    },
+    {
+      "name": "file_export_graph_all",
+      "value": "Export All Graphs"
+    },
+    {
+      "name": "file_export_graph_current",
+      "value": "Export Current Graph"
+    },
+    {
+      "name": "file_new",
+      "value": "New"
+    },
+    {
+      "name": "file_open_template",
+      "value": "Open Template..."
+    },
+    {
+      "name": "file_print_all_plots",
+      "value": "Print All Plots"
+    },
+    {
+      "name": "file_recent_projects",
+      "value": "Recent Projects"
+    },
+    {
+      "name": "file_save_as_template",
+      "value": "Save As Template..."
+    },
+    {
+      "name": "graph_add_image",
+      "value": "Add Image..."
+    },
+    {
+      "name": "graph_add_layer",
+      "value": "Add Layer..."
+    },
+    {
+      "name": "graph_add_text",
+      "value": "Add Text..."
+    },
+    {
+      "name": "graph_add_time_stamp",
+      "value": "Add Time Stamp..."
+    },
+    {
+      "name": "graph_automatic_layout",
+      "value": "Automatic Layout"
+    },
+    {
+      "name": "graph_draw_arrow",
+      "value": "Draw Arrow..."
+    },
+    {
+      "name": "graph_draw_line",
+      "value": "Draw Line..."
+    },
+    {
+      "name": "graph_new_legend",
+      "value": "New Legend..."
+    },
+    {
+      "name": "graph_remove_layer",
+      "value": "Remove Layer..."
+    },
+    {
+      "name": "help_choose_help_folder",
+      "value": "Choose Help Folder..."
+    },
+    {
+      "name": "help_download_manual",
+      "value": "Download Manual..."
+    },
+    {
+      "name": "help_report_bug",
+      "value": "Report a Bug..."
+    },
+    {
+      "name": "help_scidavis_homepage",
+      "value": "SciDAVis Homepage"
+    },
+    {
+      "name": "help_search_updates",
+      "value": "Search for Updates..."
+    },
+    {
+      "name": "help_visit_forums",
+      "value": "Visit Forums..."
+    },
+    {
+      "name": "matrix_clear",
+      "value": "Clear Matrix"
+    },
+    {
+      "name": "matrix_convert_to_table",
+      "value": "Convert to Table"
+    },
+    {
+      "name": "matrix_determinant",
+      "value": "Determinant"
+    },
+    {
+      "name": "matrix_go_to_cell",
+      "value": "Go to Cell..."
+    },
+    {
+      "name": "matrix_hide_controls",
+      "value": "Hide Controls"
+    },
+    {
+      "name": "matrix_import_image",
+      "value": "Import Image..."
+    },
+    {
+      "name": "matrix_mirror_h",
+      "value": "Mirror Horizontally"
+    },
+    {
+      "name": "matrix_mirror_v",
+      "value": "Mirror Vertically"
+    },
+    {
+      "name": "matrix_recalculate",
+      "value": "Recalculate"
+    },
+    {
+      "name": "matrix_set_coordinates",
+      "value": "Set Coordinates"
+    },
+    {
+      "name": "matrix_set_display_format",
+      "value": "Set Display Format"
+    },
+    {
+      "name": "plot_3d_bars",
+      "value": "3D Bars"
+    },
+    {
+      "name": "plot_3d_contour",
+      "value": "3D Contour"
+    },
+    {
+      "name": "plot_3d_hidden",
+      "value": "3D Hidden Surface"
+    },
+    {
+      "name": "plot_3d_polygons",
+      "value": "3D Polygons"
+    },
+    {
+      "name": "plot_3d_scatter",
+      "value": "3D Scatter"
+    },
+    {
+      "name": "plot_3d_wire",
+      "value": "3D Wire Frame"
+    },
+    {
+      "name": "plot_3d_wire_surface",
+      "value": "3D Wire Surface"
+    },
+    {
+      "name": "plot_panel_2h",
+      "value": "2 Horizontal Panels"
+    },
+    {
+      "name": "plot_panel_2v",
+      "value": "2 Vertical Panels"
+    },
+    {
+      "name": "plot_panel_3h",
+      "value": "3 Horizontal Panels"
+    },
+    {
+      "name": "plot_panel_3v",
+      "value": "3 Vertical Panels"
+    },
+    {
+      "name": "plot_vectors_xyam",
+      "value": "Vectors XYAM"
+    },
+    {
+      "name": "plot_vectors_xyxy",
+      "value": "Vectors XYXY"
+    },
+    {
+      "name": "restart_scripting",
+      "value": "Restart Scripting Backend"
+    },
+    {
+      "name": "scripting_language",
+      "value": "Scripting Language..."
+    },
+    {
+      "name": "table_change_type_format",
+      "value": "Change Type and Format..."
+    },
+    {
+      "name": "table_clear_table",
+      "value": "Clear Table"
+    },
+    {
+      "name": "table_convert_to_matrix",
+      "value": "Convert to Matrix"
+    },
+    {
+      "name": "table_edit_column_description",
+      "value": "Edit Column Description"
+    },
+    {
+      "name": "table_fill_normal_random",
+      "value": "Normal Random Values"
+    },
+    {
+      "name": "table_fill_random",
+      "value": "Random Values"
+    },
+    {
+      "name": "table_fill_row_numbers",
+      "value": "Row Numbers"
+    },
+    {
+      "name": "table_fill_selection",
+      "value": "Fill Selection..."
+    },
+    {
+      "name": "table_formula_edit_mode",
+      "value": "Formula Edit Mode"
+    },
+    {
+      "name": "table_go_to_cell",
+      "value": "Go to Cell..."
+    },
+    {
+      "name": "table_hide_controls",
+      "value": "Hide Controls"
+    },
+    {
+      "name": "table_recalculate",
+      "value": "Recalculate"
+    },
+    {
+      "name": "table_set_as_x",
+      "value": "X"
+    },
+    {
+      "name": "table_set_as_xerr",
+      "value": "X Error"
+    },
+    {
+      "name": "table_set_as_y",
+      "value": "Y"
+    },
+    {
+      "name": "table_set_as_yerr",
+      "value": "Y Error"
+    },
+    {
+      "name": "table_set_as_z",
+      "value": "Z"
+    },
+    {
+      "name": "table_set_columns_as",
+      "value": "Set Columns As..."
+    },
+    {
+      "name": "table_show_comments",
+      "value": "Show Comments"
+    },
+    {
+      "name": "view_console",
+      "value": "Console"
+    },
+    {
+      "name": "view_lock_toolbars",
+      "value": "Lock Toolbars"
+    },
+    {
+      "name": "view_undo_redo_history",
+      "value": "Undo/Redo History"
+    },
+    {
+      "name": "win_duplicate",
+      "value": "Duplicate Window"
+    },
+    {
+      "name": "win_hide_window",
+      "value": "Hide Window"
+    },
+    {
+      "name": "win_next",
+      "value": "Next"
+    },
+    {
+      "name": "win_previous",
+      "value": "Previous"
+    },
+    {
+      "name": "win_tile",
+      "value": "Tile"
+    },
+    {
+      "name": "win_window_geometry",
+      "value": "Window Geometry..."
+    },
+    {
+      "name": "file_open_image_file",
+      "value": "Open Image File..."
+    },
+    {
+      "name": "file_import_image",
+      "value": "Import Image..."
+    },
+    {
+      "name": "tools_move_points_desc",
+      "value": "Move data points by dragging them with the mouse."
+    },
+    {
+      "name": "tools_move_hint",
+      "value": "Click Apply to enable move mode, then drag points on the plot."
+    },
+    {
+      "name": "tools_remove_bad_desc",
+      "value": "Remove bad data points by selecting them on the plot."
+    },
+    {
+      "name": "format_line_color",
+      "value": "Line Color"
+    },
+    {
+      "name": "format_line_style",
+      "value": "Line Style"
     }
   ]
 }
