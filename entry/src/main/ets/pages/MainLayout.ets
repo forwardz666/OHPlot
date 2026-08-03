@@ -24,10 +24,6 @@ import { BottomToolBar } from '../components/BottomToolBar';
 import * as Theme from '../components/Theme';
 import { StatusBar } from '../components/StatusBar';
 import { QtEventHost } from '../components/QtEventHost';
-import { NoteEditor } from './NoteEditor';
-import { TablePage } from './TablePage';
-import { PlotPage } from './PlotPage';
-import { MatrixPage } from './MatrixPage';
 import { ImportDialog } from './dialogs/ImportDialog';
 import { ExportDialog } from './dialogs/ExportDialog';
 import { AddColumnsDialog, SetColumnValuesDialog, SortTableDialog, TableSizeDialog } from './dialogs/TableOpsDialog';
@@ -99,7 +95,7 @@ const SCROLL_BOTTOM_THRESHOLD: number = 50;
 // therefore be gated here, before calling Qt.  Keep in sync with main.cpp.
 const MENU_ACTION_SUPPORTED: string[] = [
   'new_notes', 'new_matrix', 'new_project', 'new_graph',
-  'cascade', 'maximize_window', 'minimize_window', 'restore_window', 'close_window',
+  'cascade',
   'about', 'undo', 'redo', 'cut', 'copy', 'paste', 'delete',
   'clear_selection',
   'table_size', 'add_text', 'draw_arrow', 'draw_line', 'time_stamp',
@@ -116,6 +112,7 @@ let dbgCount: number = 0;
 interface SubMenuItemData {
   id: string;
   label: string;
+  icon?: ResourceStr;
   shortcut?: string;
   enabled?: boolean;
   checked?: boolean;
@@ -215,20 +212,12 @@ interface UiStateResponse {
 @Component
 export struct MainLayout {
   @State @Watch('onMenuChanged') openMenu: string | null = null;
-  @State showNotes: boolean = false;
   @State statusText: string = '';
-  @State currentView: string = 'default';
-  // User's explicit View-menu selection (View→Tables/Plots/...).  This
-  // distinguishes a manual choice from the system's auto-switch inside
-  // refreshUiState: auto-switch only fires while this flag is false and
-  // never overrides a locked view.  It is set on every manual switch and
-  // never reset by refreshUiState (active name/type changes keep it), so
-  // the user's explicit choice always wins over the auto logic.
-  @State userViewLocked: boolean = false;
-  // 问题5: whether the active MDI window is maximized.  Drives the
-  // window-control middle button glyph (maximize '□' vs restore '❐');
-  // refreshed from uiState.windows (status===2 == MyWidget::Maximized).
-  @State activeWinMaximized: boolean = false;
+  // Qt first-frame readiness: set true once getUiState reports a non-empty
+  // active window (see refreshUiState).  Gates the startup splash overlay
+  // that hides the XComponent's black surface before Qt renders its first
+  // frame.  Only ever set true, never reset.  (2026-08-04)
+  @State qtReady: boolean = false;
   @State showImportDialog: boolean = false;
   @State showExportDialog: boolean = false;
   // Right-click context menu state
@@ -323,6 +312,9 @@ export struct MainLayout {
   // loop ("Qt not running"), so retry until the queued ack arrives.
   private insetsRetry: number = 0;
   private uiRefreshRetry: number = 0;
+  // Bounded retries for a getUiState timeout right after a window
+  // activation (Qt thread busy creating/rendering the new window).
+  private uiRetryCount: number = 0;
   // Phase 3 dialogs living outside the isVisible pattern: these are
   // @CustomDialog structs, driven by controllers.
   private prefsDialogCtl: CustomDialogController = new CustomDialogController({
@@ -342,6 +334,11 @@ export struct MainLayout {
   // langTick on every language change; menu labels are data-model strings
   // (not $r bindings), so they must be rebuilt explicitly.
   @StorageProp('langTick') @Watch('onLangChanged') langTick: number = 0;
+  // Bug 2: Qt→ArkTS window-activation tick.  QtEventHost bumps it on every
+  // windowActivated event (an MDI sub-window was raised/clicked); the Watch
+  // re-queries uiState and rebuilds the menus so Graph/Tools/Format follow
+  // the newly active window type immediately.
+  @StorageProp('activeWindowTick') @Watch('onActiveWindowChanged') activeWindowTick: number = 0;
   // x offset (vp) of the floating dropdown, looked up from the anchor map
   // whenever a menu opens so it appears under its title.
   @State dropdownX: number = 0;
@@ -367,6 +364,18 @@ export struct MainLayout {
 
   onLangChanged(): void {
     this.rebuildMenus();
+  }
+
+  // Bug 2: an MDI sub-window was activated in the Qt area.  Refresh the
+  // backend uiState so the menu bar switches to the newly active window
+  // type right away (refreshUiState ends in rebuildMenus()).
+  // Defer the refresh so the Qt thread finishes creating/activating the
+  // window: an immediate synchronous getUiState can time out while Qt is
+  // busy (device-verified: Matrix creation → timeout → stale menus).
+  onActiveWindowChanged(): void {
+    setTimeout(() => {
+      this.refreshUiState();
+    }, 250);
   }
 
   onResultsLogChanged(): void {
@@ -461,40 +470,19 @@ export struct MainLayout {
   }
 
   private refreshUiState(): void {
+    let ok: boolean = false;
     try {
       const raw: string = qtInjector.callQtCommand('getUiState', '{}');
       const resp: UiStateResponse = JSON.parse(raw) as UiStateResponse;
       if (resp.success && resp.data !== undefined) {
+        ok = true;
+        this.uiRetryCount = 0;
         this.uiState = resp.data;
-        // Default view passes through to Qt native rendering; the ArkTS
-        // table overlay (TablePage) is only surfaced via the explicit
-        // View menu choice.
-        // 问题①: a non-Table window (graph/matrix) becoming active must not
-        // leave the ArkTS table overlay mounted over the Qt window.  Only
-        // revert a view that the system placed automatically; a user-locked
-        // 'tables' choice stays, and 'plots' is never touched here.
-        if (resp.data.activeType !== 'Table' && this.currentView === 'tables' && !this.userViewLocked) {
-          this.currentView = 'default';
+        // Qt first window is rendered once activeName is non-empty: hide
+        // the startup splash overlay (only set true, never reset).
+        if (resp.data.activeName !== '') {
+          this.qtReady = true;
         }
-        // Matrix auto-switch: when active window is Matrix, show MatrixPage;
-        // when it's no longer Matrix, revert to default (unless user-locked).
-        if (resp.data.activeType === 'Matrix' && this.currentView === 'default' && !this.userViewLocked) {
-          this.currentView = 'matrix';
-        }
-        if (resp.data.activeType !== 'Matrix' && this.currentView === 'matrix' && !this.userViewLocked) {
-          this.currentView = 'default';
-        }
-        // 问题5: derive the maximize/restore state of the active window
-        // from the serialized status (MyWidget::Status: Maximized = 2).
-        let maximized: boolean = false;
-        for (let i = 0; i < resp.data.windows.length; i++) {
-          const w: UiWindow = resp.data.windows[i];
-          if (w.active && w.status === 2) {
-            maximized = true;
-            break;
-          }
-        }
-        this.activeWinMaximized = maximized;
         // The bottom toolbar only exists for Tables; when it is gone its
         // onAreaChange can no longer zero the height, so clear the bottom
         // inset here or the MDI area keeps an empty band reserved.
@@ -509,6 +497,15 @@ export struct MainLayout {
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'getUiState failed: %{public}s', (e as Error).message);
+    }
+    // getUiState can time out right after a window activation while the Qt
+    // thread is still busy creating/rendering the new window.  Retry a
+    // bounded number of times so the menu bar still switches to the newly
+    // active window type once Qt is idle (device-verified: Matrix creation
+    // → first query times out → stale menus).
+    if (!ok && this.uiRetryCount < 2) {
+      this.uiRetryCount++;
+      setTimeout(() => this.refreshUiState(), 400);
     }
     this.rebuildMenus();
   }
@@ -533,48 +530,71 @@ export struct MainLayout {
     const defs: MenuItemData[] = [];
     const SEPARATOR: string = '\u2500';
 
-    // File menu: aligned with Win SciDAVis 2.7.2 screenshot structure
+    // File menu: aligned with Qt initMainMenu (ApplicationWindow.cpp L780-828).
+    // Order/separators per Qt: New▸ / Open / Recent Projects / ─ / Open Image
+    // File / Import Image / ─ / Save / Save As / ─ / Open Template / Save As
+    // Template / ─ / Export Graph▸ / Print / Print All Plots / ─ / Export
+    // ASCII / Import ASCII / ─ / Quit (6 separators; NO separator between
+    // New/Open/Recent Projects). Icons per Qt source: open/save/open_template/
+    // save_as_template/print/import/quit and the New submenu children carry
+    // icons; open_image_file/import_image/save_as/export_graph(parent)/
+    // print_all_plots/export(ascii) have none.
     defs.push({ id: 'file', label: getAppString('menu_file'), items: [
-      // New submenu (cascade)
+      // New submenu (cascade): parent itself has NO icon; children DO (Qt)
       { id: 'new', label: getAppString('file_new'), enabled: true,
         children: [
-          { id: 'new_project', label: getAppString('file_new_project'), shortcut: 'Ctrl+N' },
-          { id: 'new_table', label: getAppString('file_new_table'), shortcut: 'Ctrl+T' },
-          { id: 'new_matrix', label: getAppString('file_new_matrix'), shortcut: 'Ctrl+M' },
-          { id: 'new_notes', label: getAppString('file_new_note'), shortcut: 'Ctrl+Alt+N' },
-          { id: 'new_graph', label: getAppString('file_new_graph'), shortcut: 'Ctrl+G' },
+          { id: 'new_project', label: getAppString('file_new_project'), icon: $r('app.media.tb_new'), shortcut: 'Ctrl+N' },
+          { id: 'new_table', label: getAppString('file_new_table'), icon: $r('app.media.tb_table'), shortcut: 'Ctrl+T' },
+          { id: 'new_matrix', label: getAppString('file_new_matrix'), icon: $r('app.media.tb_new_matrix'), shortcut: 'Ctrl+M' },
+          { id: 'new_notes', label: getAppString('file_new_note'), icon: $r('app.media.tb_new_note'), shortcut: 'Ctrl+Alt+N' },
+          { id: 'new_graph', label: getAppString('file_new_graph'), icon: $r('app.media.tb_new_graph'), shortcut: 'Ctrl+G' },
           { id: 'new_function_plot', label: getAppString('file_new_function_plot'), shortcut: 'Ctrl+F', enabled: false },
           { id: 'new_3d_surface', label: getAppString('file_new_3d_surface'), shortcut: 'Ctrl+Alt+Z', enabled: false }
         ]
       },
-      { id: 'open', label: getAppString('file_open_project'), shortcut: 'Ctrl+O' },
-      { id: 'open_image_file', label: getAppString('file_open_image_file'), enabled: false },
-      { id: 'import_image', label: getAppString('file_import_image'), enabled: false },
+      { id: 'open', label: getAppString('file_open_project'), icon: $r('app.media.tb_fileopen'), shortcut: 'Ctrl+O' },
       { id: 'recent_projects', label: getAppString('file_recent_projects'), enabled: false },
       { id: 'sep1', label: SEPARATOR },
-      { id: 'save', label: getAppString('file_save_project'), shortcut: 'Ctrl+S' },
-      { id: 'save_as', label: getAppString('file_save_as') },
-      { id: 'open_template', label: getAppString('file_open_template'), enabled: false },
-      { id: 'save_as_template', label: getAppString('file_save_as_template'), enabled: false },
+      { id: 'open_image_file', label: getAppString('file_open_image_file'), shortcut: 'Ctrl+I', enabled: false },
+      { id: 'import_image', label: getAppString('file_import_image'), enabled: false },
       { id: 'sep2', label: SEPARATOR },
-      { id: 'export', label: getAppString('file_export_ascii'), enabled: false },
-      { id: 'import', label: getAppString('file_import_ascii'), shortcut: 'Ctrl+K', enabled: false },
+      { id: 'save', label: getAppString('file_save_project'), icon: $r('app.media.tb_filesave'), shortcut: 'Ctrl+S' },
+      { id: 'save_as', label: getAppString('file_save_as') },
       { id: 'sep3', label: SEPARATOR },
-      { id: 'print', label: getAppString('file_print'), shortcut: 'Ctrl+P', enabled: false },
-      { id: 'print_all_plots', label: getAppString('file_print_all_plots'), enabled: false },
+      { id: 'open_template', label: getAppString('file_open_template'), icon: $r('app.media.tb_open_template'), enabled: false },
+      { id: 'save_as_template', label: getAppString('file_save_as_template'), icon: $r('app.media.tb_save_template'), enabled: false },
       { id: 'sep4', label: SEPARATOR },
-      { id: 'quit', label: getAppString('file_quit'), shortcut: 'Ctrl+Q' }
+      { id: 'export_graph', label: getAppString('file_export_graph'),
+        children: [
+          { id: 'export_graph_all', label: getAppString('file_export_graph_all'), enabled: false },
+          { id: 'export_graph_current', label: getAppString('file_export_graph_current'), enabled: false }
+        ]
+      },
+      { id: 'print', label: getAppString('file_print'), icon: $r('app.media.tb_fileprint'), shortcut: 'Ctrl+P', enabled: false },
+      { id: 'print_all_plots', label: getAppString('file_print_all_plots'), enabled: false },
+      { id: 'sep5', label: SEPARATOR },
+      { id: 'export', label: getAppString('file_export_ascii'), enabled: false },
+      { id: 'import', label: getAppString('file_import_ascii'), icon: $r('app.media.tb_import'), shortcut: 'Ctrl+K', enabled: false },
+      { id: 'sep6', label: SEPARATOR },
+      { id: 'quit', label: getAppString('file_quit'), icon: $r('app.media.mn_quit'), shortcut: 'Ctrl+Q' }
     ]});
 
-    // Edit menu
+    // Edit menu: per Qt initMainMenu (ApplicationWindow.cpp L830-850) — 3
+    // separators: after Redo, after Delete Selection, after Clear Log Info.
+    // Order: Undo / Redo / ─ / Cut / Copy / Paste / Delete Selection / ─ /
+    // Delete Fit Tables / Clear Log Info / ─ / Preferences. Icons per Qt:
+    // undo/edit-undo, redo/edit-redo, cut/edit-cut, copy/edit-copy,
+    // paste/edit-paste, delete_selection/erase.xpm, delete_fit_tables/close.xpm;
+    // clear_log_info and preferences have none. Paste keeps the PasteRow
+    // security-component render in MenuBar (icon field unused there).
     defs.push({ id: 'edit', label: getAppString('menu_edit'), items: [
-      { id: 'undo', label: getAppString('edit_undo'), shortcut: 'Ctrl+Z', enabled: st.undoEnabled },
-      { id: 'redo', label: getAppString('edit_redo'), shortcut: 'Ctrl+R', enabled: st.redoEnabled },
+      { id: 'undo', label: getAppString('edit_undo'), icon: $r('app.media.tb_edit_undo'), shortcut: 'Ctrl+Z', enabled: st.undoEnabled },
+      { id: 'redo', label: getAppString('edit_redo'), icon: $r('app.media.tb_edit_redo'), shortcut: 'Ctrl+R', enabled: st.redoEnabled },
       { id: 'sep1', label: SEPARATOR },
-      { id: 'cut', label: getAppString('edit_cut_selection'), shortcut: 'Ctrl+X', enabled: hasWin },
-      { id: 'copy', label: getAppString('edit_copy_selection'), shortcut: 'Ctrl+C', enabled: hasWin },
-      { id: 'paste', label: getAppString('edit_paste_selection'), shortcut: 'Ctrl+V', enabled: hasWin },
-      { id: 'delete_selection', label: getAppString('edit_delete_selection'), shortcut: 'Del', enabled: hasWin },
+      { id: 'cut', label: getAppString('edit_cut_selection'), icon: $r('app.media.tb_edit_cut'), shortcut: 'Ctrl+X', enabled: hasWin },
+      { id: 'copy', label: getAppString('edit_copy_selection'), icon: $r('app.media.tb_edit_copy'), shortcut: 'Ctrl+C', enabled: hasWin },
+      { id: 'paste', label: getAppString('edit_paste_selection'), icon: $r('app.media.tb_edit_paste'), shortcut: 'Ctrl+V', enabled: hasWin },
+      { id: 'delete_selection', label: getAppString('edit_delete_selection'), icon: $r('app.media.tb_erase'), shortcut: 'Del', enabled: hasWin },
       { id: 'sep2', label: SEPARATOR },
       { id: 'delete_fit_tables', label: getAppString('edit_delete_fit_tables'), enabled: false },
       { id: 'clear_log_info', label: getAppString('edit_clear_log_info'), enabled: false },
@@ -582,20 +602,20 @@ export struct MainLayout {
       { id: 'preferences', label: getAppString('edit_preferences') }
     ]});
 
-    // View menu: toolbars/lock_toolbars disabled, plot_wizard first, then project_browser/results_log/undo_redo_history/console disabled, finally tablet views (plots/tables/notes) after separator
+    // View menu: toolbars/lock_toolbars disabled, plot_wizard first, then project_browser/results_log/undo_redo_history/console disabled.
+    // Per Win view.png: Toolbars (no icon) / Lock Toolbars (lock icon) / ─ /
+    // Plot Wizard (Ctrl+Alt+W, wand) / Project Explorer (Ctrl+E, folder) /
+    // Results Log (icon) / Undo/Redo History / Console. Lock Toolbars uses the
+    // closest available asset (no dedicated lock icon in base/media).
     defs.push({ id: 'view', label: getAppString('menu_view'), items: [
       { id: 'toolbars', label: getAppString('view_toolbars'), enabled: false },
-      { id: 'lock_toolbars', label: getAppString('view_lock_toolbars'), enabled: false },
+      { id: 'lock_toolbars', label: getAppString('view_lock_toolbars'), icon: $r('app.media.tb_cursor_16'), enabled: false },
       { id: 'sep1', label: SEPARATOR },
-      { id: 'plot_wizard', label: getAppString('view_plot_wizard') },
-      { id: 'project_browser', label: getAppString('view_project_browser'), checked: this.showProjectTree },
-      { id: 'results_log', label: getAppString('view_results_log'), checked: this.showResultsLog },
+      { id: 'plot_wizard', label: getAppString('view_plot_wizard'), icon: $r('app.media.mn_wizard'), shortcut: 'Ctrl+Alt+W' },
+      { id: 'project_browser', label: getAppString('view_project_browser'), icon: $r('app.media.tb_folder'), shortcut: 'Ctrl+E', checked: this.showProjectTree },
+      { id: 'results_log', label: getAppString('view_results_log'), icon: $r('app.media.tb_log'), checked: this.showResultsLog },
       { id: 'undo_redo_history', label: getAppString('view_undo_redo_history'), enabled: false },
-      { id: 'console', label: getAppString('view_console'), enabled: false },
-      { id: 'sep2', label: SEPARATOR },
-      { id: 'plots', label: getAppString('view_plot_list'), checked: this.currentView === 'plots' },
-      { id: 'tables', label: getAppString('view_table_list'), checked: this.currentView === 'tables' },
-      { id: 'notes', label: getAppString('view_note_pad'), checked: this.showNotes }
+      { id: 'console', label: getAppString('view_console'), enabled: false }
     ]});
 
     // Scripting menu: replaced with scripting_language/restart_scripting (both disabled)
@@ -605,70 +625,83 @@ export struct MainLayout {
     ]});
 
     // Context menus follow the active MDI window type.
+    // Matrix menu: per Qt Matrix::fillProjectMenu (future_Matrix.cpp L814-848)
+    // + customMenu tail (ApplicationWindow.cpp L1200-1207). Order: Hide
+    // Controls / ─ / Set Coordinates / Dimensions / Set Display Format / ─ /
+    // Assign Formula / Recalculate / ─ / Clear Matrix / Transpose / Mirror
+    // Horizontally / Mirror Vertically / ─ / Import Image / ─ / Go to Cell /
+    // ─ / Invert / Determinant / ─ / Convert to Table (7 separators).
     if (isMatrix) {
-      // Matrix menu: 15 items per spec
       defs.push({ id: 'matrix', label: getAppString('menu_matrix'), items: [
         { id: 'matrix_hide_controls', label: getAppString('matrix_hide_controls'), shortcut: 'F12', enabled: false },
-        { id: 'matrix_set_coordinates', label: getAppString('matrix_set_coordinates'), enabled: false },
-        { id: 'matrix_dimensions', label: getAppString('matrix_set_dimensions') },
-        { id: 'matrix_set_display_format', label: getAppString('matrix_set_display_format'), enabled: false },
-        { id: 'matrix_assign_formula', label: getAppString('matrix_set_values'), shortcut: 'Alt+Q' },
-        { id: 'matrix_recalculate', label: getAppString('matrix_recalculate'), shortcut: 'Ctrl+Return', enabled: false },
-        { id: 'matrix_clear', label: getAppString('matrix_clear'), enabled: false },
         { id: 'sep1', label: SEPARATOR },
+        { id: 'matrix_set_coordinates', label: getAppString('matrix_set_coordinates'), enabled: false },
+        { id: 'matrix_dimensions', label: getAppString('matrix_set_dimensions'), enabled: false },
+        { id: 'matrix_set_display_format', label: getAppString('matrix_set_display_format'), enabled: false },
+        { id: 'sep2', label: SEPARATOR },
+        { id: 'matrix_assign_formula', label: getAppString('matrix_set_values'), icon: $r('app.media.mn_fx'), shortcut: 'Alt+Q' },
+        { id: 'matrix_recalculate', label: getAppString('matrix_recalculate'), icon: $r('app.media.mn_recalculate'), shortcut: 'Ctrl+Return', enabled: false },
+        { id: 'sep3', label: SEPARATOR },
+        { id: 'matrix_clear', label: getAppString('matrix_clear'), icon: $r('app.media.mn_clear'), enabled: false },
         { id: 'matrix_transpose', label: getAppString('matrix_transpose') },
         { id: 'matrix_mirror_h', label: getAppString('matrix_mirror_h') },
         { id: 'matrix_mirror_v', label: getAppString('matrix_mirror_v'), enabled: false },
-        { id: 'sep2', label: SEPARATOR },
-        { id: 'matrix_import_image', label: getAppString('matrix_import_image'), enabled: false },
-        { id: 'matrix_go_to_cell', label: getAppString('matrix_go_to_cell'), shortcut: 'Ctrl+Alt+G', enabled: false },
-        { id: 'sep3', label: SEPARATOR },
+        { id: 'sep4', label: SEPARATOR },
+        { id: 'matrix_import_image', label: getAppString('matrix_import_image'), icon: $r('app.media.mn_image3'), enabled: false },
+        { id: 'sep5', label: SEPARATOR },
+        { id: 'matrix_go_to_cell', label: getAppString('matrix_go_to_cell'), icon: $r('app.media.mn_go_to_cell'), shortcut: 'Ctrl+Alt+G', enabled: false },
+        { id: 'sep6', label: SEPARATOR },
         { id: 'matrix_invert', label: getAppString('matrix_invert') },
         { id: 'matrix_determinant', label: getAppString('matrix_determinant'), enabled: false },
+        { id: 'sep7', label: SEPARATOR },
         { id: 'matrix_convert_to_table', label: getAppString('matrix_convert_to_table'), enabled: false }
       ]});
     } else if (isMultiLayer || isGraph3D) {
-      // Graph menu (MultiLayer-active): graph_props/export_image at top, then drawing tools, then layout, then layer management, then rescale/associations/curve_range/symbol at bottom
+      // Graph menu (MultiLayer-active): drawing tools, then layout, then layer management
+      // Per Win graph.png: icons on add_curve/add_error_bars/add_function/
+      // add_text/draw_arrow/draw_line/add_image/new_legend/add_layer/
+      // remove_layer/arrange_layers. add_time_stamp and automatic_layout have
+      // none. Separators sit between Add Function and Add Text, and between
+      // New Legend and Automatic Layout.
       defs.push({ id: 'graph', label: getAppString('menu_graph'), items: [
-        { id: 'graph_props', label: getAppString('graph_properties'), enabled: isMultiLayer },
-        { id: 'export_image', label: getAppString('graph_export_image'), enabled: isMultiLayer },
-        { id: 'sep0', label: SEPARATOR },
-        { id: 'add_curve', label: getAppString('graph_add_remove_curve'), shortcut: 'Alt+C', enabled: isMultiLayer },
-        { id: 'add_error_bars', label: getAppString('graph_add_error_bars'), shortcut: 'Ctrl+B', enabled: isMultiLayer },
-        { id: 'add_function', label: getAppString('graph_add_function'), shortcut: 'Ctrl+Alt+F', enabled: isMultiLayer },
+        { id: 'add_curve', label: getAppString('graph_add_remove_curve'), icon: $r('app.media.tb_curves'), shortcut: 'Alt+C', enabled: isMultiLayer },
+        { id: 'add_error_bars', label: getAppString('graph_add_error_bars'), icon: $r('app.media.tb_curves'), shortcut: 'Ctrl+B', enabled: isMultiLayer },
+        { id: 'add_function', label: getAppString('graph_add_function'), icon: $r('app.media.mn_newFxy'), shortcut: 'Ctrl+Alt+F', enabled: isMultiLayer },
         { id: 'sep1', label: SEPARATOR },
-        { id: 'add_text', label: getAppString('graph_add_text'), shortcut: 'Alt+T', enabled: isMultiLayer },
-        { id: 'draw_arrow', label: getAppString('graph_draw_arrow'), shortcut: 'Ctrl+Alt+A', enabled: isMultiLayer },
-        { id: 'draw_line', label: getAppString('graph_draw_line'), shortcut: 'Ctrl+Alt+L', enabled: isMultiLayer },
+        { id: 'add_text', label: getAppString('graph_add_text'), icon: $r('app.media.tb_text'), shortcut: 'Alt+T', enabled: isMultiLayer },
+        { id: 'draw_arrow', label: getAppString('graph_draw_arrow'), icon: $r('app.media.mn_arrow'), shortcut: 'Ctrl+Alt+A', enabled: isMultiLayer },
+        { id: 'draw_line', label: getAppString('graph_draw_line'), icon: $r('app.media.tb_lplot'), shortcut: 'Ctrl+Alt+L', enabled: isMultiLayer },
         { id: 'add_time_stamp', label: getAppString('graph_add_time_stamp'), shortcut: 'Ctrl+Alt+T', enabled: false },
-        { id: 'add_image', label: getAppString('graph_add_image'), shortcut: 'Alt+I', enabled: isMultiLayer },
-        { id: 'new_legend', label: getAppString('graph_new_legend'), shortcut: 'Ctrl+L', enabled: isMultiLayer },
-        { id: 'automatic_layout', label: getAppString('graph_automatic_layout'), enabled: isMultiLayer },
+        { id: 'add_image', label: getAppString('graph_add_image'), icon: $r('app.media.mn_image3'), shortcut: 'Alt+I', enabled: isMultiLayer },
+        { id: 'new_legend', label: getAppString('graph_new_legend'), icon: $r('app.media.mn_legend'), shortcut: 'Ctrl+L', enabled: isMultiLayer },
         { id: 'sep2', label: SEPARATOR },
-        { id: 'add_layer', label: getAppString('graph_add_layer'), shortcut: 'Alt+T', enabled: false },
-        { id: 'remove_layer', label: getAppString('graph_remove_layer'), shortcut: 'Alt+R', enabled: false },
-        { id: 'arrange_layers', label: getAppString('graph_arrange_layers'), shortcut: 'Alt+A', enabled: isMultiLayer },
-        { id: 'sep3', label: SEPARATOR },
-        { id: 'rescale', label: getAppString('graph_rescale'), enabled: isMultiLayer },
-        { id: 'associations', label: getAppString('graph_associations'), enabled: isMultiLayer },
-        { id: 'curve_range', label: getAppString('graph_curve_range'), enabled: isMultiLayer },
-        { id: 'symbol', label: getAppString('graph_symbol'), enabled: isMultiLayer }
+        { id: 'automatic_layout', label: getAppString('graph_automatic_layout'), enabled: isMultiLayer },
+        { id: 'add_layer', label: getAppString('graph_add_layer'), icon: $r('app.media.mn_layer_enabled'), shortcut: 'Alt+L', enabled: false },
+        { id: 'remove_layer', label: getAppString('graph_remove_layer'), icon: $r('app.media.mn_layer_disabled'), shortcut: 'Alt+R', enabled: false },
+        { id: 'arrange_layers', label: getAppString('graph_arrange_layers'), icon: $r('app.media.tb_arrangelayers'), shortcut: 'Alt+A', enabled: isMultiLayer }
       ]});
 
       // Tools menu: MultiLayer-active only
+      // Per Qt initPlotDataMenu (ApplicationWindow.cpp L1025-1045): Disable
+      // tools / Zoom In / Zoom Out / Rescale to Show All / ─ / Screen Reader /
+      // Data Reader / Select Data Range / ─ / Move Data Points / Remove Bad
+      // Data Points. NO separator between Disable Tools and Zoom In. Screen
+      // Reader and Disable Tools have NO icon; zoom/rescale/data_reader/range
+      // have icons; move_points/remove_bad carry icons in Qt (hand/gomme.xpm)
+      // but no matching mn_* asset exists, so they are left icon-free rather
+      // than inventing a path.
       defs.push({ id: 'tools', label: getAppString('menu_tools'), items: [
-        { id: 'disable_tools', label: getAppString('tools_disable_tools'), enabled: isMultiLayer },
+        { id: 'disable_tools', label: getAppString('tools_disable_tools'), shortcut: 'Ctrl++', enabled: isMultiLayer },
+        { id: 'zoom_in', label: getAppString('tools_zoom_in'), icon: $r('app.media.tb_zoom'), shortcut: 'Ctrl+←', enabled: isMultiLayer },
+        { id: 'zoom_out', label: getAppString('tools_zoom_out'), icon: $r('app.media.tb_zoomout'), shortcut: 'Ctrl+→', enabled: isMultiLayer },
+        { id: 'rescale_tools', label: getAppString('tools_rescale'), icon: $r('app.media.tb_unzoom'), shortcut: 'Ctrl+Shift+R', enabled: isMultiLayer },
         { id: 'sep1', label: SEPARATOR },
-        { id: 'zoom_in', label: getAppString('tools_zoom_in'), enabled: isMultiLayer },
-        { id: 'zoom_out', label: getAppString('tools_zoom_out'), enabled: isMultiLayer },
-        { id: 'rescale_tools', label: getAppString('tools_rescale'), enabled: isMultiLayer },
-        { id: 'sep2', label: SEPARATOR },
         { id: 'screen_reader', label: getAppString('tools_screen_reader'), enabled: isMultiLayer },
-        { id: 'data_reader', label: getAppString('tools_data_reader'), enabled: isMultiLayer },
-        { id: 'range', label: getAppString('tools_range'), enabled: isMultiLayer },
-        { id: 'sep3', label: SEPARATOR },
-        { id: 'move_points', label: getAppString('tools_move_points'), enabled: isMultiLayer },
-        { id: 'remove_bad', label: getAppString('tools_remove_bad'), enabled: isMultiLayer }
+        { id: 'data_reader', label: getAppString('tools_data_reader'), icon: $r('app.media.tb_select'), shortcut: 'Ctrl+D', enabled: isMultiLayer },
+        { id: 'range', label: getAppString('tools_range'), icon: $r('app.media.tb_cursors'), shortcut: 'Alt+S', enabled: isMultiLayer },
+        { id: 'sep2', label: SEPARATOR },
+        { id: 'move_points', label: getAppString('tools_move_points'), shortcut: 'Ctrl+Alt+M', enabled: isMultiLayer },
+        { id: 'remove_bad', label: getAppString('tools_remove_bad'), shortcut: 'Alt+B', enabled: isMultiLayer }
       ]});
 
       // Format menu: MultiLayer-active only
@@ -680,7 +713,10 @@ export struct MainLayout {
         { id: 'format_title', label: getAppString('format_title'), enabled: isMultiLayer }
       ]});
 
-      // Analysis menu (MultiLayer graph mode): translate/differentiate/integrate/smooth/fft_filter/interpolate/fft / ─ / quick_fit▸ / fit_wizard Ctrl+Y (sibling at bottom)
+      // Analysis menu (MultiLayer graph mode): per Win analysis(graph).png
+      // only Fit Wizard carries an icon (mn_wizard); Translate/Differentiate/
+      // Integrate/Smooth/FFT Filter/Interpolate/FFT/Quick Fit have none.
+      // Translate/Smooth/FFT Filter/Quick Fit are cascade parents.
       defs.push({ id: 'analysis', label: getAppString('menu_analysis'), items: [
         { id: 'translate', label: getAppString('analysis_translate'), enabled: false,
           children: [
@@ -702,7 +738,6 @@ export struct MainLayout {
         },
         { id: 'interpolate', label: getAppString('analysis_interpolate'), enabled: isPlotWin },
         { id: 'fft', label: getAppString('analysis_fft_dlg'), enabled: isPlotWin },
-        { id: 'sep1', label: SEPARATOR },
         { id: 'quick_fit', label: getAppString('analysis_quick_fit'), enabled: isPlotWin,
           children: [
             { id: 'fit_linear', label: getAppString('analysis_fit_linear'), enabled: isPlotWin },
@@ -712,35 +747,41 @@ export struct MainLayout {
             { id: 'fit_sigmoidal', label: getAppString('analysis_fit_boltzmann'), enabled: isPlotWin }
           ]
         },
-        { id: 'fit_wizard', label: getAppString('fit_wizard'), shortcut: 'Ctrl+Y', enabled: isPlotWin }
+        { id: 'fit_wizard', label: getAppString('fit_wizard'), icon: $r('app.media.mn_wizard'), shortcut: 'Ctrl+Y', enabled: isPlotWin }
       ]});
     }
 
-    // Plot menu: only when Table is active (13 items per spec)
+    // Plot menu: only when Table is active (13 items per Qt initPlotMenu,
+    // ApplicationWindow.cpp L1047-1096 — 3 separators). Line/Scatter/Line+Symbol
+    // then Special▸, then ─, Vertical/Horizontal Bars/Area/Pie/Vectors XYXY/
+    // Vectors XYAM, then ─, Statistical▸/Panel▸, then ─, 3D▸. Line/Scatter/
+    // Line+Symbol/Bars/Area/Pie/Vectors carry icons; Special/Statistical/Panel/
+    // 3D parent rows have NO icon (children do for Special/Statistical/3D).
     if (isTable) {
       defs.push({ id: 'plot', label: getAppString('menu_plot'), items: [
-        { id: 'plot_line', label: getAppString('plot_line'), enabled: true },
-        { id: 'plot_scatter', label: getAppString('plot_scatter'), enabled: true },
-        { id: 'plot_line_symbol', label: getAppString('plot_line_symbol'), enabled: true },
+        { id: 'plot_line', label: getAppString('plot_line'), icon: $r('app.media.tb_lplot'), enabled: true },
+        { id: 'plot_scatter', label: getAppString('plot_scatter'), icon: $r('app.media.tb_pplot'), enabled: true },
+        { id: 'plot_line_symbol', label: getAppString('plot_line_symbol'), icon: $r('app.media.tb_lpplot'), enabled: true },
         { id: 'plot_special', label: getAppString('plot_special'), enabled: true,
           children: [
-            { id: 'plot_vertical_drop_lines', label: getAppString('plot_vertical_drop_lines'), enabled: true },
-            { id: 'plot_spline', label: getAppString('plot_spline'), enabled: true },
-            { id: 'plot_vertical_steps', label: getAppString('plot_vertical_steps'), enabled: true },
-            { id: 'plot_horizontal_steps', label: getAppString('plot_horizontal_steps'), enabled: true }
+            { id: 'plot_vertical_drop_lines', label: getAppString('plot_vertical_drop_lines'), icon: $r('app.media.mn_dropLines'), enabled: true },
+            { id: 'plot_spline', label: getAppString('plot_spline'), icon: $r('app.media.tb_lplot'), enabled: true },
+            { id: 'plot_vertical_steps', label: getAppString('plot_vertical_steps'), icon: $r('app.media.tb_vertbars'), enabled: true },
+            { id: 'plot_horizontal_steps', label: getAppString('plot_horizontal_steps'), icon: $r('app.media.mn_hBars'), enabled: true }
           ]
         },
-        { id: 'plot_vertical_bars', label: getAppString('plot_vertical_bars'), enabled: true },
-        { id: 'plot_horizontal_bars', label: getAppString('plot_horizontal_bars'), enabled: true },
-        { id: 'plot_area', label: getAppString('plot_area'), enabled: true },
-        { id: 'plot_pie', label: getAppString('plot_pie'), enabled: true },
-        { id: 'plot_vectors_xyxy', label: getAppString('plot_vectors_xyxy'), enabled: true },
-        { id: 'plot_vectors_xyam', label: getAppString('plot_vectors_xyam'), enabled: true },
-        { id: 'sep0', label: SEPARATOR },
+        { id: 'sep1', label: SEPARATOR },
+        { id: 'plot_vertical_bars', label: getAppString('plot_vertical_bars'), icon: $r('app.media.tb_vertbars'), enabled: true },
+        { id: 'plot_horizontal_bars', label: getAppString('plot_horizontal_bars'), icon: $r('app.media.mn_hBars'), enabled: true },
+        { id: 'plot_area', label: getAppString('plot_area'), icon: $r('app.media.tb_area'), enabled: true },
+        { id: 'plot_pie', label: getAppString('plot_pie'), icon: $r('app.media.tb_pie'), enabled: true },
+        { id: 'plot_vectors_xyxy', label: getAppString('plot_vectors_xyxy'), icon: $r('app.media.tb_vectxyxy'), enabled: true },
+        { id: 'plot_vectors_xyam', label: getAppString('plot_vectors_xyam'), icon: $r('app.media.mn_vectXYAM'), enabled: true },
+        { id: 'sep2', label: SEPARATOR },
         { id: 'plot_statistical', label: getAppString('plot_statistical'), enabled: true,
           children: [
-            { id: 'plot_histogram', label: getAppString('plot_histogram'), enabled: true },
-            { id: 'plot_box', label: getAppString('plot_box'), enabled: true }
+            { id: 'plot_histogram', label: getAppString('plot_histogram'), icon: $r('app.media.tb_histogram'), enabled: true },
+            { id: 'plot_box', label: getAppString('plot_box'), icon: $r('app.media.tb_boxplot'), enabled: true }
           ]
         },
         { id: 'plot_panel', label: getAppString('plot_panel'), enabled: true,
@@ -751,43 +792,59 @@ export struct MainLayout {
             { id: 'panel_3v', label: getAppString('plot_panel_3v'), enabled: true }
           ]
         },
-        { id: 'sep1', label: SEPARATOR },
-        { id: 'plot_explorer_2d', label: getAppString('plot_explorer_2d'), enabled: true },
+        { id: 'sep3', label: SEPARATOR },
         { id: 'plot_3d', label: getAppString('plot_3d'), enabled: false,
           children: [
-            { id: 'plot_3d_wire', label: getAppString('plot_3d_wire'), enabled: false },
-            { id: 'plot_3d_hidden', label: getAppString('plot_3d_hidden'), enabled: false },
-            { id: 'plot_3d_polygons', label: getAppString('plot_3d_polygons'), enabled: false },
-            { id: 'plot_3d_wire_surface', label: getAppString('plot_3d_wire_surface'), enabled: false },
-            { id: 'plot_3d_bars', label: getAppString('plot_3d_bars'), enabled: false },
-            { id: 'plot_3d_scatter', label: getAppString('plot_3d_scatter'), enabled: false },
-            { id: 'plot_3d_contour', label: getAppString('plot_3d_contour'), enabled: false }
+            { id: 'plot_3d_wire', label: getAppString('plot_3d_wire'), icon: $r('app.media.mn_3dplots'), enabled: false },
+            { id: 'plot_3d_hidden', label: getAppString('plot_3d_hidden'), icon: $r('app.media.mn_3dplots'), enabled: false },
+            { id: 'plot_3d_polygons', label: getAppString('plot_3d_polygons'), icon: $r('app.media.mn_3dplots'), enabled: false },
+            { id: 'plot_3d_wire_surface', label: getAppString('plot_3d_wire_surface'), icon: $r('app.media.mn_3dplots'), enabled: false },
+            { id: 'plot_3d_bars', label: getAppString('plot_3d_bars'), icon: $r('app.media.tb_bars'), enabled: false },
+            { id: 'plot_3d_scatter', label: getAppString('plot_3d_scatter'), icon: $r('app.media.tb_scatter'), enabled: false },
+            { id: 'plot_3d_contour', label: getAppString('plot_3d_contour'), icon: $r('app.media.mn_3dplots'), enabled: false }
           ]
         }
       ]});
     }
 
-    // Analysis menu (Table mode): statistics_columns/statistics_rows moved from Table menu
+    // Analysis menu (Table mode): statistics_columns/statistics_rows moved from Table menu.
+    // Per Qt initTableAnalysisMenu (ApplicationWindow.cpp L1098-1118): Statistics on
+    // Columns / Statistics on Rows / ─ / FFT / ─ / Correlate / Autocorrelate / ─ /
+    // Convolute / Deconvolute / ─ / Fit Wizard (Ctrl+Y, mn_wizard). Icons per Qt:
+    // statistics_columns=col_stat.xpm, statistics_rows=stat_rows.xpm; FFT/Correlate/
+    // Autocorrelate/Convolute/Deconvolute/Fit Wizard have none.
     if (isTable) {
       // Check if already added (for MultiLayer case) - if not, add Table-mode Analysis
       const existingAnalysis = defs.find(d => d.id === 'analysis');
       if (!existingAnalysis || !isPlotWin) {
         defs.push({ id: 'analysis', label: getAppString('menu_analysis'), items: [
-          { id: 'statistics_columns', label: getAppString('table_stats_columns'), enabled: true },
-          { id: 'statistics_rows', label: getAppString('table_stats_rows'), enabled: true },
+          { id: 'statistics_columns', label: getAppString('table_stats_columns'), icon: $r('app.media.tb_stats_columns'), enabled: true },
+          { id: 'statistics_rows', label: getAppString('table_stats_rows'), icon: $r('app.media.tb_stats_rows'), enabled: true },
           { id: 'sep1', label: SEPARATOR },
           { id: 'fft', label: getAppString('analysis_fft_dlg'), enabled: false },
+          { id: 'sep2', label: SEPARATOR },
           { id: 'correlate', label: getAppString('analysis_correlate'), enabled: true },
           { id: 'autocorrelate', label: getAppString('analysis_autocorrelate'), enabled: false },
+          { id: 'sep3', label: SEPARATOR },
           { id: 'convolute', label: getAppString('analysis_convolute'), enabled: true },
           { id: 'deconvolute', label: getAppString('analysis_deconvolute'), enabled: false },
-          { id: 'sep2', label: SEPARATOR },
-          { id: 'fit_wizard', label: getAppString('fit_wizard'), shortcut: 'Ctrl+V', enabled: false }
+          { id: 'sep4', label: SEPARATOR },
+          { id: 'fit_wizard', label: getAppString('fit_wizard'), icon: $r('app.media.mn_wizard'), shortcut: 'Ctrl+Y', enabled: false }
         ]});
       }
     }
 
-    // Table menu: 16 items per spec (statistics removed, moved to Analysis)
+    // Table menu: per Qt Table::fillProjectMenu (future_Table.cpp L1068-1118)
+    // + ApplicationWindow.cpp L1190-1196 (export/convert tail). Full structure:
+    // Set Columns As▸ / ─ / Fill Selection▸ / ─ / Show Comments / Hide
+    // Controls / Formula Edit Mode / Edit Column Description / Change Type &
+    // Format / ─ / Clear Table / Sort Table / ─ / Assign Formula / Recalculate
+    // / ─ / Add Columns / Dimensions / ─ / Go To Cell / ─ / Export ASCII / ─ /
+    // Convert to Matrix (8 separators; statistics removed → Analysis).
+    // Icons per Qt: change_type_format, clear_table, sort_table, assign_formula,
+    // recalculate, add_columns, go_to_cell carry icons; set_columns_as/
+    // fill_selection parents, formula_edit_mode, dimensions, export_ascii,
+    // convert_to_matrix have none.
     if (isTable) {
       defs.push({ id: 'table', label: getAppString('menu_table'), items: [
         { id: 'set_columns_as', label: getAppString('table_set_columns_as'), enabled: true,
@@ -799,6 +856,7 @@ export struct MainLayout {
             { id: 'set_as_yerr', label: getAppString('table_set_as_yerr'), enabled: true }
           ]
         },
+        { id: 'sep1', label: SEPARATOR },
         { id: 'fill_selection', label: getAppString('table_fill_selection'), enabled: true,
           children: [
             { id: 'fill_row_numbers', label: getAppString('table_fill_row_numbers'), enabled: true },
@@ -806,27 +864,31 @@ export struct MainLayout {
             { id: 'fill_normal_random', label: getAppString('table_fill_normal_random'), enabled: true }
           ]
         },
-        { id: 'sep1', label: SEPARATOR },
+        { id: 'sep2', label: SEPARATOR },
         { id: 'show_comments', label: getAppString('table_show_comments'), enabled: false },
         { id: 'hide_controls', label: getAppString('table_hide_controls'), shortcut: 'F12', enabled: true },
         { id: 'formula_edit_mode', label: getAppString('table_formula_edit_mode'), enabled: true },
         { id: 'edit_column_description', label: getAppString('table_edit_column_description'), enabled: true },
-        { id: 'change_type_format', label: getAppString('table_change_type_format'), shortcut: 'Ctrl+Alt+O', enabled: true },
-        { id: 'clear_table', label: getAppString('table_clear_table'), enabled: true },
-        { id: 'sep2', label: SEPARATOR },
-        { id: 'sort_table', label: getAppString('table_sort_table'), enabled: true },
-        { id: 'assign_formula', label: getAppString('table_set_values'), shortcut: 'Alt+Q', enabled: true },
-        { id: 'recalculate', label: getAppString('table_recalculate'), shortcut: 'Ctrl+Return', enabled: false },
-        { id: 'add_columns', label: getAppString('table_add_columns'), enabled: true },
-        { id: 'dimensions', label: getAppString('dlg_table_size'), enabled: true },
+        { id: 'change_type_format', label: getAppString('table_change_type_format'), icon: $r('app.media.mn_configTable'), shortcut: 'Ctrl+Alt+O', enabled: true },
         { id: 'sep3', label: SEPARATOR },
-        { id: 'go_to_cell', label: getAppString('table_go_to_cell'), shortcut: 'Ctrl+Alt+G', enabled: false },
+        { id: 'clear_table', label: getAppString('table_clear_table'), icon: $r('app.media.tb_erase'), enabled: true },
+        { id: 'sort_table', label: getAppString('table_sort_table'), icon: $r('app.media.mn_sort'), enabled: true },
+        { id: 'sep4', label: SEPARATOR },
+        { id: 'assign_formula', label: getAppString('table_set_values'), icon: $r('app.media.mn_fx'), shortcut: 'Alt+Q', enabled: true },
+        { id: 'recalculate', label: getAppString('table_recalculate'), icon: $r('app.media.mn_recalculate'), shortcut: 'Ctrl+Return', enabled: false },
+        { id: 'sep5', label: SEPARATOR },
+        { id: 'add_columns', label: getAppString('table_add_columns'), icon: $r('app.media.tb_add_column'), enabled: true },
+        { id: 'dimensions', label: getAppString('dlg_table_size'), enabled: true },
+        { id: 'sep6', label: SEPARATOR },
+        { id: 'go_to_cell', label: getAppString('table_go_to_cell'), icon: $r('app.media.mn_go_to_cell'), shortcut: 'Ctrl+Alt+G', enabled: false },
+        { id: 'sep7', label: SEPARATOR },
         { id: 'export_ascii', label: getAppString('file_export_ascii'), enabled: true },
+        { id: 'sep8', label: SEPARATOR },
         { id: 'convert_to_matrix', label: getAppString('table_convert_to_matrix'), enabled: false }
       ]});
     }
 
-    // Windows menu: cascade/tile / ─ / next/previous / ─ / rename/duplicate/window_geometry/hide_window / ─ / close_window / ─ / maximize/minimize / window list
+    // Windows menu: cascade/tile / ─ / next/previous / ─ / rename/duplicate/window_geometry/hide_window / window list
     const winItems: SubMenuItemData[] = [
       { id: 'cascade', label: getAppString('win_cascade') },
       { id: 'tile', label: getAppString('win_tile'), enabled: false },
@@ -837,12 +899,7 @@ export struct MainLayout {
       { id: 'rename_window', label: getAppString('win_rename') },
       { id: 'duplicate', label: getAppString('win_duplicate'), enabled: false },
       { id: 'window_geometry', label: getAppString('win_window_geometry'), enabled: false },
-      { id: 'hide_window', label: getAppString('win_hide_window'), enabled: false },
-      { id: 'sep3', label: SEPARATOR },
-      { id: 'close_window', label: getAppString('win_close'), shortcut: 'Ctrl+W', enabled: hasWin },
-      { id: 'sep4', label: SEPARATOR },
-      { id: 'maximize_window', label: getAppString('win_maximize'), enabled: hasWin },
-      { id: 'minimize_window', label: getAppString('win_minimize'), enabled: hasWin }
+      { id: 'hide_window', label: getAppString('win_hide_window'), enabled: false }
     ];
     if (st.windows.length > 0) {
       winItems.push({ id: 'sep5', label: SEPARATOR });
@@ -858,7 +915,10 @@ export struct MainLayout {
     }
     defs.push({ id: 'windows', label: getAppString('menu_windows'), items: winItems });
 
-    // Help menu
+    // Help menu: per Qt initMainMenu (ApplicationWindow.cpp L1000-1020) — 3
+    // separators. Order: Help (Ctrl+H) / Choose Help Folder... / ─ / SciDAVis
+    // Homepage / Search for Updates / Download Manual / ─ / Visit SciDAVis
+    // Forums / Report a Bug / ─ / About SciDAVis (F1). NO icons on any item.
     defs.push({ id: 'help', label: getAppString('menu_help'), items: [
       { id: 'help_browser', label: getAppString('help_browser'), shortcut: 'Ctrl+H', enabled: false },
       { id: 'choose_help_folder', label: getAppString('help_choose_help_folder'), enabled: false },
@@ -870,7 +930,7 @@ export struct MainLayout {
       { id: 'visit_forums', label: getAppString('help_visit_forums'), enabled: false },
       { id: 'report_bug', label: getAppString('help_report_bug'), enabled: false },
       { id: 'sep3', label: SEPARATOR },
-      { id: 'about', label: getAppString('help_about_ohplot') }
+      { id: 'about', label: getAppString('help_about_ohplot'), shortcut: 'F1' }
     ]});
 
     this.menuDefs = defs;
@@ -1019,24 +1079,6 @@ export struct MainLayout {
         this.statisticsType = 'columns';
         this.showTableStatisticsDialog = true;
         break;
-      case 'tables':
-        // Explicit user choice: lock the view so refreshUiState's auto
-        // logic never overrides it (toggling off to 'default' also locks —
-        // the user explicitly closed the tables overlay).
-        this.userViewLocked = true;
-        this.currentView = (this.currentView === 'tables') ? 'default' : 'tables';
-        // Re-push chrome insets so a side-bar-mounted right inset is
-        // cleared immediately when the view leaves 'default'.
-        this.pushChromeInsets();
-        break;
-      case 'plots':
-        this.userViewLocked = true;
-        this.currentView = (this.currentView === 'plots') ? 'default' : 'plots';
-        this.pushChromeInsets();
-        break;
-      case 'notes':
-        this.showNotes = !this.showNotes;
-        break;
       case 'log':
         this.showResultsLog = !this.showResultsLog;
         break;
@@ -1075,9 +1117,6 @@ export struct MainLayout {
       case 'format_plot':
         this.showFormatDialog = true;
         this.formatSection = 'plot';
-        break;
-      case 'plot_2d':
-        this.currentView = 'plots';
         break;
       case 'plot_line':
       case 'plot_scatter':
@@ -1394,36 +1433,6 @@ case 'paste':
     }
   }
 
-  // 问题5: one MDI window-control button (min/max/close).  Windows SciDAVis
-  // shows these at the right end of the main menu bar while a sub-window is
-  // maximized; the commands are already in the MENU_ACTION_SUPPORTED
-  // whitelist and routed through the existing dispatchMenuItem fallback.
-  // Styled with the shared Theme tokens so they blend into the chrome.
-  @Builder
-  WindowCtlButton(label: string, action: string) {
-    Text(label)
-      .width(30)
-      .height(24)
-      .fontSize(12)
-      .textAlign(TextAlign.Center)
-      .fontColor(Theme.TEXT)
-      .borderRadius(3)
-      .backgroundColor(Theme.GROUP_BG)
-      .border({ width: 1, color: Theme.GROUP_BORDER })
-      .margin({ left: 2 })
-      .onClick(() => {
-        this.onMenuItemClick(action);
-        // Menu-open refresh already covers greying; mirror the toolbar
-        // behaviour and keep uiState current after the queued mutation.
-        this.refreshUiState();
-        // The window command is QUEUED on the Qt thread, so the immediate
-        // refresh reads the pre-mutation status and would leave the
-        // maximize/restore glyph stale.  Refresh again once the queue has
-        // drained (aligned with the ToolBar 700ms pattern).
-        setTimeout(() => this.refreshUiState(), 700);
-      })
-  }
-  
   build() {
     Stack() {
       // Layer 1 (bottom): XComponent lives BELOW this Stack.
@@ -1489,32 +1498,21 @@ case 'paste':
             }
           })
 
-        // Content area: shows active view (default=transparent pass-through to Qt)
-        // When menu is open, touching the content area closes it
-        if (this.currentView === 'tables') {
-          TablePage()
-            .layoutWeight(1)
-        } else if (this.currentView === 'plots') {
-          PlotPage()
-            .layoutWeight(1)
-        } else if (this.currentView === 'matrix') {
-          MatrixPage({ matrixName: this.uiState.activeName })
-            .layoutWeight(1)
-        } else {
-          // Default: transparent - touch events pass through to
-          // the XComponent for native QPA processing.  We do NOT forward
-          // touch via sendMouse here 鈥?QPA handles it natively.
-          Column()
-            .layoutWeight(1)
-            .hitTestBehavior(HitTestMode.Transparent)
-            .onTouch((_event: TouchEvent) => {
-              // Touch ANYWHERE in the content area closes an open menu.
-              if (this.openMenu !== null) {
-                hilog.info(DOMAIN, TAG, 'content touch - closing menu');
-                this.openMenu = null;
-              }
-            })
-        }
+        // Content area: transparent pass-through to Qt native rendering.
+        // When menu is open, touching the content area closes it.
+        // Default: transparent - touch events pass through to
+        // the XComponent for native QPA processing.  We do NOT forward
+        // touch via sendMouse here 鈥?QPA handles it natively.
+        Column()
+          .layoutWeight(1)
+          .hitTestBehavior(HitTestMode.Transparent)
+          .onTouch((_event: TouchEvent) => {
+            // Touch ANYWHERE in the content area closes an open menu.
+            if (this.openMenu !== null) {
+              hilog.info(DOMAIN, TAG, 'content touch - closing menu');
+              this.openMenu = null;
+            }
+          })
 
         // Bottom toolbar: 2D-plot and 3D-surface groups docked below the
         // content area (Windows plot_tools/plot3d moved to the lower page
@@ -1547,6 +1545,27 @@ case 'paste':
       .width('100%')
       .height('100%')
 
+      // Qt startup overlay: covers the XComponent's black surface until Qt
+      // renders its first frame (signalled by uiState.activeName != '' in
+      // refreshUiState → qtReady).  Sits above the main Column (zIndex 10)
+      // but below every interactive layer (scrim 100 / dropdown 101 /
+      // context menu 200 / tooltip 300).  Transparent hit-test so the first
+      // touches pass through to Qt once rendering starts.  (2026-08-04)
+      if (!this.qtReady) {
+        Column() {
+          Text(getAppString('app_loading'))
+            .fontSize(16)
+            .fontColor('#666666')
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#F5F5F5')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .zIndex(10)
+        .hitTestBehavior(HitTestMode.Transparent)
+      }
+
       // Scrim while a menu is open: covers everything below the menu bar,
       // closes the menu when tapped, and (being hit-test opaque) blocks
       // both ETS forwarding and native QPA delivery of that tap 鈥?desktop
@@ -1566,7 +1585,7 @@ case 'paste':
             hilog.info(DOMAIN, TAG, 'scrim tap - closing menu');
             this.openMenu = null;
           })
-          .zIndex(100) // above ProjectTree/NoteEditor overlays declared later
+          .zIndex(100) // above ProjectTree overlay declared later
       }
 
       // Floating dropdown menu: rendered at Stack level (NOT inside the
@@ -1596,35 +1615,6 @@ case 'paste':
       })
         .zIndex(200)
 
-      // 问题5: MDI window controls (min/max/close) at the right end of the
-      // SAME row as the "files"/menu titles (Windows SciDAVis puts them
-      // there when a sub-window is maximized).  A full-width transparent
-      // Row keeps the MenuBar titles clickable below it; only the buttons
-      // (its children) grab clicks.  Shown whenever an MDI window is
-      // active (activeName !== ''); the middle button toggles between
-      // maximize '□' and restore '❐' following activeWinMaximized.
-      if (this.uiState.activeName !== '') {
-        Row() {
-          this.WindowCtlButton('—', 'minimize_window')
-          if (this.activeWinMaximized) {
-            this.WindowCtlButton('❐', 'restore_window')
-          } else {
-            this.WindowCtlButton('□', 'maximize_window')
-          }
-          this.WindowCtlButton('✕', 'close_window')
-        }
-        .width('100%')
-        .height(MENUBAR_HEIGHT_VP)
-        .justifyContent(FlexAlign.End)
-        .padding({ right: 4 })
-        .position({ x: 0, y: 0 })
-        .zIndex(300)
-        // Do not swallow menu-title taps: self+children hit-test but the
-        // siblings below (MenuBar) stay reachable; clicks on the buttons
-        // themselves are still delivered.
-        .hitTestBehavior(HitTestMode.Transparent)
-      }
-
       // Custom tooltip overlay for ToolBar and BottomToolBar buttons.
       // bindPopup is occluded by the XComponent (native rendering layer);
       // this Text sits at Stack level with zIndex 300 so it renders above
@@ -1642,11 +1632,6 @@ case 'paste':
           .position({ x: this.tooltipX, y: this.tooltipY })
           .zIndex(300)
           .hitTestBehavior(HitTestMode.Transparent)
-      }
-
-      // Note editor overlay
-      if (this.showNotes) {
-        NoteEditor()
       }
 
       // Project browser sidebar (View menu): tree from getProjectTree,
@@ -1795,9 +1780,12 @@ case 'paste':
       TableFillDialog({ isVisible: $showTableFillDialog })
 
       // Qt backend event host: renders ArkUI replacements for QMessageBox /
-      // context menus / combo popups pushed via scidavis_emit 鈫?onQtEvent.
+      // context menus / combo popups pushed via scidavis_emit → onQtEvent.
       // Fully hit-test transparent while no overlay is visible.
-      QtEventHost()
+      // Bug 2: onWindowActivated is a direct parent-child callback so a
+      // windowActivated event reliably triggers the menu-bar rebuild
+      // (@StorageProp+@Watch across components is unreliable on device).
+      QtEventHost({ onWindowActivated: () => this.onActiveWindowChanged() })
 
       // No external overlay: touching the content area closes the menu
       // and forwards events to Qt. The dropdown menu area is handled
@@ -1848,6 +1836,18 @@ case 'paste':
             'touch start recorded for long-press at (%{public}d,%{public}d)',
             Math.round(t.x), Math.round(t.y));
           action = 0; leftDown = true;
+        } else if (t.type === TouchType.Move) {
+          // Forwarded since 2026-08-04 (Bluetooth-mouse drag fix): ArkUI
+          // re-routes Bluetooth LEFT drags into the touch pipeline marked as
+          // a MOUSE source, and the QPA plugin drops MOUSE-sourced touch
+          // moves, so a Bluetooth drag would otherwise never reach Qt.
+          // Finger drags ARE also delivered natively; the Qt InputProbe
+          // dedups Move across event sources (60ms + manhattan<5), so the
+          // forwarded copy no longer double-delivers nor lags graph drag.
+          // Only forward while a button is held (leftDown) so hover motion
+          // with no button pressed is never treated as a drag.
+          if (!leftDown) { continue; }
+          action = 2; // keep leftDown unchanged
         } else if (t.type === TouchType.Up) {
           if (!leftDown) { continue; }
           // Long-press detection: check if held long enough with minimal movement
@@ -1864,9 +1864,15 @@ case 'paste':
             this.showContextMenu = true;
           }
           action = 1; leftDown = false;
-        } else if (t.type === TouchType.Move && leftDown) {
-          action = 2;
         }
+        // TouchType.Move IS forwarded since 2026-08-04 (Bluetooth-mouse drag
+        // fix): it is required for Bluetooth LEFT drags, whose moves the QPA
+        // plugin discards.  Finger moves are also delivered natively, but the
+        // Qt InputProbe dedups Move across sources (60ms + manhattan<5), so
+        // the forwarded copy no longer double-delivers every move to Qt and
+        // no longer lags graph drag/zoom (previous Bug 3).  Down (0), Move
+        // (2) and Up (1) are all forwarded via sendMouse; leftDown tracks the
+        // press state for the guards above.
         if (action >= 0) {
           const px: number = vp2px(t.x);
           const py: number = vp2px(t.y);

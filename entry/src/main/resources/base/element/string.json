@@ -1,8 +1,8 @@
-{
+﻿{
   "string": [
     {
       "name": "module_desc",
-      "value": "OHPlot Qt application"
+      "value": "SciDAVis Qt application"
     },
     {
       "name": "read_pasteboard_reason",
@@ -10,7 +10,7 @@
     },
     {
       "name": "ability_desc",
-      "value": "OHPlot main ability"
+      "value": "SciDAVis main ability"
     },
     {
       "name": "menu_file",
@@ -198,7 +198,7 @@
     },
     {
       "name": "help_about",
-      "value": "About OHPlot..."
+      "value": "About SciDAVis..."
     },
     {
       "name": "notes_title",
@@ -210,11 +210,11 @@
     },
     {
       "name": "about_title",
-      "value": "About OHPlot"
+      "value": "About SciDAVis"
     },
     {
       "name": "about_version",
-      "value": "OHPlot 2.0.0"
+      "value": "SciDAVis 2.0.0"
     },
     {
       "name": "about_desc",
@@ -222,7 +222,7 @@
     },
     {
       "name": "about_copyright",
-      "value": "Copyright (C) 2024 SciDAVis Team — OHPlot OpenHarmony port"
+      "value": "Copyright (C) 2024 SciDAVis Team — SciDAVis OpenHarmony port"
     },
     {
       "name": "about_close",
@@ -323,18 +323,6 @@
     {
       "name": "view_project_browser",
       "value": "Project Browser"
-    },
-    {
-      "name": "view_plot_list",
-      "value": "Plot List"
-    },
-    {
-      "name": "view_table_list",
-      "value": "Table List"
-    },
-    {
-      "name": "view_note_pad",
-      "value": "Note Pad"
     },
     {
       "name": "view_results_log",
@@ -505,24 +493,12 @@
       "value": "Cascade"
     },
     {
-      "name": "win_maximize",
-      "value": "Maximize Window"
-    },
-    {
-      "name": "win_minimize",
-      "value": "Minimize Window"
-    },
-    {
-      "name": "win_close",
-      "value": "Close Window"
-    },
-    {
       "name": "help_browser",
       "value": "Help Browser"
     },
     {
       "name": "help_about_ohplot",
-      "value": "About OHPlot"
+      "value": "About SciDAVis"
     },
     {
       "name": "tbmenu_new_table",
@@ -2416,6 +2392,10 @@
     {
       "name": "format_line_style",
       "value": "Line Style"
+    },
+    {
+      "name": "app_loading",
+      "value": "Starting SciDAVis..."
     }
   ]
 }

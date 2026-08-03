@@ -60,6 +60,9 @@ interface QtEvent {
   path?: string;
   // tableDataChanged
   tableId?: string;
+  // windowActivated
+  activeType?: string;
+  activeName?: string;
 }
 
 interface QtMenuItem {
@@ -87,6 +90,12 @@ function stripMnemonic(s: string | undefined): string {
 
 @Component
 export struct QtEventHost {
+  // Direct parent-child notification: MainLayout passes this so a
+  // windowActivated event reliably triggers the menu-bar refresh.  A plain
+  // callback is used instead of @StorageProp+@Watch because ArkUI does not
+  // reliably fire a @Watch on AppStorage.setOrCreate writes originating
+  // from another component (device-verified: menus stayed stale).
+  onWindowActivated?: () => void;
   // Modal message box (warning/critical/question)
   @State msgVisible: boolean = false;
   @State msgSeverity: string = '';
@@ -234,6 +243,24 @@ export struct QtEventHost {
       case 'plotListChanged':
         AppStorage.setOrCreate<string>('pendingPlotListRefresh', Date.now().toString());
         break;
+      case 'windowActivated': {
+        // Bug 2: Qt pushed a window-activation change (an MDI sub-window
+        // was raised/clicked).  Bump the shared tick so MainLayout's
+        // @StorageProp Watch re-queries getUiState and rebuilds the menu
+        // bar for the newly active window type (Graph/Tools/Format vs
+        // Table/Plot).  activeType/activeName are logged for the device
+        // trail only — the uiState query is the source of truth.
+        hilog.info(DOMAIN, TAG, 'windowActivated: type=%{public}s name=%{public}s',
+          ev.activeType ?? '', ev.activeName ?? '');
+        // Reliable path: notify the parent (MainLayout) directly so its
+        // menu bar rebuilds for the newly active window type.  The
+        // AppStorage bump below is kept as a secondary signal for any
+        // other subscriber, but is no longer relied upon for the UI.
+        this.onWindowActivated?.();
+        const tick: number = AppStorage.get<number>('activeWindowTick') ?? 0;
+        AppStorage.setOrCreate<number>('activeWindowTick', tick + 1);
+        break;
+      }
       default:
         hilog.info(DOMAIN, TAG, 'unhandled event kind: %{public}s', ev.kind);
         break;

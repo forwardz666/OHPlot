@@ -36,6 +36,12 @@ export struct BottomToolBar {
   onHoverTip?: (tipKey: string, x: number, y: number, show: boolean) => void;
   // Id of the button currently hovered by the mouse; used internally.
   @State hoverTipId: string = '';
+  // Id of the button currently hovered (mouse over) — drives the light-blue
+  // background feedback (Theme.SELECTED_BG) while the pointer rests on it.
+  @State hoveredId: string = '';
+  // Id of the button currently pressed (touch down) — keeps the light-blue
+  // background while the finger is held on the button.
+  @State pressedId: string = '';
   // Per-button global position [x, y], captured via onAreaChange.
   @State btnPos: Record<string, [number, number]> = {};
 
@@ -94,7 +100,9 @@ export struct BottomToolBar {
     .height(28)
     .justifyContent(FlexAlign.Center)
     .borderRadius(4)
+    .backgroundColor($$.id === this.hoveredId || $$.id === this.pressedId ? Theme.SELECTED_BG : Color.Transparent)
     .opacity($$.enabled ? 1.0 : Theme.OPACITY_DISABLED)
+    .enabled($$.enabled)
     .id('tb_' + $$.id)
     .onAreaChange((_o: Area, n: Area) => {
       if (n.globalPosition) {
@@ -102,6 +110,7 @@ export struct BottomToolBar {
       }
     })
     .onHover((isHover: boolean) => {
+      this.hoveredId = isHover ? $$.id : (this.hoveredId === $$.id ? '' : this.hoveredId);
       if (isHover) {
         this.hoverTipId = $$.id;
         const p = this.btnPos[$$.id];
@@ -109,6 +118,15 @@ export struct BottomToolBar {
       } else if (this.hoverTipId === $$.id) {
         this.hoverTipId = '';
         if (this.onHoverTip) { this.onHoverTip('', 0, 0, false); }
+      }
+    })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.pressedId = $$.id;
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        if (this.pressedId === $$.id) {
+          this.pressedId = '';
+        }
       }
     })
     .onClick(() => {
@@ -132,6 +150,7 @@ export struct BottomToolBar {
     .height(28)
     .justifyContent(FlexAlign.Center)
     .borderRadius(4)
+    .backgroundColor($$.id === this.hoveredId || $$.id === this.pressedId ? Theme.SELECTED_BG : Color.Transparent)
     .opacity($$.enabled ? 1.0 : Theme.OPACITY_DISABLED)
     .enabled($$.enabled)
     .id($$.id)
@@ -141,6 +160,7 @@ export struct BottomToolBar {
       }
     })
     .onHover((isHover: boolean) => {
+      this.hoveredId = isHover ? $$.id : (this.hoveredId === $$.id ? '' : this.hoveredId);
       if (isHover) {
         this.hoverTipId = $$.id;
         const p = this.btnPos[$$.id];
@@ -148,6 +168,15 @@ export struct BottomToolBar {
       } else if (this.hoverTipId === $$.id) {
         this.hoverTipId = '';
         if (this.onHoverTip) { this.onHoverTip('', 0, 0, false); }
+      }
+    })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.pressedId = $$.id;
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        if (this.pressedId === $$.id) {
+          this.pressedId = '';
+        }
       }
     })
     .bindMenu($$.menu)
