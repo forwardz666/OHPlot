@@ -1,337 +1,2048 @@
 {
   "string": [
-    { "name": "module_desc", "value": "OHPlot Qt 应用" },
-    { "name": "read_pasteboard_reason", "value": "从其他应用粘贴数据到表格" },
-    { "name": "ability_desc", "value": "OHPlot 主入口" },
-    { "name": "menu_file", "value": "文件" },
-    { "name": "menu_edit", "value": "编辑" },
-    { "name": "menu_view", "value": "视图" },
-    { "name": "menu_table", "value": "表格" },
-    { "name": "menu_plot", "value": "绘图" },
-    { "name": "menu_analysis", "value": "分析" },
-    { "name": "menu_help", "value": "帮助" },
-    { "name": "file_new_project", "value": "新建项目" },
-    { "name": "file_new_table", "value": "新建表格" },
-    { "name": "file_new_notes", "value": "新建注释" },
-    { "name": "file_new_matrix", "value": "新建矩阵" },
-    { "name": "file_open", "value": "打开..." },
-    { "name": "file_close", "value": "关闭" },
-    { "name": "file_save_project", "value": "保存项目" },
-    { "name": "file_save_as", "value": "另存为..." },
-    { "name": "file_import", "value": "导入" },
-    { "name": "file_export", "value": "导出" },
-    { "name": "file_print", "value": "打印..." },
-    { "name": "file_quit", "value": "退出" },
-    { "name": "edit_undo", "value": "撤消" },
-    { "name": "edit_redo", "value": "重做" },
-    { "name": "edit_cut", "value": "剪切" },
-    { "name": "edit_copy", "value": "复制" },
-    { "name": "edit_paste", "value": "粘贴" },
-    { "name": "edit_delete", "value": "删除" },
-    { "name": "edit_select_all", "value": "全选" },
-    { "name": "view_toolbars", "value": "工具栏" },
-    { "name": "view_plots", "value": "绘图" },
-    { "name": "view_tables", "value": "表格" },
-    { "name": "view_notes", "value": "注释" },
-    { "name": "view_log", "value": "日志" },
-    { "name": "view_script_console", "value": "脚本控制台" },
-    { "name": "table_add_columns", "value": "添加列..." },
-    { "name": "table_set_values", "value": "设置列值..." },
-    { "name": "table_sort", "value": "排序表格" },
-    { "name": "table_statistics", "value": "表格统计" },
-    { "name": "plot_add_remove_curves", "value": "添加/移除曲线..." },
-    { "name": "plot_add_error_bars", "value": "添加误差棒..." },
-    { "name": "plot_2d", "value": "二维绘图" },
-    { "name": "plot_3d", "value": "三维绘图" },
-    { "name": "analysis_fit", "value": "拟合" },
-    { "name": "analysis_fft", "value": "快速傅里叶变换" },
-    { "name": "analysis_smooth", "value": "平滑" },
-    { "name": "analysis_integrate", "value": "积分" },
-    { "name": "analysis_differentiate", "value": "微分" },
-    { "name": "help_help", "value": "帮助..." },
-    { "name": "help_about", "value": "关于 OHPlot..." },
-    { "name": "notes_title", "value": "注释" },
-    { "name": "status_ready", "value": "就绪" },
-    { "name": "about_title", "value": "关于 OHPlot" },
-    { "name": "about_version", "value": "OHPlot 2.0.0" },
-    { "name": "about_desc", "value": "科学数据分析和可视化软件" },
-    { "name": "about_copyright", "value": "版权所有 (C) 2024 SciDAVis 开发团队 — OHPlot OpenHarmony 移植" },
-    { "name": "about_close", "value": "关闭" },
-    { "name": "toolbar_new_table", "value": "新建表格" },
-    { "name": "toolbar_open", "value": "打开项目" },
-    { "name": "toolbar_save", "value": "保存项目" },
-    { "name": "toolbar_import", "value": "导入 ASCII" },
-    { "name": "toolbar_export", "value": "导出 ASCII" },
-    { "name": "toolbar_cut", "value": "剪切" },
-    { "name": "toolbar_copy", "value": "复制" },
-    { "name": "toolbar_paste", "value": "粘贴" },
-    { "name": "toolbar_undo", "value": "撤消" },
-    { "name": "toolbar_redo", "value": "重做" },
-    { "name": "toolbar_plot_line", "value": "折线图" },
-    { "name": "toolbar_plot_scatter", "value": "散点图" },
-    { "name": "not_adapted", "value": "此功能还未适配完毕" },
-    { "name": "file_new_note", "value": "新建注释" },
-    { "name": "file_new_graph", "value": "新建图形" },
-    { "name": "file_open_project", "value": "打开项目..." },
-    { "name": "file_import_ascii", "value": "导入 ASCII..." },
-    { "name": "file_export_ascii", "value": "导出 ASCII..." },
-    { "name": "edit_cut_selection", "value": "剪切选中内容" },
-    { "name": "edit_copy_selection", "value": "复制选中内容" },
-    { "name": "edit_paste_selection", "value": "粘贴选中内容" },
-    { "name": "edit_delete_selection", "value": "删除所选" },
-    { "name": "edit_preferences", "value": "首选项..." },
-    { "name": "view_project_browser", "value": "项目浏览器" },
-    { "name": "view_plot_list", "value": "绘图列表" },
-    { "name": "view_table_list", "value": "表格列表" },
-    { "name": "view_note_pad", "value": "记事本" },
-    { "name": "view_results_log", "value": "结果日志" },
-    { "name": "menu_matrix", "value": "矩阵" },
-    { "name": "matrix_set_dimensions", "value": "设置维度..." },
-    { "name": "matrix_set_values", "value": "设置值..." },
-    { "name": "matrix_transpose", "value": "转置" },
-    { "name": "matrix_invert", "value": "反转" },
-    { "name": "menu_graph", "value": "图形" },
-    { "name": "graph_properties", "value": "属性..." },
-    { "name": "graph_export_image", "value": "导出图像..." },
-    { "name": "graph_add_remove_curve", "value": "添加/移除曲线..." },
-    { "name": "graph_add_error_bars", "value": "添加误差棒..." },
-    { "name": "graph_add_function", "value": "添加函数..." },
-    { "name": "graph_rescale", "value": "重新缩放以显示全部" },
-    { "name": "table_sort_table", "value": "表格排序..." },
-    { "name": "table_stats_columns", "value": "对列进行统计" },
-    { "name": "table_stats_rows", "value": "对行进行统计" },
-    { "name": "plot_line", "value": "线" },
-    { "name": "plot_scatter", "value": "散点图" },
-    { "name": "plot_line_symbol", "value": "线状图 + 符号" },
-    { "name": "plot_vertical_bars", "value": "垂直棒状图" },
-    { "name": "plot_horizontal_bars", "value": "水平棒状图" },
-    { "name": "plot_area", "value": "面积图" },
-    { "name": "plot_pie", "value": "饼状图" },
-    { "name": "plot_vertical_drop_lines", "value": "垂直下降线" },
-    { "name": "plot_spline", "value": "样条曲线" },
-    { "name": "plot_vertical_steps", "value": "垂直阶梯图" },
-    { "name": "plot_horizontal_steps", "value": "水平阶梯图" },
-    { "name": "plot_histogram", "value": "直方图" },
-    { "name": "plot_box", "value": "箱形图" },
-    { "name": "plot_explorer_2d", "value": "绘图浏览器 (2D)" },
-    { "name": "analysis_fit_linear", "value": "线性拟合" },
-    { "name": "analysis_fit_polynomial", "value": "多项式拟合..." },
-    { "name": "analysis_fit_gaussian", "value": "高斯拟合" },
-    { "name": "analysis_fit_lorentzian", "value": "洛仑兹拟合" },
-    { "name": "analysis_fit_boltzmann", "value": "玻尔兹曼(S形)拟合" },
-    { "name": "analysis_fft_dlg", "value": "FFT..." },
-    { "name": "analysis_fft_filter", "value": "FFT 滤波器..." },
-    { "name": "analysis_smooth_dlg", "value": "平滑..." },
-    { "name": "analysis_interpolate", "value": "插值..." },
-    { "name": "analysis_correlate", "value": "关联..." },
-    { "name": "menu_windows", "value": "窗口" },
-    { "name": "win_cascade", "value": "级联" },
-    { "name": "win_maximize", "value": "最大化窗口" },
-    { "name": "win_minimize", "value": "最小化窗口" },
-    { "name": "win_close", "value": "关闭窗口" },
-    { "name": "help_browser", "value": "帮助浏览器" },
-    { "name": "help_about_ohplot", "value": "关于 OHPlot" },
-    { "name": "tbmenu_new_table", "value": "新建表格" },
-    { "name": "tbmenu_new_matrix", "value": "新建矩阵" },
-    { "name": "tbmenu_new_note", "value": "新建注释" },
-    { "name": "tbmenu_new_graph", "value": "新建图形" },
-    { "name": "tbmenu_new_function_plot", "value": "新建函数绘图" },
-    { "name": "tbmenu_new_3d_surface", "value": "新建三维表面绘图" },
-    { "name": "tbmenu_auto_layout", "value": "自动布局" },
-    { "name": "tbmenu_add_layer", "value": "添加图层" },
-    { "name": "tbmenu_remove_layer", "value": "移除图层" },
-    { "name": "tbmenu_arrange_layers", "value": "重排图层..." },
-    { "name": "tbmenu_add_remove_curve", "value": "添加/移除曲线..." },
-    { "name": "tbmenu_add_error_bars", "value": "添加误差棒..." },
-    { "name": "tbmenu_add_function", "value": "添加函数..." },
-    { "name": "tbmenu_add_text", "value": "添加文本" },
-    { "name": "tbmenu_draw_arrow", "value": "绘制箭头" },
-    { "name": "tbmenu_draw_line", "value": "绘制直线" },
-    { "name": "tbmenu_add_timestamp", "value": "添加时间戳" },
-    { "name": "tbmenu_add_image", "value": "添加图像" },
-    { "name": "tbmenu_new_legend", "value": "新建图例" },
-    { "name": "tbmenu_line", "value": "线" },
-    { "name": "tbmenu_scatter", "value": "散点图" },
-    { "name": "tbmenu_line_symbol", "value": "线状图 + 符号" },
-    { "name": "tbmenu_spline", "value": "样条曲线" },
-    { "name": "tbmenu_vertical_drop_lines", "value": "垂直下降线" },
-    { "name": "tbmenu_horizontal_steps", "value": "水平阶梯图" },
-    { "name": "tbmenu_vertical_steps", "value": "垂直阶梯图" },
-    { "name": "tbmenu_vertical_bars", "value": "垂直棒状图" },
-    { "name": "tbmenu_horizontal_bars", "value": "水平棒状图" },
-    { "name": "tbmenu_vectors_xyxy", "value": "矢量 XYXY" },
-    { "name": "tbmenu_vectors_xyam", "value": "矢量 XYAM" },
-    { "name": "tip_new_project", "value": "新建项目" },
-    { "name": "tip_new_aspect", "value": "新建" },
-    { "name": "tip_open", "value": "打开项目" },
-    { "name": "tip_open_template", "value": "打开模板" },
-    { "name": "tip_import", "value": "导入 ASCII" },
-    { "name": "tip_save", "value": "保存项目" },
-    { "name": "tip_save_template", "value": "另存为模板" },
-    { "name": "tip_print", "value": "打印" },
-    { "name": "tip_export_pdf", "value": "导出为 PDF" },
-    { "name": "tip_project_browser", "value": "项目浏览器" },
-    { "name": "tip_log", "value": "结果日志" },
-    { "name": "tip_undo", "value": "撤消" },
-    { "name": "tip_redo", "value": "重做" },
-    { "name": "tip_cut", "value": "剪切" },
-    { "name": "tip_copy", "value": "复制" },
-    { "name": "tip_paste", "value": "粘贴" },
-    { "name": "tip_delete", "value": "删除" },
-    { "name": "tip_graph_pointer", "value": "指针" },
-    { "name": "tip_layers", "value": "管理图层" },
-    { "name": "tip_curves", "value": "添加/移除曲线" },
-    { "name": "tip_enrichments", "value": "添加文本/注释" },
-    { "name": "tip_zoom_in", "value": "放大" },
-    { "name": "tip_zoom_out", "value": "缩小" },
-    { "name": "tip_rescale", "value": "显示全部" },
-    { "name": "tip_screen_reader", "value": "屏幕读取器" },
-    { "name": "tip_data_reader", "value": "数据读取器" },
-    { "name": "tip_select_range", "value": "选择数据范围" },
-    { "name": "tip_plot_lines", "value": "折线/散点图" },
-    { "name": "tip_plot_bars", "value": "棒状图" },
-    { "name": "tip_plot_area", "value": "面积图" },
-    { "name": "tip_plot_pie", "value": "饼状图" },
-    { "name": "tip_plot_histogram", "value": "直方图" },
-    { "name": "tip_plot_box", "value": "箱形图" },
-    { "name": "tip_plot_vectors", "value": "矢量图" },
-    { "name": "tip_plot3d_ribbon", "value": "三维带状图" },
-    { "name": "tip_plot3d_bars", "value": "三维棒状图" },
-    { "name": "tip_plot3d_scatter", "value": "三维散点图" },
-    { "name": "tip_plot3d_trajectory", "value": "三维轨迹图" },
-    { "name": "tip_table_size", "value": "表格尺寸" },
-    { "name": "tip_add_column", "value": "添加列" },
-    { "name": "tip_stats_columns", "value": "列统计" },
-    { "name": "tip_stats_rows", "value": "行统计" },
-    { "name": "pref_general", "value": "常规" },
-    { "name": "pref_tables", "value": "表格" },
-    { "name": "pref_plots", "value": "绘图" },
-    { "name": "pref_autosave", "value": "自动保存" },
-    { "name": "pref_autosave_interval", "value": "自动保存间隔（分钟）" },
-    { "name": "pref_show_comments", "value": "显示注释" },
-    { "name": "pref_antialiasing", "value": "反锯齿" },
-    { "name": "pref_language", "value": "语言" },
-    { "name": "pref_lang_system", "value": "跟随系统" },
-    { "name": "pref_lang_english", "value": "English" },
-    { "name": "pref_lang_chinese", "value": "简体中文" },
-    { "name": "common_ok", "value": "确定" },
-    { "name": "common_cancel", "value": "取消" },
-    { "name": "common_apply", "value": "应用" },
-    { "name": "common_close", "value": "关闭" },
-    { "name": "common_clear", "value": "清除" },
-    { "name": "common_refresh", "value": "刷新" },
-    { "name": "common_loading", "value": "加载中..." },
-    { "name": "common_empty", "value": "（空）" },
-    { "name": "common_no_columns", "value": "无可用列" },
-    { "name": "common_no_curves", "value": "无可用曲线" },
-    { "name": "common_no_tables", "value": "无可用表格" },
-    { "name": "common_no_plots", "value": "无可用绘图" },
-    { "name": "panel_results_log", "value": "结果日志" },
-    { "name": "panel_project", "value": "项目" },
-    { "name": "panel_plots", "value": "绘图" },
-    { "name": "panel_curves", "value": "曲线" },
-    { "name": "dlg_import_title", "value": "导入 ASCII 数据" },
-    { "name": "dlg_separator", "value": "分隔符：" },
-    { "name": "dlg_import_mode", "value": "导入模式：" },
-    { "name": "dlg_import_new_tables", "value": "新建表格" },
-    { "name": "dlg_import_new_rows", "value": "新建行" },
-    { "name": "dlg_import_overwrite", "value": "覆盖" },
-    { "name": "dlg_import_ignored_lines", "value": "忽略行数：" },
-    { "name": "dlg_import_convert_numeric", "value": "转换为数值：" },
-    { "name": "dlg_import_rename_columns", "value": "重命名列：" },
-    { "name": "dlg_import_strip_spaces", "value": "去除空格：" },
-    { "name": "dlg_import_action", "value": "导入..." },
-    { "name": "dlg_export_title", "value": "导出 ASCII 数据" },
-    { "name": "dlg_export_table", "value": "表格：" },
-    { "name": "dlg_export_include_names", "value": "包含列名：" },
-    { "name": "dlg_export_action", "value": "导出" },
-    { "name": "dlg_add_columns", "value": "添加列" },
-    { "name": "dlg_num_columns", "value": "列数：" },
-    { "name": "dlg_set_col_values", "value": "设置列值" },
-    { "name": "dlg_column", "value": "列：" },
-    { "name": "dlg_formula_muparser", "value": "公式 (muParser)：" },
-    { "name": "dlg_example_col", "value": "例如：i 或 col(\"1\")*2" },
-    { "name": "dlg_examples_hint", "value": "示例：i • rand() • sin(0.1*i) • col(\"1\")+1 （i 为行号）" },
-    { "name": "dlg_sort_table", "value": "表格排序" },
-    { "name": "dlg_sort_by", "value": "排序依据：" },
-    { "name": "dlg_each_col_separately", "value": "（每列单独排序）" },
-    { "name": "dlg_order", "value": "顺序：" },
-    { "name": "dlg_ascending", "value": "升序" },
-    { "name": "dlg_descending", "value": "降序" },
-    { "name": "dlg_sort_action", "value": "排序" },
-    { "name": "dlg_matrix_dims", "value": "矩阵维度" },
-    { "name": "dlg_rows", "value": "行数：" },
-    { "name": "dlg_cols", "value": "列数：" },
-    { "name": "dlg_set_matrix_values", "value": "设置矩阵值" },
-    { "name": "dlg_example_matrix", "value": "例如：i*j 或 sin(x)*cos(y)" },
-    { "name": "dlg_matrix_vars_hint", "value": "变量：i,行 • j,列 • x,y（坐标）" },
-    { "name": "dlg_curve", "value": "曲线：" },
-    { "name": "dlg_method", "value": "方法：" },
-    { "name": "dlg_filter_type", "value": "滤波器类型：" },
-    { "name": "dlg_correlate", "value": "关联" },
-    { "name": "dlg_autocorr_hint", "value": "两次选择同一列即为自相关。" },
-    { "name": "dlg_columns_to_plot", "value": "要绘制的列 (Y)：" },
-    { "name": "dlg_plot_action", "value": "绘图" },
-    { "name": "dlg_graph_props", "value": "图形属性" },
-    { "name": "dlg_graph_title_ph", "value": "图形标题" },
-    { "name": "dlg_x_axis_title_ph", "value": "X 轴标题" },
-    { "name": "dlg_y_axis_title_ph", "value": "Y 轴标题" },
-    { "name": "dlg_log_x", "value": "X 轴对数" },
-    { "name": "dlg_log_y", "value": "Y 轴对数" },
-    { "name": "dlg_toggle_legend", "value": "切换图例" },
-    { "name": "dlg_script_console", "value": "脚本控制台" },
-    { "name": "dlg_script_unavailable", "value": "脚本后端在 OpenHarmony 上尚不可用。" },
-    { "name": "dlg_script_todo", "value": "TODO：muParser/Python 控制台将在后续阶段接入。" },
-    { "name": "page_table_prefix", "value": "表格：" },
-    { "name": "page_create_plot_hint", "value": "从表格创建绘图（Qt 后端）" },
-    { "name": "msg_new_project_confirm", "value": "当前项目中未保存的内容将丢失。确定新建项目？" },
-    { "name": "common_add", "value": "添加" },
-    { "name": "msg_enter_formula", "value": "请输入公式。" },
-    { "name": "msg_select_table", "value": "请先选择一个表格。" },
-    { "name": "msg_import_failed", "value": "导入失败：" },
-    { "name": "msg_export_failed", "value": "导出失败：" },
-    { "name": "msg_pie_one_column", "value": "饼状图只能选择一列。" },
-    { "name": "msg_select_column", "value": "请至少选择一列。" },
-    { "name": "dlg_title_analysis", "value": "分析" },
-    { "name": "dlg_title_fit_poly", "value": "多项式拟合" },
-    { "name": "dlg_title_interpolate", "value": "插值" },
-    { "name": "dlg_title_fft_filter", "value": "FFT 滤波" },
-    { "name": "dlg_method_savgol", "value": "Savitzky-Golay" },
-    { "name": "dlg_method_fft", "value": "FFT" },
-    { "name": "dlg_method_moving_avg", "value": "移动平均" },
-    { "name": "dlg_method_linear", "value": "线性" },
-    { "name": "dlg_method_cubic", "value": "三次" },
-    { "name": "dlg_method_akima", "value": "Akima" },
-    { "name": "dlg_filter_low_pass", "value": "低通" },
-    { "name": "dlg_filter_high_pass", "value": "高通" },
-    { "name": "dlg_filter_band_pass", "value": "带通" },
-    { "name": "dlg_filter_band_block", "value": "带阻" },
-    { "name": "dlg_poly_order_range", "value": "多项式阶数（2-9）：" },
-    { "name": "dlg_poly_order", "value": "多项式阶数：" },
-    { "name": "dlg_points", "value": "点数：" },
-    { "name": "dlg_low_freq", "value": "低频：" },
-    { "name": "dlg_high_freq", "value": "高频：" },
-    { "name": "dlg_cutoff_freq", "value": "截止频率：" },
-    { "name": "dlg_column_1", "value": "列 1：" },
-    { "name": "dlg_column_2", "value": "列 2：" },
-    { "name": "msg_no_curves", "value": "当前绘图没有可分析的曲线。" },
-    { "name": "msg_valid_freq", "value": "请输入有效的频率。" },
-    { "name": "msg_two_columns", "value": "表格至少需要两列。" },
-    { "name": "msg_dialog_blocked", "value": "该对话框在平板上暂不可用：" },
-    { "name": "msg_file_dialog_unwired", "value": "文件对话框尚未接入：" },
-    { "name": "msg_input_dialog_unavailable", "value": "输入对话框暂不可用：" },
-    { "name": "msg_color_picker_unavailable", "value": "颜色选择器暂不可用" },
-    { "name": "msg_font_picker_unavailable", "value": "字体选择器暂不可用" },
-    { "name": "op_save_as", "value": "另存为" },
-    { "name": "op_export", "value": "导出" },
-    { "name": "op_export_image", "value": "导出图像" },
-    { "name": "msg_op_write_failed", "value": "失败：后端无法写入文件" },
-    { "name": "msg_op_exported", "value": "：文件已导出" },
-    { "name": "msg_op_export_failed", "value": "导出失败：" },
-    { "name": "msg_table_empty_prefix", "value": "表格“" },
-    { "name": "msg_table_empty_suffix", "value": "”为空" },
-    { "name": "msg_no_table_selected", "value": "未选择表格" },
-    { "name": "msg_no_plot_data", "value": "无绘图数据" },
-    { "name": "msg_plot_too_small", "value": "绘图区域过小" }
+    {
+      "name": "module_desc",
+      "value": "OHPlot Qt 应用"
+    },
+    {
+      "name": "read_pasteboard_reason",
+      "value": "从其他应用粘贴数据到表格"
+    },
+    {
+      "name": "ability_desc",
+      "value": "OHPlot 主入口"
+    },
+    {
+      "name": "menu_file",
+      "value": "文件"
+    },
+    {
+      "name": "menu_edit",
+      "value": "编辑"
+    },
+    {
+      "name": "menu_view",
+      "value": "视图"
+    },
+    {
+      "name": "menu_table",
+      "value": "表格"
+    },
+    {
+      "name": "menu_plot",
+      "value": "绘图"
+    },
+    {
+      "name": "menu_analysis",
+      "value": "分析"
+    },
+    {
+      "name": "menu_help",
+      "value": "帮助"
+    },
+    {
+      "name": "file_new_project",
+      "value": "新建项目"
+    },
+    {
+      "name": "file_new_table",
+      "value": "新建表格"
+    },
+    {
+      "name": "file_new_notes",
+      "value": "新建注释"
+    },
+    {
+      "name": "file_new_matrix",
+      "value": "新建矩阵"
+    },
+    {
+      "name": "file_open",
+      "value": "打开..."
+    },
+    {
+      "name": "file_close",
+      "value": "关闭"
+    },
+    {
+      "name": "file_save_project",
+      "value": "保存项目"
+    },
+    {
+      "name": "file_save_as",
+      "value": "另存为..."
+    },
+    {
+      "name": "file_import",
+      "value": "导入"
+    },
+    {
+      "name": "file_export",
+      "value": "导出"
+    },
+    {
+      "name": "file_print",
+      "value": "打印..."
+    },
+    {
+      "name": "file_quit",
+      "value": "退出"
+    },
+    {
+      "name": "edit_undo",
+      "value": "撤消"
+    },
+    {
+      "name": "edit_redo",
+      "value": "重做"
+    },
+    {
+      "name": "edit_cut",
+      "value": "剪切"
+    },
+    {
+      "name": "edit_copy",
+      "value": "复制"
+    },
+    {
+      "name": "edit_paste",
+      "value": "粘贴"
+    },
+    {
+      "name": "edit_delete",
+      "value": "删除"
+    },
+    {
+      "name": "edit_select_all",
+      "value": "全选"
+    },
+    {
+      "name": "view_toolbars",
+      "value": "工具栏"
+    },
+    {
+      "name": "view_plots",
+      "value": "绘图"
+    },
+    {
+      "name": "view_tables",
+      "value": "表格"
+    },
+    {
+      "name": "view_notes",
+      "value": "注释"
+    },
+    {
+      "name": "view_log",
+      "value": "日志"
+    },
+    {
+      "name": "view_script_console",
+      "value": "脚本控制台"
+    },
+    {
+      "name": "table_add_columns",
+      "value": "添加列..."
+    },
+    {
+      "name": "table_set_values",
+      "value": "设置列值..."
+    },
+    {
+      "name": "table_sort",
+      "value": "排序表格"
+    },
+    {
+      "name": "table_statistics",
+      "value": "表格统计"
+    },
+    {
+      "name": "plot_add_remove_curves",
+      "value": "添加/移除曲线..."
+    },
+    {
+      "name": "plot_add_error_bars",
+      "value": "添加误差棒..."
+    },
+    {
+      "name": "plot_2d",
+      "value": "二维绘图"
+    },
+    {
+      "name": "plot_3d",
+      "value": "三维绘图"
+    },
+    {
+      "name": "analysis_fit",
+      "value": "拟合"
+    },
+    {
+      "name": "analysis_fft",
+      "value": "快速傅里叶变换"
+    },
+    {
+      "name": "analysis_smooth",
+      "value": "平滑"
+    },
+    {
+      "name": "analysis_integrate",
+      "value": "积分"
+    },
+    {
+      "name": "analysis_differentiate",
+      "value": "微分"
+    },
+    {
+      "name": "help_help",
+      "value": "帮助..."
+    },
+    {
+      "name": "help_about",
+      "value": "关于 OHPlot..."
+    },
+    {
+      "name": "notes_title",
+      "value": "注释"
+    },
+    {
+      "name": "status_ready",
+      "value": "就绪"
+    },
+    {
+      "name": "about_title",
+      "value": "关于 OHPlot"
+    },
+    {
+      "name": "about_version",
+      "value": "OHPlot 2.0.0"
+    },
+    {
+      "name": "about_desc",
+      "value": "科学数据分析和可视化软件"
+    },
+    {
+      "name": "about_copyright",
+      "value": "版权所有 (C) 2024 SciDAVis 开发团队 — OHPlot OpenHarmony 移植"
+    },
+    {
+      "name": "about_close",
+      "value": "关闭"
+    },
+    {
+      "name": "toolbar_new_table",
+      "value": "新建表格"
+    },
+    {
+      "name": "toolbar_open",
+      "value": "打开项目"
+    },
+    {
+      "name": "toolbar_save",
+      "value": "保存项目"
+    },
+    {
+      "name": "toolbar_import",
+      "value": "导入 ASCII"
+    },
+    {
+      "name": "toolbar_export",
+      "value": "导出 ASCII"
+    },
+    {
+      "name": "toolbar_cut",
+      "value": "剪切"
+    },
+    {
+      "name": "toolbar_copy",
+      "value": "复制"
+    },
+    {
+      "name": "toolbar_paste",
+      "value": "粘贴"
+    },
+    {
+      "name": "toolbar_undo",
+      "value": "撤消"
+    },
+    {
+      "name": "toolbar_redo",
+      "value": "重做"
+    },
+    {
+      "name": "toolbar_plot_line",
+      "value": "折线图"
+    },
+    {
+      "name": "toolbar_plot_scatter",
+      "value": "散点图"
+    },
+    {
+      "name": "not_adapted",
+      "value": "此功能还未适配完毕"
+    },
+    {
+      "name": "file_new_note",
+      "value": "新建注释"
+    },
+    {
+      "name": "file_new_graph",
+      "value": "新建图形"
+    },
+    {
+      "name": "file_open_project",
+      "value": "打开项目..."
+    },
+    {
+      "name": "file_import_ascii",
+      "value": "导入 ASCII..."
+    },
+    {
+      "name": "file_export_ascii",
+      "value": "导出 ASCII..."
+    },
+    {
+      "name": "edit_cut_selection",
+      "value": "剪切选中内容"
+    },
+    {
+      "name": "edit_copy_selection",
+      "value": "复制选中内容"
+    },
+    {
+      "name": "edit_paste_selection",
+      "value": "粘贴选中内容"
+    },
+    {
+      "name": "edit_delete_selection",
+      "value": "删除所选"
+    },
+    {
+      "name": "edit_preferences",
+      "value": "首选项..."
+    },
+    {
+      "name": "view_project_browser",
+      "value": "项目浏览器"
+    },
+    {
+      "name": "view_plot_list",
+      "value": "绘图列表"
+    },
+    {
+      "name": "view_table_list",
+      "value": "表格列表"
+    },
+    {
+      "name": "view_note_pad",
+      "value": "记事本"
+    },
+    {
+      "name": "view_results_log",
+      "value": "结果日志"
+    },
+    {
+      "name": "menu_matrix",
+      "value": "矩阵"
+    },
+    {
+      "name": "matrix_set_dimensions",
+      "value": "设置维度..."
+    },
+    {
+      "name": "matrix_set_values",
+      "value": "设置值..."
+    },
+    {
+      "name": "matrix_transpose",
+      "value": "转置"
+    },
+    {
+      "name": "matrix_invert",
+      "value": "反转"
+    },
+    {
+      "name": "menu_graph",
+      "value": "图形"
+    },
+    {
+      "name": "graph_properties",
+      "value": "属性..."
+    },
+    {
+      "name": "graph_export_image",
+      "value": "导出图像..."
+    },
+    {
+      "name": "graph_add_remove_curve",
+      "value": "添加/移除曲线..."
+    },
+    {
+      "name": "graph_add_error_bars",
+      "value": "添加误差棒..."
+    },
+    {
+      "name": "graph_add_function",
+      "value": "添加函数..."
+    },
+    {
+      "name": "graph_rescale",
+      "value": "重新缩放以显示全部"
+    },
+    {
+      "name": "table_sort_table",
+      "value": "表格排序..."
+    },
+    {
+      "name": "table_stats_columns",
+      "value": "对列进行统计"
+    },
+    {
+      "name": "table_stats_rows",
+      "value": "对行进行统计"
+    },
+    {
+      "name": "plot_line",
+      "value": "线"
+    },
+    {
+      "name": "plot_scatter",
+      "value": "散点图"
+    },
+    {
+      "name": "plot_line_symbol",
+      "value": "线状图 + 符号"
+    },
+    {
+      "name": "plot_vertical_bars",
+      "value": "垂直棒状图"
+    },
+    {
+      "name": "plot_horizontal_bars",
+      "value": "水平棒状图"
+    },
+    {
+      "name": "plot_area",
+      "value": "面积图"
+    },
+    {
+      "name": "plot_pie",
+      "value": "饼状图"
+    },
+    {
+      "name": "plot_vertical_drop_lines",
+      "value": "垂直下降线"
+    },
+    {
+      "name": "plot_spline",
+      "value": "样条曲线"
+    },
+    {
+      "name": "plot_vertical_steps",
+      "value": "垂直阶梯图"
+    },
+    {
+      "name": "plot_horizontal_steps",
+      "value": "水平阶梯图"
+    },
+    {
+      "name": "plot_histogram",
+      "value": "直方图"
+    },
+    {
+      "name": "plot_box",
+      "value": "箱形图"
+    },
+    {
+      "name": "plot_explorer_2d",
+      "value": "绘图浏览器 (2D)"
+    },
+    {
+      "name": "analysis_fit_linear",
+      "value": "线性拟合"
+    },
+    {
+      "name": "analysis_fit_polynomial",
+      "value": "多项式拟合..."
+    },
+    {
+      "name": "analysis_fit_gaussian",
+      "value": "高斯拟合"
+    },
+    {
+      "name": "analysis_fit_lorentzian",
+      "value": "洛仑兹拟合"
+    },
+    {
+      "name": "analysis_fit_boltzmann",
+      "value": "玻尔兹曼(S形)拟合"
+    },
+    {
+      "name": "analysis_fft_dlg",
+      "value": "FFT..."
+    },
+    {
+      "name": "analysis_fft_filter",
+      "value": "FFT 滤波器..."
+    },
+    {
+      "name": "analysis_smooth_dlg",
+      "value": "平滑..."
+    },
+    {
+      "name": "analysis_interpolate",
+      "value": "插值..."
+    },
+    {
+      "name": "analysis_correlate",
+      "value": "关联..."
+    },
+    {
+      "name": "menu_windows",
+      "value": "窗口"
+    },
+    {
+      "name": "win_cascade",
+      "value": "级联"
+    },
+    {
+      "name": "win_maximize",
+      "value": "最大化窗口"
+    },
+    {
+      "name": "win_minimize",
+      "value": "最小化窗口"
+    },
+    {
+      "name": "win_close",
+      "value": "关闭窗口"
+    },
+    {
+      "name": "help_browser",
+      "value": "帮助浏览器"
+    },
+    {
+      "name": "help_about_ohplot",
+      "value": "关于 OHPlot"
+    },
+    {
+      "name": "tbmenu_new_table",
+      "value": "新建表格"
+    },
+    {
+      "name": "tbmenu_new_matrix",
+      "value": "新建矩阵"
+    },
+    {
+      "name": "tbmenu_new_note",
+      "value": "新建注释"
+    },
+    {
+      "name": "tbmenu_new_graph",
+      "value": "新建图形"
+    },
+    {
+      "name": "tbmenu_new_function_plot",
+      "value": "新建函数绘图"
+    },
+    {
+      "name": "tbmenu_new_3d_surface",
+      "value": "新建三维表面绘图"
+    },
+    {
+      "name": "tbmenu_auto_layout",
+      "value": "自动布局"
+    },
+    {
+      "name": "tbmenu_add_layer",
+      "value": "添加图层"
+    },
+    {
+      "name": "tbmenu_remove_layer",
+      "value": "移除图层"
+    },
+    {
+      "name": "tbmenu_arrange_layers",
+      "value": "重排图层..."
+    },
+    {
+      "name": "tbmenu_add_remove_curve",
+      "value": "添加/移除曲线..."
+    },
+    {
+      "name": "tbmenu_add_error_bars",
+      "value": "添加误差棒..."
+    },
+    {
+      "name": "tbmenu_add_function",
+      "value": "添加函数..."
+    },
+    {
+      "name": "tbmenu_add_text",
+      "value": "添加文本"
+    },
+    {
+      "name": "tbmenu_draw_arrow",
+      "value": "绘制箭头"
+    },
+    {
+      "name": "tbmenu_draw_line",
+      "value": "绘制直线"
+    },
+    {
+      "name": "tbmenu_add_timestamp",
+      "value": "添加时间戳"
+    },
+    {
+      "name": "tbmenu_add_image",
+      "value": "添加图像"
+    },
+    {
+      "name": "tbmenu_new_legend",
+      "value": "新建图例"
+    },
+    {
+      "name": "tbmenu_line",
+      "value": "线"
+    },
+    {
+      "name": "tbmenu_scatter",
+      "value": "散点图"
+    },
+    {
+      "name": "tbmenu_line_symbol",
+      "value": "线状图 + 符号"
+    },
+    {
+      "name": "tbmenu_spline",
+      "value": "样条曲线"
+    },
+    {
+      "name": "tbmenu_vertical_drop_lines",
+      "value": "垂直下降线"
+    },
+    {
+      "name": "tbmenu_horizontal_steps",
+      "value": "水平阶梯图"
+    },
+    {
+      "name": "tbmenu_vertical_steps",
+      "value": "垂直阶梯图"
+    },
+    {
+      "name": "tbmenu_vertical_bars",
+      "value": "垂直棒状图"
+    },
+    {
+      "name": "tbmenu_horizontal_bars",
+      "value": "水平棒状图"
+    },
+    {
+      "name": "tbmenu_vectors_xyxy",
+      "value": "矢量 XYXY"
+    },
+    {
+      "name": "tbmenu_vectors_xyam",
+      "value": "矢量 XYAM"
+    },
+    {
+      "name": "tip_new_project",
+      "value": "新建项目"
+    },
+    {
+      "name": "tip_new_aspect",
+      "value": "新建"
+    },
+    {
+      "name": "tip_open",
+      "value": "打开项目"
+    },
+    {
+      "name": "tip_open_template",
+      "value": "打开模板"
+    },
+    {
+      "name": "tip_import",
+      "value": "导入 ASCII"
+    },
+    {
+      "name": "tip_save",
+      "value": "保存项目"
+    },
+    {
+      "name": "tip_save_template",
+      "value": "另存为模板"
+    },
+    {
+      "name": "tip_print",
+      "value": "打印"
+    },
+    {
+      "name": "tip_export_pdf",
+      "value": "导出为 PDF"
+    },
+    {
+      "name": "tip_project_browser",
+      "value": "项目浏览器"
+    },
+    {
+      "name": "tip_log",
+      "value": "结果日志"
+    },
+    {
+      "name": "tip_undo",
+      "value": "撤消"
+    },
+    {
+      "name": "tip_redo",
+      "value": "重做"
+    },
+    {
+      "name": "tip_cut",
+      "value": "剪切"
+    },
+    {
+      "name": "tip_copy",
+      "value": "复制"
+    },
+    {
+      "name": "tip_paste",
+      "value": "粘贴"
+    },
+    {
+      "name": "tip_delete",
+      "value": "删除"
+    },
+    {
+      "name": "tip_graph_pointer",
+      "value": "指针"
+    },
+    {
+      "name": "tip_layers",
+      "value": "管理图层"
+    },
+    {
+      "name": "tip_curves",
+      "value": "添加/移除曲线"
+    },
+    {
+      "name": "tip_enrichments",
+      "value": "添加文本/注释"
+    },
+    {
+      "name": "tip_zoom_in",
+      "value": "放大"
+    },
+    {
+      "name": "tip_zoom_out",
+      "value": "缩小"
+    },
+    {
+      "name": "tip_rescale",
+      "value": "显示全部"
+    },
+    {
+      "name": "tip_screen_reader",
+      "value": "屏幕读取器"
+    },
+    {
+      "name": "tip_data_reader",
+      "value": "数据读取器"
+    },
+    {
+      "name": "tip_select_range",
+      "value": "选择数据范围"
+    },
+    {
+      "name": "tip_plot_lines",
+      "value": "折线/散点图"
+    },
+    {
+      "name": "tip_plot_bars",
+      "value": "棒状图"
+    },
+    {
+      "name": "tip_plot_area",
+      "value": "面积图"
+    },
+    {
+      "name": "tip_plot_pie",
+      "value": "饼状图"
+    },
+    {
+      "name": "tip_plot_histogram",
+      "value": "直方图"
+    },
+    {
+      "name": "tip_plot_box",
+      "value": "箱形图"
+    },
+    {
+      "name": "tip_plot_vectors",
+      "value": "矢量图"
+    },
+    {
+      "name": "tip_plot3d_ribbon",
+      "value": "三维带状图"
+    },
+    {
+      "name": "tip_plot3d_bars",
+      "value": "三维棒状图"
+    },
+    {
+      "name": "tip_plot3d_scatter",
+      "value": "三维散点图"
+    },
+    {
+      "name": "tip_plot3d_trajectory",
+      "value": "三维轨迹图"
+    },
+    {
+      "name": "tip_table_size",
+      "value": "表格尺寸"
+    },
+    {
+      "name": "tip_add_column",
+      "value": "添加列"
+    },
+    {
+      "name": "tip_stats_columns",
+      "value": "列统计"
+    },
+    {
+      "name": "tip_stats_rows",
+      "value": "行统计"
+    },
+    {
+      "name": "pref_general",
+      "value": "常规"
+    },
+    {
+      "name": "pref_tables",
+      "value": "表格"
+    },
+    {
+      "name": "pref_plots",
+      "value": "绘图"
+    },
+    {
+      "name": "pref_autosave",
+      "value": "自动保存"
+    },
+    {
+      "name": "pref_autosave_interval",
+      "value": "自动保存间隔（分钟）"
+    },
+    {
+      "name": "pref_show_comments",
+      "value": "显示注释"
+    },
+    {
+      "name": "pref_antialiasing",
+      "value": "反锯齿"
+    },
+    {
+      "name": "pref_language",
+      "value": "语言"
+    },
+    {
+      "name": "pref_lang_system",
+      "value": "跟随系统"
+    },
+    {
+      "name": "pref_lang_english",
+      "value": "English"
+    },
+    {
+      "name": "pref_lang_chinese",
+      "value": "简体中文"
+    },
+    {
+      "name": "common_ok",
+      "value": "确定"
+    },
+    {
+      "name": "common_cancel",
+      "value": "取消"
+    },
+    {
+      "name": "common_apply",
+      "value": "应用"
+    },
+    {
+      "name": "common_close",
+      "value": "关闭"
+    },
+    {
+      "name": "common_clear",
+      "value": "清除"
+    },
+    {
+      "name": "common_refresh",
+      "value": "刷新"
+    },
+    {
+      "name": "common_loading",
+      "value": "加载中..."
+    },
+    {
+      "name": "common_empty",
+      "value": "（空）"
+    },
+    {
+      "name": "common_no_columns",
+      "value": "无可用列"
+    },
+    {
+      "name": "common_no_curves",
+      "value": "无可用曲线"
+    },
+    {
+      "name": "common_no_tables",
+      "value": "无可用表格"
+    },
+    {
+      "name": "common_no_plots",
+      "value": "无可用绘图"
+    },
+    {
+      "name": "panel_results_log",
+      "value": "结果日志"
+    },
+    {
+      "name": "panel_project",
+      "value": "项目"
+    },
+    {
+      "name": "panel_plots",
+      "value": "绘图"
+    },
+    {
+      "name": "panel_curves",
+      "value": "曲线"
+    },
+    {
+      "name": "dlg_import_title",
+      "value": "导入 ASCII 数据"
+    },
+    {
+      "name": "dlg_separator",
+      "value": "分隔符："
+    },
+    {
+      "name": "dlg_import_mode",
+      "value": "导入模式："
+    },
+    {
+      "name": "dlg_import_new_tables",
+      "value": "新建表格"
+    },
+    {
+      "name": "dlg_import_new_rows",
+      "value": "新建行"
+    },
+    {
+      "name": "dlg_import_overwrite",
+      "value": "覆盖"
+    },
+    {
+      "name": "dlg_import_ignored_lines",
+      "value": "忽略行数："
+    },
+    {
+      "name": "dlg_import_convert_numeric",
+      "value": "转换为数值："
+    },
+    {
+      "name": "dlg_import_rename_columns",
+      "value": "重命名列："
+    },
+    {
+      "name": "dlg_import_strip_spaces",
+      "value": "去除空格："
+    },
+    {
+      "name": "dlg_import_action",
+      "value": "导入..."
+    },
+    {
+      "name": "dlg_export_title",
+      "value": "导出 ASCII 数据"
+    },
+    {
+      "name": "dlg_export_table",
+      "value": "表格："
+    },
+    {
+      "name": "dlg_export_include_names",
+      "value": "包含列名："
+    },
+    {
+      "name": "dlg_export_action",
+      "value": "导出"
+    },
+    {
+      "name": "dlg_add_columns",
+      "value": "添加列"
+    },
+    {
+      "name": "dlg_num_columns",
+      "value": "列数："
+    },
+    {
+      "name": "dlg_set_col_values",
+      "value": "设置列值"
+    },
+    {
+      "name": "dlg_column",
+      "value": "列："
+    },
+    {
+      "name": "dlg_formula_muparser",
+      "value": "公式 (muParser)："
+    },
+    {
+      "name": "dlg_example_col",
+      "value": "例如：i 或 col(\"1\")*2"
+    },
+    {
+      "name": "dlg_examples_hint",
+      "value": "示例：i • rand() • sin(0.1*i) • col(\"1\")+1 （i 为行号）"
+    },
+    {
+      "name": "dlg_sort_table",
+      "value": "表格排序"
+    },
+    {
+      "name": "dlg_sort_by",
+      "value": "排序依据："
+    },
+    {
+      "name": "dlg_each_col_separately",
+      "value": "（每列单独排序）"
+    },
+    {
+      "name": "dlg_order",
+      "value": "顺序："
+    },
+    {
+      "name": "dlg_ascending",
+      "value": "升序"
+    },
+    {
+      "name": "dlg_descending",
+      "value": "降序"
+    },
+    {
+      "name": "dlg_sort_action",
+      "value": "排序"
+    },
+    {
+      "name": "dlg_matrix_dims",
+      "value": "矩阵维度"
+    },
+    {
+      "name": "dlg_rows",
+      "value": "行数："
+    },
+    {
+      "name": "dlg_cols",
+      "value": "列数："
+    },
+    {
+      "name": "dlg_set_matrix_values",
+      "value": "设置矩阵值"
+    },
+    {
+      "name": "dlg_example_matrix",
+      "value": "例如：i*j 或 sin(x)*cos(y)"
+    },
+    {
+      "name": "dlg_matrix_vars_hint",
+      "value": "变量：i,行 • j,列 • x,y（坐标）"
+    },
+    {
+      "name": "dlg_curve",
+      "value": "曲线："
+    },
+    {
+      "name": "dlg_method",
+      "value": "方法："
+    },
+    {
+      "name": "dlg_filter_type",
+      "value": "滤波器类型："
+    },
+    {
+      "name": "dlg_correlate",
+      "value": "关联"
+    },
+    {
+      "name": "dlg_autocorr_hint",
+      "value": "两次选择同一列即为自相关。"
+    },
+    {
+      "name": "dlg_columns_to_plot",
+      "value": "要绘制的列 (Y)："
+    },
+    {
+      "name": "dlg_plot_action",
+      "value": "绘图"
+    },
+    {
+      "name": "dlg_graph_props",
+      "value": "图形属性"
+    },
+    {
+      "name": "dlg_graph_title_ph",
+      "value": "图形标题"
+    },
+    {
+      "name": "dlg_x_axis_title_ph",
+      "value": "X 轴标题"
+    },
+    {
+      "name": "dlg_y_axis_title_ph",
+      "value": "Y 轴标题"
+    },
+    {
+      "name": "dlg_log_x",
+      "value": "X 轴对数"
+    },
+    {
+      "name": "dlg_log_y",
+      "value": "Y 轴对数"
+    },
+    {
+      "name": "dlg_toggle_legend",
+      "value": "切换图例"
+    },
+    {
+      "name": "dlg_script_console",
+      "value": "脚本控制台"
+    },
+    {
+      "name": "dlg_script_unavailable",
+      "value": "脚本后端在 OpenHarmony 上尚不可用。"
+    },
+    {
+      "name": "dlg_script_todo",
+      "value": "TODO：muParser/Python 控制台将在后续阶段接入。"
+    },
+    {
+      "name": "page_table_prefix",
+      "value": "表格："
+    },
+    {
+      "name": "page_create_plot_hint",
+      "value": "从表格创建绘图（Qt 后端）"
+    },
+    {
+      "name": "msg_new_project_confirm",
+      "value": "当前项目中未保存的内容将丢失。确定新建项目？"
+    },
+    {
+      "name": "common_add",
+      "value": "添加"
+    },
+    {
+      "name": "msg_enter_formula",
+      "value": "请输入公式。"
+    },
+    {
+      "name": "msg_select_table",
+      "value": "请先选择一个表格。"
+    },
+    {
+      "name": "msg_import_failed",
+      "value": "导入失败："
+    },
+    {
+      "name": "msg_export_failed",
+      "value": "导出失败："
+    },
+    {
+      "name": "msg_pie_one_column",
+      "value": "饼状图只能选择一列。"
+    },
+    {
+      "name": "msg_select_column",
+      "value": "请至少选择一列。"
+    },
+    {
+      "name": "dlg_title_analysis",
+      "value": "分析"
+    },
+    {
+      "name": "dlg_title_fit_poly",
+      "value": "多项式拟合"
+    },
+    {
+      "name": "dlg_title_interpolate",
+      "value": "插值"
+    },
+    {
+      "name": "dlg_title_fft_filter",
+      "value": "FFT 滤波"
+    },
+    {
+      "name": "dlg_method_savgol",
+      "value": "Savitzky-Golay"
+    },
+    {
+      "name": "dlg_method_fft",
+      "value": "FFT"
+    },
+    {
+      "name": "dlg_method_moving_avg",
+      "value": "移动平均"
+    },
+    {
+      "name": "dlg_method_linear",
+      "value": "线性"
+    },
+    {
+      "name": "dlg_method_cubic",
+      "value": "三次"
+    },
+    {
+      "name": "dlg_method_akima",
+      "value": "Akima"
+    },
+    {
+      "name": "dlg_filter_low_pass",
+      "value": "低通"
+    },
+    {
+      "name": "dlg_filter_high_pass",
+      "value": "高通"
+    },
+    {
+      "name": "dlg_filter_band_pass",
+      "value": "带通"
+    },
+    {
+      "name": "dlg_filter_band_block",
+      "value": "带阻"
+    },
+    {
+      "name": "dlg_poly_order_range",
+      "value": "多项式阶数（2-9）："
+    },
+    {
+      "name": "dlg_poly_order",
+      "value": "多项式阶数："
+    },
+    {
+      "name": "dlg_points",
+      "value": "点数："
+    },
+    {
+      "name": "dlg_low_freq",
+      "value": "低频："
+    },
+    {
+      "name": "dlg_high_freq",
+      "value": "高频："
+    },
+    {
+      "name": "dlg_cutoff_freq",
+      "value": "截止频率："
+    },
+    {
+      "name": "dlg_column_1",
+      "value": "列 1："
+    },
+    {
+      "name": "dlg_column_2",
+      "value": "列 2："
+    },
+    {
+      "name": "msg_no_curves",
+      "value": "当前绘图没有可分析的曲线。"
+    },
+    {
+      "name": "msg_valid_freq",
+      "value": "请输入有效的频率。"
+    },
+    {
+      "name": "msg_two_columns",
+      "value": "表格至少需要两列。"
+    },
+    {
+      "name": "msg_dialog_blocked",
+      "value": "该对话框在平板上暂不可用："
+    },
+    {
+      "name": "msg_file_dialog_unwired",
+      "value": "文件对话框尚未接入："
+    },
+    {
+      "name": "msg_input_dialog_unavailable",
+      "value": "输入对话框暂不可用："
+    },
+    {
+      "name": "msg_color_picker_unavailable",
+      "value": "颜色选择器暂不可用"
+    },
+    {
+      "name": "msg_font_picker_unavailable",
+      "value": "字体选择器暂不可用"
+    },
+    {
+      "name": "op_save_as",
+      "value": "另存为"
+    },
+    {
+      "name": "op_export",
+      "value": "导出"
+    },
+    {
+      "name": "op_export_image",
+      "value": "导出图像"
+    },
+    {
+      "name": "msg_op_write_failed",
+      "value": "失败：后端无法写入文件"
+    },
+    {
+      "name": "msg_op_exported",
+      "value": "：文件已导出"
+    },
+    {
+      "name": "msg_op_export_failed",
+      "value": "导出失败："
+    },
+    {
+      "name": "msg_table_empty_prefix",
+      "value": "表格“"
+    },
+    {
+      "name": "msg_table_empty_suffix",
+      "value": "”为空"
+    },
+    {
+      "name": "msg_no_table_selected",
+      "value": "未选择表格"
+    },
+    {
+      "name": "msg_no_plot_data",
+      "value": "无绘图数据"
+    },
+    {
+      "name": "msg_plot_too_small",
+      "value": "绘图区域过小"
+    },
+    {
+      "name": "analysis_quick_fit",
+      "value": "快速拟合"
+    },
+    {
+      "name": "dlg_align_bottom",
+      "value": "底部对齐"
+    },
+    {
+      "name": "dlg_align_center",
+      "value": "居中"
+    },
+    {
+      "name": "dlg_align_left",
+      "value": "左对齐"
+    },
+    {
+      "name": "dlg_align_right",
+      "value": "右对齐"
+    },
+    {
+      "name": "dlg_align_top",
+      "value": "顶部对齐"
+    },
+    {
+      "name": "dlg_alignment",
+      "value": "对齐"
+    },
+    {
+      "name": "dlg_angle",
+      "value": "角度"
+    },
+    {
+      "name": "dlg_arrange_layers",
+      "value": "重排图层"
+    },
+    {
+      "name": "dlg_arrow_end",
+      "value": "结束箭头"
+    },
+    {
+      "name": "dlg_arrow_start",
+      "value": "起始箭头"
+    },
+    {
+      "name": "dlg_assoc_column",
+      "value": "列"
+    },
+    {
+      "name": "dlg_assoc_list",
+      "value": "关联"
+    },
+    {
+      "name": "dlg_assoc_spreadsheet",
+      "value": "电子表格："
+    },
+    {
+      "name": "dlg_assoc_title",
+      "value": "绘图关联"
+    },
+    {
+      "name": "dlg_assoc_update",
+      "value": "更新曲线"
+    },
+    {
+      "name": "dlg_auto_layout",
+      "value": "自动布局"
+    },
+    {
+      "name": "dlg_axes_backbones",
+      "value": "骨架线"
+    },
+    {
+      "name": "dlg_axes_from",
+      "value": "从"
+    },
+    {
+      "name": "dlg_axes_invalid_range",
+      "value": "请输入有效的起止值"
+    },
+    {
+      "name": "dlg_axes_inverted",
+      "value": "反转"
+    },
+    {
+      "name": "dlg_axes_line_width",
+      "value": "线宽"
+    },
+    {
+      "name": "dlg_axes_major_grid",
+      "value": "主网格"
+    },
+    {
+      "name": "dlg_axes_minor_grid",
+      "value": "次网格"
+    },
+    {
+      "name": "dlg_axes_show",
+      "value": "显示轴"
+    },
+    {
+      "name": "dlg_axes_step",
+      "value": "步长"
+    },
+    {
+      "name": "dlg_axes_tab_axis",
+      "value": "坐标轴"
+    },
+    {
+      "name": "dlg_axes_tab_frame",
+      "value": "边框"
+    },
+    {
+      "name": "dlg_axes_tab_grid",
+      "value": "网格"
+    },
+    {
+      "name": "dlg_axes_tab_scale",
+      "value": "刻度"
+    },
+    {
+      "name": "dlg_axes_title",
+      "value": "通用绘图选项"
+    },
+    {
+      "name": "dlg_axes_title_label",
+      "value": "标题"
+    },
+    {
+      "name": "dlg_axes_title_ph",
+      "value": "轴标题"
+    },
+    {
+      "name": "dlg_axes_to",
+      "value": "到"
+    },
+    {
+      "name": "dlg_axes_type",
+      "value": "类型"
+    },
+    {
+      "name": "dlg_bg_color",
+      "value": "背景颜色"
+    },
+    {
+      "name": "dlg_calculate",
+      "value": "计算"
+    },
+    {
+      "name": "dlg_case_sensitive",
+      "value": "区分大小写"
+    },
+    {
+      "name": "dlg_choose_symbol",
+      "value": "选择特殊符号"
+    },
+    {
+      "name": "dlg_color",
+      "value": "颜色"
+    },
+    {
+      "name": "dlg_cols_gap",
+      "value": "列间距（%）"
+    },
+    {
+      "name": "dlg_columns_to_analyze",
+      "value": "要分析的列："
+    },
+    {
+      "name": "dlg_curve_range_dataset",
+      "value": "数据集："
+    },
+    {
+      "name": "dlg_curve_range_from",
+      "value": "起始行号"
+    },
+    {
+      "name": "dlg_curve_range_no_curve",
+      "value": "未选择曲线"
+    },
+    {
+      "name": "dlg_curve_range_title",
+      "value": "绘图范围"
+    },
+    {
+      "name": "dlg_curve_range_to",
+      "value": "结束行号"
+    },
+    {
+      "name": "dlg_end_point",
+      "value": "终点"
+    },
+    {
+      "name": "dlg_find",
+      "value": "查找："
+    },
+    {
+      "name": "dlg_find_action",
+      "value": "查找"
+    },
+    {
+      "name": "dlg_find_ph",
+      "value": "输入搜索文本..."
+    },
+    {
+      "name": "dlg_find_title",
+      "value": "查找窗口"
+    },
+    {
+      "name": "dlg_font",
+      "value": "字体："
+    },
+    {
+      "name": "dlg_font_size",
+      "value": "字号："
+    },
+    {
+      "name": "dlg_frame",
+      "value": "边框："
+    },
+    {
+      "name": "dlg_frame_none",
+      "value": "无"
+    },
+    {
+      "name": "dlg_frame_rect",
+      "value": "矩形"
+    },
+    {
+      "name": "dlg_frame_shadow",
+      "value": "阴影"
+    },
+    {
+      "name": "dlg_grid",
+      "value": "网格"
+    },
+    {
+      "name": "dlg_head_angle",
+      "value": "箭头角度"
+    },
+    {
+      "name": "dlg_head_filled",
+      "value": "填充"
+    },
+    {
+      "name": "dlg_head_length",
+      "value": "箭头长度"
+    },
+    {
+      "name": "dlg_horizontal",
+      "value": "水平"
+    },
+    {
+      "name": "dlg_image_file",
+      "value": "图片文件："
+    },
+    {
+      "name": "dlg_image_geometry",
+      "value": "图片几何"
+    },
+    {
+      "name": "dlg_image_path_ph",
+      "value": "选择文件..."
+    },
+    {
+      "name": "dlg_img_height",
+      "value": "高度"
+    },
+    {
+      "name": "dlg_img_width",
+      "value": "宽度"
+    },
+    {
+      "name": "dlg_include_subfolders",
+      "value": "包含子文件夹"
+    },
+    {
+      "name": "dlg_inserted_text",
+      "value": "已插入文本"
+    },
+    {
+      "name": "dlg_keep_aspect",
+      "value": "保持宽高比"
+    },
+    {
+      "name": "dlg_layer_canvas_size",
+      "value": "画布尺寸"
+    },
+    {
+      "name": "dlg_layers",
+      "value": "图层"
+    },
+    {
+      "name": "dlg_line_options",
+      "value": "线条选项"
+    },
+    {
+      "name": "dlg_margin_bottom",
+      "value": "下边距"
+    },
+    {
+      "name": "dlg_margin_left",
+      "value": "左边距"
+    },
+    {
+      "name": "dlg_margin_right",
+      "value": "右边距"
+    },
+    {
+      "name": "dlg_margin_top",
+      "value": "上边距"
+    },
+    {
+      "name": "dlg_num_cols",
+      "value": "列数："
+    },
+    {
+      "name": "dlg_num_rows",
+      "value": "行数："
+    },
+    {
+      "name": "dlg_number",
+      "value": "数量"
+    },
+    {
+      "name": "dlg_opacity",
+      "value": "不透明度："
+    },
+    {
+      "name": "dlg_origin",
+      "value": "原点"
+    },
+    {
+      "name": "dlg_partial_match",
+      "value": "部分匹配"
+    },
+    {
+      "name": "dlg_pixels",
+      "value": "像素"
+    },
+    {
+      "name": "dlg_pw_add_curve_first",
+      "value": "请先添加新曲线！"
+    },
+    {
+      "name": "dlg_pw_columns",
+      "value": "列"
+    },
+    {
+      "name": "dlg_pw_curve_list",
+      "value": "曲线列表"
+    },
+    {
+      "name": "dlg_pw_define_x_first",
+      "value": "请先定义 X 列！"
+    },
+    {
+      "name": "dlg_pw_define_xy_first",
+      "value": "请先定义 X 和 Y 列！"
+    },
+    {
+      "name": "dlg_pw_delete_curve",
+      "value": "删除曲线"
+    },
+    {
+      "name": "dlg_pw_err_already",
+      "value": "已定义误差棒列！"
+    },
+    {
+      "name": "dlg_pw_err_no_z",
+      "value": "误差棒与 Z 曲线不兼容"
+    },
+    {
+      "name": "dlg_pw_need_y",
+      "value": "请为曲线定义 Y 列"
+    },
+    {
+      "name": "dlg_pw_new_curve",
+      "value": "新建曲线"
+    },
+    {
+      "name": "dlg_pw_title",
+      "value": "选择绘图列"
+    },
+    {
+      "name": "dlg_pw_worksheet",
+      "value": "工作表"
+    },
+    {
+      "name": "dlg_pw_x_already",
+      "value": "已定义 X 列！"
+    },
+    {
+      "name": "dlg_pw_y_already",
+      "value": "已定义 Y 列！"
+    },
+    {
+      "name": "dlg_pw_z_already",
+      "value": "已定义 Z 列！"
+    },
+    {
+      "name": "dlg_recent_searches",
+      "value": "最近搜索"
+    },
+    {
+      "name": "dlg_rename_both",
+      "value": "名称和标签"
+    },
+    {
+      "name": "dlg_rename_label",
+      "value": "标签："
+    },
+    {
+      "name": "dlg_rename_name",
+      "value": "名称："
+    },
+    {
+      "name": "dlg_results",
+      "value": "结果"
+    },
+    {
+      "name": "dlg_rows_gap",
+      "value": "行间距（%）"
+    },
+    {
+      "name": "dlg_scale_coords",
+      "value": "缩放坐标"
+    },
+    {
+      "name": "dlg_search_folder_names",
+      "value": "文件夹名称"
+    },
+    {
+      "name": "dlg_search_in",
+      "value": "搜索范围："
+    },
+    {
+      "name": "dlg_search_window_labels",
+      "value": "窗口标签"
+    },
+    {
+      "name": "dlg_search_window_names",
+      "value": "窗口名称"
+    },
+    {
+      "name": "dlg_size",
+      "value": "尺寸"
+    },
+    {
+      "name": "dlg_spacing",
+      "value": "间距"
+    },
+    {
+      "name": "dlg_start_from",
+      "value": "从："
+    },
+    {
+      "name": "dlg_start_point",
+      "value": "起点"
+    },
+    {
+      "name": "dlg_stat_type",
+      "value": "统计类型："
+    },
+    {
+      "name": "dlg_style",
+      "value": "样式："
+    },
+    {
+      "name": "dlg_tab_arrow_head",
+      "value": "箭头"
+    },
+    {
+      "name": "dlg_tab_geometry",
+      "value": "几何"
+    },
+    {
+      "name": "dlg_tab_options",
+      "value": "选项"
+    },
+    {
+      "name": "dlg_table_size",
+      "value": "表格尺寸"
+    },
+    {
+      "name": "dlg_table_statistics",
+      "value": "表格统计"
+    },
+    {
+      "name": "dlg_text_color",
+      "value": "文本颜色："
+    },
+    {
+      "name": "dlg_text_content",
+      "value": "内容："
+    },
+    {
+      "name": "dlg_text_options",
+      "value": "文本选项"
+    },
+    {
+      "name": "dlg_unit",
+      "value": "单位："
+    },
+    {
+      "name": "dlg_update_start_path",
+      "value": "更新起始路径"
+    },
+    {
+      "name": "dlg_vertical",
+      "value": "垂直"
+    },
+    {
+      "name": "dlg_width",
+      "value": "宽度："
+    },
+    {
+      "name": "dlg_window_title",
+      "value": "重命名窗口"
+    },
+    {
+      "name": "file_new_3d_surface",
+      "value": "三维表面绘图"
+    },
+    {
+      "name": "file_new_function_plot",
+      "value": "函数绘图"
+    },
+    {
+      "name": "fit_wizard",
+      "value": "拟合向导..."
+    },
+    {
+      "name": "format_axes",
+      "value": "坐标轴..."
+    },
+    {
+      "name": "format_grid",
+      "value": "网格..."
+    },
+    {
+      "name": "format_plot",
+      "value": "绘图..."
+    },
+    {
+      "name": "format_scales",
+      "value": "刻度..."
+    },
+    {
+      "name": "format_title",
+      "value": "标题..."
+    },
+    {
+      "name": "graph_arrange_layers",
+      "value": "重排图层..."
+    },
+    {
+      "name": "graph_associations",
+      "value": "绘图关联..."
+    },
+    {
+      "name": "graph_curve_range",
+      "value": "曲线范围..."
+    },
+    {
+      "name": "graph_symbol",
+      "value": "特殊符号..."
+    },
+    {
+      "name": "menu_format",
+      "value": "格式"
+    },
+    {
+      "name": "menu_scripting",
+      "value": "脚本"
+    },
+    {
+      "name": "menu_tools",
+      "value": "工具"
+    },
+    {
+      "name": "msg_enter_search_text",
+      "value": "请输入搜索文本。"
+    },
+    {
+      "name": "msg_enter_text_content",
+      "value": "请输入文本内容。"
+    },
+    {
+      "name": "msg_enter_window_name",
+      "value": "请输入窗口名称。"
+    },
+    {
+      "name": "msg_no_column_selected",
+      "value": "未选择列"
+    },
+    {
+      "name": "msg_select_image_file",
+      "value": "请选择图片文件。"
+    },
+    {
+      "name": "plot_3d_submenu",
+      "value": "3D"
+    },
+    {
+      "name": "plot_panel",
+      "value": "面板"
+    },
+    {
+      "name": "plot_special",
+      "value": "特殊"
+    },
+    {
+      "name": "plot_statistical",
+      "value": "统计"
+    },
+    {
+      "name": "scripting_console",
+      "value": "脚本控制台..."
+    },
+    {
+      "name": "scripting_notes",
+      "value": "执行注释..."
+    },
+    {
+      "name": "sidebar_col_name",
+      "value": "列名"
+    },
+    {
+      "name": "sidebar_column_props",
+      "value": "列属性"
+    },
+    {
+      "name": "sidebar_columns",
+      "value": "列"
+    },
+    {
+      "name": "sidebar_description",
+      "value": "描述"
+    },
+    {
+      "name": "sidebar_format",
+      "value": "格式"
+    },
+    {
+      "name": "sidebar_formula",
+      "value": "公式"
+    },
+    {
+      "name": "sidebar_plot_desig",
+      "value": "绘图指定"
+    },
+    {
+      "name": "sidebar_properties",
+      "value": "属性"
+    },
+    {
+      "name": "sidebar_type",
+      "value": "类型"
+    },
+    {
+      "name": "sidebar_type_numeric",
+      "value": "数值"
+    },
+    {
+      "name": "tools_data_reader",
+      "value": "数据读取器"
+    },
+    {
+      "name": "tools_disable_tools",
+      "value": "禁用工具"
+    },
+    {
+      "name": "tools_move_points",
+      "value": "移动数据点"
+    },
+    {
+      "name": "tools_range",
+      "value": "选择数据范围"
+    },
+    {
+      "name": "tools_remove_bad",
+      "value": "移除坏数据点"
+    },
+    {
+      "name": "tools_rescale",
+      "value": "重新缩放"
+    },
+    {
+      "name": "tools_screen_reader",
+      "value": "屏幕读取器"
+    },
+    {
+      "name": "tools_zoom_in",
+      "value": "放大"
+    },
+    {
+      "name": "tools_zoom_out",
+      "value": "缩小"
+    },
+    {
+      "name": "view_plot_wizard",
+      "value": "绘图向导..."
+    },
+    {
+      "name": "win_find",
+      "value": "查找窗口..."
+    },
+    {
+      "name": "win_rename",
+      "value": "重命名窗口..."
+    }
   ]
 }

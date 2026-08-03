@@ -16,6 +16,9 @@ interface SubMenuItemData {
   // enabled=false renders grey and swallows the tap; checked=true shows ✓.
   enabled?: boolean;
   checked?: boolean;
+  // Nested submenu children (second-level popup).  When present, the item
+  // renders as a group header with a ▸ arrow; hovering opens a child popup.
+  children?: SubMenuItemData[];
 }
 
 interface MenuItemData {
@@ -106,6 +109,8 @@ struct SubMenuItems {
   @Link openMenu: string | null;
   @Prop menus: MenuItemData[] = [];
   onItemClick?: (itemId: string) => void;
+  // Track which sub-item has its nested popup open (by id).
+  @State openSubId: string = '';
 
   build() {
     ForEach(this.menus, (menu: MenuItemData) => {
@@ -151,6 +156,80 @@ struct SubMenuItems {
             .height(28)
             .padding({ left: 24, right: 12 })
             .alignItems(VerticalAlign.Center)
+          } else if (subItem.children && subItem.children.length > 0) {
+            // Nested submenu: render as a group header with ▸ arrow.
+            // Hovering opens the child popup to the right.
+            Row() {
+              Text(subItem.label)
+                .fontSize(14)
+                .fontColor(subItem.enabled === false ? Theme.TEXT_DISABLED : Theme.TEXT_ACTIVE)
+                .layoutWeight(1)
+              Text('▸')
+                .fontSize(12)
+                .fontColor(subItem.enabled === false ? '#C8C8C8' : '#666666')
+            }
+            .width('100%')
+            .height(28)
+            .padding({ left: 24, right: 12 })
+            .alignItems(VerticalAlign.Center)
+            .backgroundColor(this.openSubId === subItem.id ? '#E8E8E8' : Color.Transparent)
+            .onHover((hover: boolean) => {
+              if (hover && subItem.enabled !== false) {
+                this.openSubId = subItem.id;
+              } else if (!hover && this.openSubId === subItem.id) {
+                this.openSubId = '';
+              }
+            })
+            .onClick(() => {
+              if (subItem.enabled === false) { return; }
+              // Toggle nested popup on click (touch devices)
+              this.openSubId = this.openSubId === subItem.id ? '' : subItem.id;
+            })
+
+            // Render nested children inline (indented) when open.
+            // A second-level popup positioned relative to this row is not
+            // achievable in ArkUI without fixed coordinates, so we render
+            // the children as indented sub-items within the same column.
+            if (this.openSubId === subItem.id) {
+              ForEach(subItem.children, (child: SubMenuItemData) => {
+                if (child.id.startsWith('sep')) {
+                  Row()
+                    .width('100%')
+                    .height(1)
+                    .backgroundColor('#E0E0E0')
+                    .margin({ top: 1, bottom: 1 })
+                } else {
+                  Row() {
+                    Text(child.checked === true ? '✓ ' + child.label : child.label)
+                      .fontSize(13)
+                      .fontColor(child.enabled === false ? Theme.TEXT_DISABLED : Theme.TEXT_ACTIVE)
+                      .layoutWeight(1)
+                    if (child.shortcut) {
+                      Text(child.shortcut)
+                        .fontSize(11)
+                        .fontColor(child.enabled === false ? '#C8C8C8' : '#888888')
+                        .margin({ left: 16 })
+                    }
+                  }
+                  .width('100%')
+                  .height(26)
+                  .padding({ left: 40, right: 12 })
+                  .alignItems(VerticalAlign.Center)
+                  .onClick(() => {
+                    if (child.enabled === false) {
+                      hilog.info(DOMAIN, TAG, 'nested submenu click ignored (disabled): %{public}s', child.id);
+                      return;
+                    }
+                    hilog.info(DOMAIN, TAG, 'nested submenu click: %{public}s', child.id);
+                    if (this.onItemClick) {
+                      this.onItemClick(child.id);
+                    }
+                    this.openMenu = null;
+                    this.openSubId = '';
+                  })
+                }
+              }, (child: SubMenuItemData) => child.id)
+            }
           } else {
             Row() {
               Text(subItem.checked === true ? '✓ ' + subItem.label : subItem.label)
@@ -171,6 +250,10 @@ struct SubMenuItems {
             .onHover((hover: boolean) => {
               if (hover) {
                 hilog.info(DOMAIN, TAG, 'submenu hover: %{public}s', subItem.id);
+                // Close any open nested popup when hovering a non-parent item
+                if (this.openSubId !== '') {
+                  this.openSubId = '';
+                }
               }
             })
             .onClick(() => {

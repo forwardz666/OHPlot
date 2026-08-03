@@ -29,7 +29,7 @@ import { TablePage } from './TablePage';
 import { PlotPage } from './PlotPage';
 import { ImportDialog } from './dialogs/ImportDialog';
 import { ExportDialog } from './dialogs/ExportDialog';
-import { AddColumnsDialog, SetColumnValuesDialog, SortTableDialog } from './dialogs/TableOpsDialog';
+import { AddColumnsDialog, SetColumnValuesDialog, SortTableDialog, TableSizeDialog } from './dialogs/TableOpsDialog';
 import { Plot2DDialog } from './dialogs/Plot2DDialog';
 import { MatrixDimensionsDialog, MatrixValuesDialog } from './dialogs/MatrixOpsDialog';
 import { AnalysisDialog, CorrelateDialog } from './dialogs/AnalysisDialog';
@@ -39,6 +39,18 @@ import { GraphPropsDialog } from './dialogs/GraphPropsDialog';
 import { AddCurveDialog } from './dialogs/AddCurveDialog';
 import { ErrorBarsDialog } from './dialogs/ErrorBarsDialog';
 import { AddFunctionDialog } from './dialogs/AddFunctionDialog';
+import { PlotWizardDialog } from './dialogs/PlotWizardDialog';
+import { AxesDialog } from './dialogs/AxesDialog';
+import { AssociationsDialog } from './dialogs/AssociationsDialog';
+import { CurveRangeDialog } from './dialogs/CurveRangeDialog';
+import { TextDialog } from './dialogs/TextDialog';
+import { LineDialog } from './dialogs/LineDialog';
+import { ImageDialog } from './dialogs/ImageDialog';
+import { SymbolDialog } from './dialogs/SymbolDialog';
+import { LayerDialog } from './dialogs/LayerDialog';
+import { RenameWindowDialog } from './dialogs/RenameWindowDialog';
+import { FindDialog } from './dialogs/FindDialog';
+import { TableStatisticsDialog } from './dialogs/TableStatisticsDialog';
 import { ProjectTree } from '../components/ProjectTree';
 import { getAppString } from '../components/LocaleHelper';
 import hilog from '@ohos.hilog';
@@ -84,7 +96,12 @@ const MENU_ACTION_SUPPORTED: string[] = [
   'new_notes', 'new_matrix', 'new_project', 'new_graph',
   'cascade', 'maximize_window', 'minimize_window', 'restore_window', 'close_window',
   'about', 'undo', 'redo', 'cut', 'copy', 'paste', 'delete',
-  'clear_selection'
+  'clear_selection',
+  'table_size', 'add_text', 'draw_arrow', 'draw_line', 'time_stamp',
+  'add_image', 'new_legend', 'normalize', 'convolve',
+  'disable_tools', 'zoom_in', 'zoom_out', 'screen_reader', 'data_reader',
+  'range', 'move_points', 'remove_bad',
+  'format_plot', 'format_scales', 'format_axes', 'format_grid', 'format_title'
 ];
 
 let leftDown: boolean = false;
@@ -97,6 +114,7 @@ interface SubMenuItemData {
   shortcut?: string;
   enabled?: boolean;
   checked?: boolean;
+  children?: SubMenuItemData[];
 }
 
 interface MenuItemData {
@@ -120,6 +138,16 @@ interface CmdResult {
 interface TableStatisticsArgs {
   tableId: string;
   type: string;
+}
+
+// tableSize command payload (Phase 4).
+interface TableSizeArgs {
+  tableId: string;
+}
+
+// addText / drawArrow / drawLine / timeStamp / addImage / newLegend payload.
+interface PlotActionArgs {
+  plotId: string;
 }
 
 // setClipboardText payload (Phase 2 clipboard bridge, OHOS 鈫?Qt).
@@ -207,6 +235,7 @@ export struct MainLayout {
   @State showAddColsDialog: boolean = false;
   @State showSetValuesDialog: boolean = false;
   @State showSortDialog: boolean = false;
+  @State showTableSizeDialog: boolean = false;
   @State tableOpsTarget: string = '';
   // 2D plot dialog (Phase 2): plotTypeSel is the plot2D type id chosen
   // from the Plot menu, captured at dispatch time like tableOpsTarget.
@@ -224,6 +253,19 @@ export struct MainLayout {
   @State showAddCurveDialog: boolean = false;
   @State showErrorBarsDialog: boolean = false;
   @State showAddFunctionDialog: boolean = false;
+  // Batch-4 dialogs: 12 UI dialogs mounted but hidden until opened via dispatchMenuItem.
+  @State showPlotWizardDialog: boolean = false;
+  @State showAxesDialog: boolean = false;
+  @State showAssociationsDialog: boolean = false;
+  @State showCurveRangeDialog: boolean = false;
+  @State showTextDialog: boolean = false;
+  @State showLineDialog: boolean = false;
+  @State showImageDialog: boolean = false;
+  @State showSymbolDialog: boolean = false;
+  @State showLayerDialog: boolean = false;
+  @State showRenameWindowDialog: boolean = false;
+  @State showFindDialog: boolean = false;
+  @State showTableStatisticsDialog: boolean = false;
   // Results Log panel (View menu): text accumulated from resultsLog
   // events by QtEventHost via AppStorage.
   @State showResultsLog: boolean = false;
@@ -462,36 +504,46 @@ export struct MainLayout {
   private rebuildMenus(): void {
     const st: UiState = this.uiState;
     const hasWin: boolean = st.activeName !== '';
+    const isTable: boolean = st.activeType === 'Table';
+    const isMatrix: boolean = st.activeType === 'Matrix';
+    const isMultiLayer: boolean = st.activeType === 'MultiLayer';
+    const isGraph3D: boolean = st.activeType === 'Graph3D';
+    const isPlotWin: boolean = isMultiLayer || isGraph3D;
     const defs: MenuItemData[] = [];
+    const SEPARATOR: string = '\u2500';
 
+    // File menu: always present, same structure as Windows SciDAVis.
+    // new_function_plot added to the New group; new_3d_surface disabled (F-30).
     defs.push({ id: 'file', label: getAppString('menu_file'), items: [
       { id: 'new_project', label: getAppString('file_new_project') },
       { id: 'new_table', label: getAppString('file_new_table') },
       { id: 'new_matrix', label: getAppString('file_new_matrix') },
       { id: 'new_notes', label: getAppString('file_new_note') },
       { id: 'new_graph', label: getAppString('file_new_graph') },
-      { id: 'sep1', label: '鈹€' },
+      { id: 'new_function_plot', label: getAppString('file_new_function_plot'), enabled: false },
+      { id: 'new_3d_surface', label: getAppString('file_new_3d_surface'), enabled: false },
+      { id: 'sep1', label: SEPARATOR },
       { id: 'open', label: getAppString('file_open_project'), shortcut: 'Ctrl+O' },
       { id: 'save', label: getAppString('file_save_project'), shortcut: 'Ctrl+S' },
       { id: 'save_as', label: getAppString('file_save_as') },
-      { id: 'sep2', label: '鈹€' },
+      { id: 'sep2', label: SEPARATOR },
       { id: 'import', label: getAppString('file_import_ascii') },
       { id: 'export', label: getAppString('file_export_ascii') },
-      { id: 'sep3', label: '鈹€' },
+      { id: 'sep3', label: SEPARATOR },
       { id: 'print', label: getAppString('file_print'), shortcut: 'Ctrl+P', enabled: false },
-      { id: 'sep4', label: '鈹€' },
+      { id: 'sep4', label: SEPARATOR },
       { id: 'quit', label: getAppString('file_quit'), shortcut: 'Ctrl+Q' }
     ]});
 
     defs.push({ id: 'edit', label: getAppString('menu_edit'), items: [
       { id: 'undo', label: getAppString('edit_undo'), shortcut: 'Ctrl+Z', enabled: st.undoEnabled },
       { id: 'redo', label: getAppString('edit_redo'), shortcut: 'Ctrl+Y', enabled: st.redoEnabled },
-      { id: 'sep1', label: '鈹€' },
+      { id: 'sep1', label: SEPARATOR },
       { id: 'cut', label: getAppString('edit_cut_selection'), shortcut: 'Ctrl+X', enabled: hasWin },
       { id: 'copy', label: getAppString('edit_copy_selection'), shortcut: 'Ctrl+C', enabled: hasWin },
       { id: 'paste', label: getAppString('edit_paste_selection'), shortcut: 'Ctrl+V', enabled: hasWin },
       { id: 'delete', label: getAppString('edit_delete_selection'), enabled: hasWin },
-      { id: 'sep2', label: '鈹€' },
+      { id: 'sep2', label: SEPARATOR },
       { id: 'preferences', label: getAppString('edit_preferences') }
     ]});
 
@@ -500,97 +552,176 @@ export struct MainLayout {
       { id: 'plots', label: getAppString('view_plot_list'), checked: this.currentView === 'plots' },
       { id: 'tables', label: getAppString('view_table_list'), checked: this.currentView === 'tables' },
       { id: 'notes', label: getAppString('view_note_pad'), checked: this.showNotes },
-      { id: 'sep1', label: '鈹€' },
+      { id: 'sep1', label: SEPARATOR },
       { id: 'log', label: getAppString('view_results_log'), checked: this.showResultsLog },
-      { id: 'script_console', label: getAppString('view_script_console') }
+      { id: 'script_console', label: getAppString('view_script_console') },
+      { id: 'sep2', label: SEPARATOR },
+      { id: 'plot_wizard', label: getAppString('view_plot_wizard') }
     ]});
 
-    // Context menu follows the active MDI window type (desktop behaviour).
-    // Entries are greyed until their Phase 2/3 commands land.
-    if (st.activeType === 'Matrix') {
+    // Scripting menu: always present (Windows parity).  Framework with
+    // placeholder items; Note-active extends it (future: execute_note).
+    defs.push({ id: 'scripting', label: getAppString('menu_scripting'), items: [
+      { id: 'scripting_console', label: getAppString('scripting_console') },
+      { id: 'scripting_notes', label: getAppString('scripting_notes'), enabled: st.activeType === 'Note' }
+    ]});
+
+    // Context menus follow the active MDI window type.
+    // Table-active: Plot, Analysis(data), Table.
+    // MultiLayer-active: Graph, Tools, Analysis(calcul), Format.
+    // Matrix-active: Matrix.
+    // Note-active: extends Scripting (handled above).
+    if (isMatrix) {
       defs.push({ id: 'matrix', label: getAppString('menu_matrix'), items: [
         { id: 'set_dimensions', label: getAppString('matrix_set_dimensions') },
         { id: 'set_values', label: getAppString('matrix_set_values') },
-        { id: 'sep1', label: '鈹€' },
+        { id: 'sep1', label: SEPARATOR },
         { id: 'transpose', label: getAppString('matrix_transpose') },
         { id: 'invert', label: getAppString('matrix_invert') }
       ]});
-    } else if (st.activeType === 'MultiLayer' || st.activeType === 'Graph3D') {
+    } else if (isMultiLayer || isGraph3D) {
+      // Graph menu
       defs.push({ id: 'graph', label: getAppString('menu_graph'), items: [
-        { id: 'graph_props', label: getAppString('graph_properties'), enabled: st.activeType === 'MultiLayer' },
-        { id: 'export_image', label: getAppString('graph_export_image'), enabled: st.activeType === 'MultiLayer' },
-        { id: 'sep0', label: '鈹€' },
-        { id: 'add_curve', label: getAppString('graph_add_remove_curve'), enabled: st.activeType === 'MultiLayer' },
-        { id: 'add_error_bars', label: getAppString('graph_add_error_bars'), enabled: st.activeType === 'MultiLayer' },
-        { id: 'add_function', label: getAppString('graph_add_function'), enabled: st.activeType === 'MultiLayer' },
-        { id: 'sep1', label: '鈹€' },
-        { id: 'rescale', label: getAppString('graph_rescale'), enabled: st.activeType === 'MultiLayer' }
+        { id: 'graph_props', label: getAppString('graph_properties'), enabled: isMultiLayer },
+        { id: 'export_image', label: getAppString('graph_export_image'), enabled: isMultiLayer },
+        { id: 'sep0', label: SEPARATOR },
+        { id: 'add_curve', label: getAppString('graph_add_remove_curve'), enabled: isMultiLayer },
+        { id: 'add_error_bars', label: getAppString('graph_add_error_bars'), enabled: isMultiLayer },
+        { id: 'add_function', label: getAppString('graph_add_function'), enabled: isMultiLayer },
+        { id: 'sep1', label: SEPARATOR },
+        { id: 'rescale', label: getAppString('graph_rescale'), enabled: isMultiLayer },
+        { id: 'sep2', label: SEPARATOR },
+        { id: 'associations', label: getAppString('graph_associations'), enabled: isMultiLayer },
+        { id: 'curve_range', label: getAppString('graph_curve_range'), enabled: isMultiLayer },
+        { id: 'symbol', label: getAppString('graph_symbol'), enabled: isMultiLayer },
+        { id: 'arrange_layers', label: getAppString('graph_arrange_layers'), enabled: isMultiLayer }
       ]});
-    } else {
-      const isTable: boolean = st.activeType === 'Table';
-      defs.push({ id: 'table', label: getAppString('menu_table'), items: [
-        { id: 'add_columns', label: getAppString('table_add_columns'), enabled: isTable },
-        { id: 'set_values', label: getAppString('table_set_values'), enabled: isTable },
-        { id: 'sort', label: getAppString('table_sort_table'), enabled: isTable },
-        { id: 'sep1', label: '鈹€' },
-        { id: 'statistics_columns', label: getAppString('table_stats_columns'), enabled: isTable },
-        { id: 'statistics_rows', label: getAppString('table_stats_rows'), enabled: isTable }
+
+      // Tools menu: MultiLayer-active only.  Windows SciDAVis calls this
+      // the "Tools" menu (variable plotDataMenu, title "Tools").
+      defs.push({ id: 'tools', label: getAppString('menu_tools'), items: [
+        { id: 'disable_tools', label: getAppString('tools_disable_tools'), enabled: isMultiLayer },
+        { id: 'sep1', label: SEPARATOR },
+        { id: 'zoom_in', label: getAppString('tools_zoom_in'), enabled: isMultiLayer },
+        { id: 'zoom_out', label: getAppString('tools_zoom_out'), enabled: isMultiLayer },
+        { id: 'rescale_tools', label: getAppString('tools_rescale'), enabled: isMultiLayer },
+        { id: 'sep2', label: SEPARATOR },
+        { id: 'screen_reader', label: getAppString('tools_screen_reader'), enabled: isMultiLayer },
+        { id: 'data_reader', label: getAppString('tools_data_reader'), enabled: isMultiLayer },
+        { id: 'range', label: getAppString('tools_range'), enabled: isMultiLayer },
+        { id: 'sep3', label: SEPARATOR },
+        { id: 'move_points', label: getAppString('tools_move_points'), enabled: isMultiLayer },
+        { id: 'remove_bad', label: getAppString('tools_remove_bad'), enabled: isMultiLayer }
+      ]});
+
+      // Format menu: MultiLayer-active only (5 items).
+      defs.push({ id: 'format', label: getAppString('menu_format'), items: [
+        { id: 'format_plot', label: getAppString('format_plot'), enabled: isMultiLayer },
+        { id: 'format_scales', label: getAppString('format_scales'), enabled: isMultiLayer },
+        { id: 'format_axes', label: getAppString('format_axes'), enabled: isMultiLayer },
+        { id: 'format_grid', label: getAppString('format_grid'), enabled: isMultiLayer },
+        { id: 'format_title', label: getAppString('format_title'), enabled: isMultiLayer }
       ]});
     }
 
-    // Plot menu mirrors the desktop 2D types; every entry funnels into the
-    // Plot2DDialog (column picker) 鈫?queued plot2D backend command.
-    const isTablePlot: boolean = st.activeType === 'Table';
-    defs.push({ id: 'plot', label: getAppString('menu_plot'), items: [
-      { id: 'plot_line', label: getAppString('plot_line'), enabled: isTablePlot },
-      { id: 'plot_scatter', label: getAppString('plot_scatter'), enabled: isTablePlot },
-      { id: 'plot_line_symbol', label: getAppString('plot_line_symbol'), enabled: isTablePlot },
-      { id: 'plot_vertical_bars', label: getAppString('plot_vertical_bars'), enabled: isTablePlot },
-      { id: 'plot_horizontal_bars', label: getAppString('plot_horizontal_bars'), enabled: isTablePlot },
-      { id: 'plot_area', label: getAppString('plot_area'), enabled: isTablePlot },
-      { id: 'plot_pie', label: getAppString('plot_pie'), enabled: isTablePlot },
-      { id: 'sep0', label: '鈹€' },
-      { id: 'plot_drop_lines', label: getAppString('plot_vertical_drop_lines'), enabled: isTablePlot },
-      { id: 'plot_spline', label: getAppString('plot_spline'), enabled: isTablePlot },
-      { id: 'plot_vertical_steps', label: getAppString('plot_vertical_steps'), enabled: isTablePlot },
-      { id: 'plot_horizontal_steps', label: getAppString('plot_horizontal_steps'), enabled: isTablePlot },
-      { id: 'sep0b', label: '鈹€' },
-      { id: 'plot_histogram', label: getAppString('plot_histogram'), enabled: isTablePlot },
-      { id: 'plot_box', label: getAppString('plot_box'), enabled: isTablePlot },
-      { id: 'sep1', label: '鈹€' },
-      { id: 'plot_2d', label: getAppString('plot_explorer_2d') },
-      { id: 'plot_3d', label: getAppString('plot_3d'), enabled: false }
-    ]});
+    // Plot menu: only when Table is active.  Submenu hierarchy:
+    // Special▸(drop_lines/spline/v_steps/h_steps), Statistical▸(histogram/box),
+    // Panel, 2D, 3D(disabled).
+    if (isTable) {
+      defs.push({ id: 'plot', label: getAppString('menu_plot'), items: [
+        { id: 'plot_line', label: getAppString('plot_line'), enabled: true },
+        { id: 'plot_scatter', label: getAppString('plot_scatter'), enabled: true },
+        { id: 'plot_line_symbol', label: getAppString('plot_line_symbol'), enabled: true },
+        { id: 'plot_vertical_bars', label: getAppString('plot_vertical_bars'), enabled: true },
+        { id: 'plot_horizontal_bars', label: getAppString('plot_horizontal_bars'), enabled: true },
+        { id: 'plot_area', label: getAppString('plot_area'), enabled: true },
+        { id: 'plot_pie', label: getAppString('plot_pie'), enabled: true },
+        { id: 'sep0', label: SEPARATOR },
+        { id: 'plot_special', label: getAppString('plot_special'), enabled: true,
+          children: [
+            { id: 'plot_drop_lines', label: getAppString('plot_vertical_drop_lines'), enabled: true },
+            { id: 'plot_spline', label: getAppString('plot_spline'), enabled: true },
+            { id: 'plot_vertical_steps', label: getAppString('plot_vertical_steps'), enabled: true },
+            { id: 'plot_horizontal_steps', label: getAppString('plot_horizontal_steps'), enabled: true }
+          ]
+        },
+        { id: 'sep0b', label: SEPARATOR },
+        { id: 'plot_statistical', label: getAppString('plot_statistical'), enabled: true,
+          children: [
+            { id: 'plot_histogram', label: getAppString('plot_histogram'), enabled: true },
+            { id: 'plot_box', label: getAppString('plot_box'), enabled: true }
+          ]
+        },
+        { id: 'sep0c', label: SEPARATOR },
+        { id: 'plot_panel', label: getAppString('plot_panel'), enabled: true },
+        { id: 'sep1', label: SEPARATOR },
+        { id: 'plot_2d', label: getAppString('plot_explorer_2d') },
+        { id: 'plot_3d', label: getAppString('plot_3d'), enabled: false }
+      ]});
+    }
 
-    // Analysis menu mirrors the desktop: curve analyses need an active
-    // 2D plot, correlation runs on a table's columns.
-    const isPlotWin: boolean = st.activeType === 'MultiLayer';
-    defs.push({ id: 'analysis', label: getAppString('menu_analysis'), items: [
-      { id: 'an_fit_linear', label: getAppString('analysis_fit_linear'), enabled: isPlotWin },
-      { id: 'an_fit_poly', label: getAppString('analysis_fit_polynomial'), enabled: isPlotWin },
-      { id: 'an_fit_gauss', label: getAppString('analysis_fit_gaussian'), enabled: isPlotWin },
-      { id: 'an_fit_lorentz', label: getAppString('analysis_fit_lorentzian'), enabled: isPlotWin },
-      { id: 'an_fit_sigmoidal', label: getAppString('analysis_fit_boltzmann'), enabled: isPlotWin },
-      { id: 'sep1', label: '鈹€' },
-      { id: 'an_fft', label: getAppString('analysis_fft_dlg'), enabled: isPlotWin },
-      { id: 'an_fft_filter', label: getAppString('analysis_fft_filter'), enabled: isPlotWin },
-      { id: 'an_smooth', label: getAppString('analysis_smooth_dlg'), enabled: isPlotWin },
-      { id: 'an_interpolate', label: getAppString('analysis_interpolate'), enabled: isPlotWin },
-      { id: 'an_differentiate', label: getAppString('analysis_differentiate'), enabled: isPlotWin },
-      { id: 'an_integrate', label: getAppString('analysis_integrate'), enabled: isPlotWin },
-      { id: 'sep2', label: '鈹€' },
-      { id: 'correlate', label: getAppString('analysis_correlate'), enabled: st.activeType === 'Table' }
-    ]});
+    // Analysis menu: restructured with QuickFit▸, Smooth▸, FFT Filter▸
+    // submenus (Windows parity).  Table-active shows correlate; MultiLayer
+    // shows curve analysis items.
+    if (isTable || isPlotWin) {
+      defs.push({ id: 'analysis', label: getAppString('menu_analysis'), items: [
+        { id: 'analysis_quick_fit', label: getAppString('analysis_quick_fit'), enabled: isPlotWin,
+          children: [
+            { id: 'an_fit_linear', label: getAppString('analysis_fit_linear'), enabled: isPlotWin },
+            { id: 'an_fit_poly', label: getAppString('analysis_fit_polynomial'), enabled: isPlotWin },
+            { id: 'an_fit_gauss', label: getAppString('analysis_fit_gaussian'), enabled: isPlotWin },
+            { id: 'an_fit_lorentz', label: getAppString('analysis_fit_lorentzian'), enabled: isPlotWin },
+            { id: 'an_fit_sigmoidal', label: getAppString('analysis_fit_boltzmann'), enabled: isPlotWin },
+            { id: 'sep_qf', label: SEPARATOR },
+            { id: 'fit_wizard', label: getAppString('fit_wizard'), enabled: isPlotWin }
+          ]
+        },
+        { id: 'sep1', label: SEPARATOR },
+        { id: 'analysis_smooth', label: getAppString('analysis_smooth'), enabled: isPlotWin,
+          children: [
+            { id: 'an_smooth', label: getAppString('analysis_smooth_dlg'), enabled: isPlotWin }
+          ]
+        },
+        { id: 'analysis_fft_filter', label: getAppString('analysis_fft_filter'), enabled: isPlotWin,
+          children: [
+            { id: 'an_fft_filter', label: getAppString('analysis_fft_filter'), enabled: isPlotWin }
+          ]
+        },
+        { id: 'sep2', label: SEPARATOR },
+        { id: 'an_fft', label: getAppString('analysis_fft_dlg'), enabled: isPlotWin },
+        { id: 'an_interpolate', label: getAppString('analysis_interpolate'), enabled: isPlotWin },
+        { id: 'an_differentiate', label: getAppString('analysis_differentiate'), enabled: isPlotWin },
+        { id: 'an_integrate', label: getAppString('analysis_integrate'), enabled: isPlotWin },
+        { id: 'sep3', label: SEPARATOR },
+        { id: 'correlate', label: getAppString('analysis_correlate'), enabled: isTable }
+      ]});
+    }
+
+    // Table menu: only when Table is active.
+    if (isTable) {
+      defs.push({ id: 'table', label: getAppString('menu_table'), items: [
+        { id: 'table_size', label: getAppString('dlg_table_size'), enabled: true },
+        { id: 'add_columns', label: getAppString('table_add_columns'), enabled: true },
+        { id: 'set_values', label: getAppString('table_set_values'), enabled: true },
+        { id: 'sort', label: getAppString('table_sort_table'), enabled: true },
+        { id: 'sep1', label: SEPARATOR },
+        { id: 'statistics_columns', label: getAppString('table_stats_columns'), enabled: true },
+        { id: 'statistics_rows', label: getAppString('table_stats_rows'), enabled: true }
+      ]});
+    }
 
     // Windows menu: management commands + live MDI window list from Qt.
     const winItems: SubMenuItemData[] = [
       { id: 'cascade', label: getAppString('win_cascade') },
       { id: 'maximize_window', label: getAppString('win_maximize'), enabled: hasWin },
       { id: 'minimize_window', label: getAppString('win_minimize'), enabled: hasWin },
-      { id: 'close_window', label: getAppString('win_close'), shortcut: 'Ctrl+W', enabled: hasWin }
+      { id: 'close_window', label: getAppString('win_close'), shortcut: 'Ctrl+W', enabled: hasWin },
+      { id: 'sep0', label: SEPARATOR },
+      { id: 'rename_window', label: getAppString('win_rename') },
+      { id: 'find_window', label: getAppString('win_find') }
     ];
     if (st.windows.length > 0) {
-      winItems.push({ id: 'sep1', label: '鈹€' });
+      winItems.push({ id: 'sep1', label: SEPARATOR });
       // Defensive dedup by name (device-verified: C++ dedup may miss edge cases)
       const seenWinNames: string[] = [];
       for (let i = 0; i < st.windows.length; i++) {
@@ -606,7 +737,7 @@ export struct MainLayout {
 
     defs.push({ id: 'help', label: getAppString('menu_help'), items: [
       { id: 'help', label: getAppString('help_browser'), enabled: false },
-      { id: 'sep1', label: '鈹€' },
+      { id: 'sep1', label: SEPARATOR },
       { id: 'about', label: getAppString('help_about_ohplot') }
     ]});
 
@@ -698,10 +829,9 @@ export struct MainLayout {
         break;
       case 'table_dimensions':
       case 'table_size':
-        // Stub: the backend dimensions command is not implemented yet —
-        // surface the unified "not adapted yet" notice (same handling as
-        // unwhitelisted menu items) instead of a silent no-op.
-        this.showNotAdapted();
+        this.tableOpsTarget = this.uiState.activeName;
+        AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
+        this.showTableSizeDialog = true;
         break;
       case 'set_values':
         this.tableOpsTarget = this.uiState.activeName;
@@ -750,16 +880,9 @@ export struct MainLayout {
       case 'statistics_columns':
       case 'statistics_rows':
       case 'stats_columns':
-      case 'stats_rows': {
-        // No parameters needed; queued command, result toast via events.
-        const result: string = qtInjector.callQtCommand('tableStatistics',
-          JSON.stringify({
-            tableId: this.uiState.activeName,
-            type: (itemId === 'statistics_rows' || itemId === 'stats_rows') ? 'rows' : 'columns'
-          } as TableStatisticsArgs));
-        hilog.info(DOMAIN, TAG, '%{public}s queued: %{public}s', itemId, result);
+      case 'stats_rows':
+        this.showTableStatisticsDialog = true;
         break;
-      }
       case 'tables':
         // Explicit user choice: lock the view so refreshUiState's auto
         // logic never overrides it (toggling off to 'default' also locks —
@@ -795,6 +918,14 @@ export struct MainLayout {
         break;
       case 'graph_props':
         this.graphPropsCtl.open();
+        break;
+      // Format menu → AxesDialog (collects axes/scales/grid/title props)
+      case 'format_axes':
+      case 'format_scales':
+      case 'format_grid':
+      case 'format_title':
+      case 'format_plot':
+        this.showAxesDialog = true;
         break;
       case 'plot_2d':
         this.currentView = 'plots';
@@ -844,6 +975,45 @@ export struct MainLayout {
         AppStorage.setOrCreate<string>('tableOpsTarget', this.tableOpsTarget);
         this.showCorrelateDialog = true;
         break;
+      case 'add_text':
+        this.showTextDialog = true;
+        break;
+      case 'draw_arrow':
+        this.showLineDialog = true;
+        break;
+      case 'draw_line':
+        this.showLineDialog = true;
+        break;
+      case 'time_stamp': {
+        const result: string = qtInjector.callQtCommand('timeStamp',
+          JSON.stringify({ plotId: this.uiState.activeName } as PlotActionArgs));
+        hilog.info(DOMAIN, TAG, 'timeStamp queued: %{public}s', result);
+        break;
+      }
+      case 'add_image':
+        this.showImageDialog = true;
+        break;
+      case 'new_legend': {
+        const result: string = qtInjector.callQtCommand('newLegend',
+          JSON.stringify({ plotId: this.uiState.activeName } as PlotActionArgs));
+        hilog.info(DOMAIN, TAG, 'newLegend queued: %{public}s', result);
+        break;
+      }
+      case 'normalize': {
+        const result: string = qtInjector.callQtCommand('normalize',
+          JSON.stringify({ tableId: this.uiState.activeName } as TableSizeArgs));
+        hilog.info(DOMAIN, TAG, 'normalize queued: %{public}s', result);
+        break;
+      }
+      case 'convolve': {
+        const result: string = qtInjector.callQtCommand('convolve',
+          JSON.stringify({ tableId: this.uiState.activeName } as TableSizeArgs));
+        hilog.info(DOMAIN, TAG, 'convolve queued: %{public}s', result);
+        break;
+      }
+      case 'scripting_console':
+        this.scriptConsoleCtl.open();
+        break;
 case 'paste':
          // Clipboard bridge: pull the OHOS system pasteboard into the Qt
          // clipboard first, then dispatch the paste (both queued → FIFO
@@ -865,6 +1035,27 @@ case 'paste':
       case 'quit':
         hilog.info(DOMAIN, TAG, 'Quit requested - terminating ability');
         (getContext(this) as common.UIAbilityContext).terminateSelf();
+        break;
+      case 'plot_wizard':
+        this.showPlotWizardDialog = true;
+        break;
+      case 'associations':
+        this.showAssociationsDialog = true;
+        break;
+      case 'curve_range':
+        this.showCurveRangeDialog = true;
+        break;
+      case 'symbol':
+        this.showSymbolDialog = true;
+        break;
+      case 'arrange_layers':
+        this.showLayerDialog = true;
+        break;
+      case 'rename_window':
+        this.showRenameWindowDialog = true;
+        break;
+      case 'find_window':
+        this.showFindDialog = true;
         break;
       default: {
         // Unadapted item: the queued menuAction reply cannot tell us (see
@@ -1142,7 +1333,7 @@ case 'paste':
         // content area (Windows plot_tools/plot3d moved to the lower page
         // region).  Always visible regardless of active window type.
         BottomToolBar({
-          isTable: true,
+          isTable: this.uiState.activeType === 'Table' || this.uiState.activeType === 'Matrix',
           onItemClick: (itemId: string) => {
             this.onMenuItemClick(itemId);
             this.refreshUiState();
@@ -1386,6 +1577,7 @@ case 'paste':
       AddColumnsDialog({ isVisible: $showAddColsDialog, tableId: this.tableOpsTarget })
       SetColumnValuesDialog({ isVisible: $showSetValuesDialog, tableId: this.tableOpsTarget })
       SortTableDialog({ isVisible: $showSortDialog, tableId: this.tableOpsTarget })
+      TableSizeDialog({ isVisible: $showTableSizeDialog, tableId: this.tableOpsTarget })
       Plot2DDialog({ isVisible: $showPlotDialog, tableId: this.tableOpsTarget, plotType: this.plotTypeSel })
       MatrixDimensionsDialog({ isVisible: $showMatrixDimsDialog, matrixId: this.tableOpsTarget })
       MatrixValuesDialog({ isVisible: $showMatrixValuesDialog, matrixId: this.tableOpsTarget })
@@ -1394,6 +1586,20 @@ case 'paste':
       AddCurveDialog({ isVisible: $showAddCurveDialog })
       ErrorBarsDialog({ isVisible: $showErrorBarsDialog })
       AddFunctionDialog({ isVisible: $showAddFunctionDialog })
+
+      // Batch-4 UI dialogs
+      PlotWizardDialog({ isVisible: $showPlotWizardDialog })
+      AxesDialog({ isVisible: $showAxesDialog })
+      AssociationsDialog({ isVisible: $showAssociationsDialog })
+      CurveRangeDialog({ isVisible: $showCurveRangeDialog })
+      TextDialog({ isVisible: $showTextDialog })
+      LineDialog({ isVisible: $showLineDialog })
+      ImageDialog({ isVisible: $showImageDialog })
+      SymbolDialog({ isVisible: $showSymbolDialog })
+      LayerDialog({ isVisible: $showLayerDialog })
+      RenameWindowDialog({ isVisible: $showRenameWindowDialog })
+      FindDialog({ isVisible: $showFindDialog })
+      TableStatisticsDialog({ isVisible: $showTableStatisticsDialog })
 
       // Qt backend event host: renders ArkUI replacements for QMessageBox /
       // context menus / combo popups pushed via scidavis_emit 鈫?onQtEvent.

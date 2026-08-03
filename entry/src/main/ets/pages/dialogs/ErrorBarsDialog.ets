@@ -8,6 +8,15 @@
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 import { getAppString } from '../../components/LocaleHelper';
+import {
+  ACCENT, TEXT, TEXT_MUTED, TEXT_LIST, TEXT_ERROR,
+  PANEL_BORDER, BTN_BG, BTN_BG_ACCENT, BTN_TEXT, BTN_TEXT_ACCENT,
+  RADIUS_4, RADIUS_8, BTN_HEIGHT, BTN_GAP,
+  FS_DIALOG_TITLE, FS_DIALOG_LABEL, FS_DIALOG_BODY, FS_DIALOG_SMALL, FS_DIALOG_HINT,
+  SPACING_4, SPACING_6, SPACING_8, SPACING_12, SPACING_16,
+  INPUT_HEIGHT_TALL, BACKDROP_COLOR, SHADOW_RADIUS, SHADOW_COLOR,
+  SHADOW_OFFSET_X, SHADOW_OFFSET_Y
+} from '../../components/Theme';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -243,31 +252,31 @@ export struct ErrorBarsDialog {
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor('#80000000')
+          .backgroundColor(BACKDROP_COLOR)
           .onClick(() => { this.isVisible = false; })
 
         Column() {
-          Text(getAppString('graph_add_error_bars'))
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#333333')
-            .margin({ top: 16, bottom: 12 })
+           Text(getAppString('graph_add_error_bars'))
+             .fontSize(FS_DIALOG_TITLE)
+             .fontWeight(FontWeight.Bold)
+             .fontColor(TEXT)
+             .margin({ top: SPACING_16, bottom: SPACING_12 })
 
           Scroll() {
             Column() {
               Row() {
-                Text(getAppString('dlg_curve'))
-                  .fontSize(13)
-                  .fontColor('#555555')
-                  .width(80)
-                Scroll() {
-                  Column() {
-                    ForEach(this.curves, (name: string, idx: number) => {
-                      Text(name)
-                        .fontSize(12)
-                        .fontColor(idx === this.curveIdx ? '#0078D7' : '#666666')
-                        .fontWeight(idx === this.curveIdx ? FontWeight.Bold : FontWeight.Normal)
-                        .padding({ top: 3, bottom: 3, left: 6 })
+                 Text(getAppString('dlg_curve'))
+                   .fontSize(FS_DIALOG_BODY)
+                   .fontColor(TEXT_MUTED)
+                   .width(80)
+                 Scroll() {
+                   Column() {
+                     ForEach(this.curves, (name: string, idx: number) => {
+                       Text(name)
+                         .fontSize(FS_DIALOG_SMALL)
+                         .fontColor(idx === this.curveIdx ? ACCENT : TEXT_LIST)
+                         .fontWeight(idx === this.curveIdx ? FontWeight.Bold : FontWeight.Normal)
+                         .padding({ top: SPACING_4, bottom: SPACING_4, left: SPACING_6 })
                         .width('100%')
                         .onClick(() => { this.curveIdx = idx; })
                     }, (name: string, idx: number) => idx + ':' + name)
@@ -278,86 +287,86 @@ export struct ErrorBarsDialog {
                 .border({ width: 1, color: '#D0D0D0' })
               }
               .width('100%')
-              .margin({ bottom: 12 })
+               .margin({ bottom: SPACING_12 })
 
-              Row() {
-                Text('Mode:')
-                  .fontSize(13)
-                  .fontColor('#555555')
-                  .width(80)
-                Row() {
-                  Text('Compute')
-                    .fontSize(12)
-                    .fontColor(this.modeIdx === 0 ? '#0078D7' : '#666666')
-                    .fontWeight(this.modeIdx === 0 ? FontWeight.Bold : FontWeight.Normal)
-                    .padding({ left: 6, right: 12, top: 3, bottom: 3 })
-                    .onClick(() => { this.modeIdx = 0; })
-                  Text('From column')
-                    .fontSize(12)
-                    .fontColor(this.modeIdx === 1 ? '#0078D7' : '#666666')
-                    .fontWeight(this.modeIdx === 1 ? FontWeight.Bold : FontWeight.Normal)
-                    .padding({ left: 6, right: 12, top: 3, bottom: 3 })
-                    .onClick(() => { this.modeIdx = 1; })
+               Row() {
+                 Text('Mode:')
+                   .fontSize(FS_DIALOG_BODY)
+                   .fontColor(TEXT_MUTED)
+                   .width(80)
+                 Row() {
+                   Text('Compute')
+                     .fontSize(FS_DIALOG_SMALL)
+                     .fontColor(this.modeIdx === 0 ? ACCENT : TEXT_LIST)
+                     .fontWeight(this.modeIdx === 0 ? FontWeight.Bold : FontWeight.Normal)
+                     .padding({ left: SPACING_6, right: SPACING_12, top: SPACING_4, bottom: SPACING_4 })
+                     .onClick(() => { this.modeIdx = 0; })
+                   Text('From column')
+                     .fontSize(FS_DIALOG_SMALL)
+                     .fontColor(this.modeIdx === 1 ? ACCENT : TEXT_LIST)
+                     .fontWeight(this.modeIdx === 1 ? FontWeight.Bold : FontWeight.Normal)
+                     .padding({ left: SPACING_6, right: SPACING_12, top: SPACING_4, bottom: SPACING_4 })
+                     .onClick(() => { this.modeIdx = 1; })
                 }
                 .layoutWeight(1)
               }
               .width('100%')
-              .margin({ bottom: 12 })
+               .margin({ bottom: SPACING_12 })
 
-              if (this.modeIdx === 0) {
-                Row() {
-                  Text('Type:')
-                    .fontSize(13)
-                    .fontColor('#555555')
-                    .width(80)
-                  Row() {
-                    Text('Percent')
-                      .fontSize(12)
-                      .fontColor(this.typeIdx === 0 ? '#0078D7' : '#666666')
-                      .fontWeight(this.typeIdx === 0 ? FontWeight.Bold : FontWeight.Normal)
-                      .padding({ left: 6, right: 12, top: 3, bottom: 3 })
-                      .onClick(() => { this.typeIdx = 0; })
-                    Text('StdDev')
-                      .fontSize(12)
-                      .fontColor(this.typeIdx === 1 ? '#0078D7' : '#666666')
-                      .fontWeight(this.typeIdx === 1 ? FontWeight.Bold : FontWeight.Normal)
-                      .padding({ left: 6, right: 12, top: 3, bottom: 3 })
-                      .onClick(() => { this.typeIdx = 1; })
+               if (this.modeIdx === 0) {
+                 Row() {
+                   Text('Type:')
+                     .fontSize(FS_DIALOG_BODY)
+                     .fontColor(TEXT_MUTED)
+                     .width(80)
+                   Row() {
+                     Text('Percent')
+                       .fontSize(FS_DIALOG_SMALL)
+                       .fontColor(this.typeIdx === 0 ? ACCENT : TEXT_LIST)
+                       .fontWeight(this.typeIdx === 0 ? FontWeight.Bold : FontWeight.Normal)
+                       .padding({ left: SPACING_6, right: SPACING_12, top: SPACING_4, bottom: SPACING_4 })
+                       .onClick(() => { this.typeIdx = 0; })
+                     Text('StdDev')
+                       .fontSize(FS_DIALOG_SMALL)
+                       .fontColor(this.typeIdx === 1 ? ACCENT : TEXT_LIST)
+                       .fontWeight(this.typeIdx === 1 ? FontWeight.Bold : FontWeight.Normal)
+                       .padding({ left: SPACING_6, right: SPACING_12, top: SPACING_4, bottom: SPACING_4 })
+                       .onClick(() => { this.typeIdx = 1; })
                   }
                   .layoutWeight(1)
                 }
                 .width('100%')
-                .margin({ bottom: 8 })
+                 .margin({ bottom: SPACING_8 })
 
-                if (this.typeIdx === 0) {
-                  Row() {
-                    Text('Percent:')
-                      .fontSize(13)
-                      .fontColor('#555555')
-                      .width(80)
-                    TextInput({ text: this.percentText })
-                      .fontSize(13)
-                      .layoutWeight(1)
-                      .height(30)
+                 if (this.typeIdx === 0) {
+                   Row() {
+                     Text('Percent:')
+                       .fontSize(FS_DIALOG_BODY)
+                       .fontColor(TEXT_MUTED)
+                       .width(80)
+                     TextInput({ text: this.percentText })
+                       .fontSize(FS_DIALOG_BODY)
+                       .layoutWeight(1)
+                       .height(INPUT_HEIGHT_TALL)
                       .onChange((v: string) => { this.percentText = v; })
                   }
                   .width('100%')
-                  .margin({ bottom: 12 })
+                   .margin({ bottom: SPACING_12 })
                 }
               } else {
-                Row() {
-                  Text(getAppString('dlg_export_table'))
-                    .fontSize(13)
-                    .fontColor('#555555')
-                    .width(80)
-                  Scroll() {
-                    Column() {
-                      ForEach(this.errTables, (t: TableInfo, idx: number) => {
-                        Text(t.label.length > 0 ? t.label : t.name)
-                          .fontSize(12)
-                          .fontColor(idx === this.errTableIdx ? '#0078D7' : '#666666')
-                          .fontWeight(idx === this.errTableIdx ? FontWeight.Bold : FontWeight.Normal)
-                          .padding({ top: 3, bottom: 3, left: 6 })
+                 Row() {
+                   Text(getAppString('dlg_export_table'))
+                     .fontSize(FS_DIALOG_BODY)
+                     .fontColor(TEXT_MUTED)
+                     .width(80)
+                   Scroll() {
+                     Column() {
+                       ForEach(this.errTables, (t: TableInfo, idx: number) => {
+                         Text(t.label.length > 0 ? t.label : t.name)
+                           .fontSize(FS_DIALOG_SMALL)
+                           .fontColor(idx === this.errTableIdx ? ACCENT : TEXT_LIST)
+                           .fontWeight(idx === this.errTableIdx ? FontWeight.Bold : FontWeight.Normal)
+                           .padding({ top: SPACING_4, bottom: SPACING_4, left: SPACING_6 })
                           .width('100%')
                           .onClick(() => { this.onErrTablePick(idx); })
                       }, (t: TableInfo, idx: number) => t.name + ':' + idx)
@@ -365,24 +374,24 @@ export struct ErrorBarsDialog {
                   }
                   .layoutWeight(1)
                   .height(80)
-                  .border({ width: 1, color: '#D0D0D0' })
+                  .border({ width: 1, color: PANEL_BORDER })
                 }
                 .width('100%')
-                .margin({ bottom: 8 })
+                 .margin({ bottom: SPACING_8 })
 
-                Row() {
-                  Text('Err. column:')
-                    .fontSize(13)
-                    .fontColor('#555555')
-                    .width(80)
-                  Scroll() {
-                    Column() {
-                      ForEach(this.errColNames, (name: string, idx: number) => {
-                        Text(name)
-                          .fontSize(12)
-                          .fontColor(idx === this.errColIdx ? '#0078D7' : '#666666')
-                          .fontWeight(idx === this.errColIdx ? FontWeight.Bold : FontWeight.Normal)
-                          .padding({ top: 3, bottom: 3, left: 6 })
+                 Row() {
+                   Text('Err. column:')
+                     .fontSize(FS_DIALOG_BODY)
+                     .fontColor(TEXT_MUTED)
+                     .width(80)
+                   Scroll() {
+                     Column() {
+                       ForEach(this.errColNames, (name: string, idx: number) => {
+                         Text(name)
+                           .fontSize(FS_DIALOG_SMALL)
+                           .fontColor(idx === this.errColIdx ? ACCENT : TEXT_LIST)
+                           .fontWeight(idx === this.errColIdx ? FontWeight.Bold : FontWeight.Normal)
+                           .padding({ top: SPACING_4, bottom: SPACING_4, left: SPACING_6 })
                           .width('100%')
                           .onClick(() => { this.errColIdx = idx; })
                       }, (name: string, idx: number) => idx + ':' + name)
@@ -390,68 +399,68 @@ export struct ErrorBarsDialog {
                   }
                   .layoutWeight(1)
                   .height(80)
-                  .border({ width: 1, color: '#D0D0D0' })
+                  .border({ width: 1, color: PANEL_BORDER })
                 }
                 .width('100%')
-                .margin({ bottom: 12 })
-              }
+                 .margin({ bottom: SPACING_12 })
+               }
 
-              Row() {
-                Text('Direction:')
-                  .fontSize(13)
-                  .fontColor('#555555')
-                  .width(80)
-                Row() {
-                  Text('X')
-                    .fontSize(12)
-                    .fontColor(this.directionIdx === 0 ? '#0078D7' : '#666666')
-                    .fontWeight(this.directionIdx === 0 ? FontWeight.Bold : FontWeight.Normal)
-                    .padding({ left: 6, right: 12, top: 3, bottom: 3 })
-                    .onClick(() => { this.directionIdx = 0; })
-                  Text('Y')
-                    .fontSize(12)
-                    .fontColor(this.directionIdx === 1 ? '#0078D7' : '#666666')
-                    .fontWeight(this.directionIdx === 1 ? FontWeight.Bold : FontWeight.Normal)
-                    .padding({ left: 6, right: 12, top: 3, bottom: 3 })
+               Row() {
+                 Text('Direction:')
+                   .fontSize(FS_DIALOG_BODY)
+                   .fontColor(TEXT_MUTED)
+                   .width(80)
+                 Row() {
+                   Text('X')
+                     .fontSize(FS_DIALOG_SMALL)
+                     .fontColor(this.directionIdx === 0 ? ACCENT : TEXT_LIST)
+                     .fontWeight(this.directionIdx === 0 ? FontWeight.Bold : FontWeight.Normal)
+                     .padding({ left: SPACING_6, right: SPACING_12, top: SPACING_4, bottom: SPACING_4 })
+                     .onClick(() => { this.directionIdx = 0; })
+                   Text('Y')
+                     .fontSize(FS_DIALOG_SMALL)
+                     .fontColor(this.directionIdx === 1 ? ACCENT : TEXT_LIST)
+                     .fontWeight(this.directionIdx === 1 ? FontWeight.Bold : FontWeight.Normal)
+                     .padding({ left: SPACING_6, right: SPACING_12, top: SPACING_4, bottom: SPACING_4 })
                     .onClick(() => { this.directionIdx = 1; })
                 }
                 .layoutWeight(1)
               }
               .width('100%')
-              .margin({ bottom: 8 })
+              .margin({ bottom: SPACING_8 })
 
               if (this.statusMsg) {
                 Text(this.statusMsg)
-                  .fontSize(11)
-                  .fontColor('#CC3333')
-                  .margin({ top: 8 })
+                  .fontSize(FS_DIALOG_HINT)
+                  .fontColor(TEXT_ERROR)
+                  .margin({ top: SPACING_8 })
               }
             }
-            .padding({ left: 16, right: 16 })
+            .padding({ left: SPACING_16, right: SPACING_16 })
           }
           .layoutWeight(1)
           .width('100%')
 
-          Row() {
-            Button(getAppString('common_cancel'))
-              .fontSize(14).height(32)
-              .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
-              .onClick(() => { this.isVisible = false; })
-            Button(getAppString('graph_add_error_bars'))
-              .fontSize(14).height(32)
-              .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
-              .margin({ left: 12 })
+           Row() {
+             Button(getAppString('common_cancel'))
+               .fontSize(FS_DIALOG_LABEL).height(BTN_HEIGHT)
+               .backgroundColor(BTN_BG).fontColor(BTN_TEXT).borderRadius(RADIUS_4)
+               .onClick(() => { this.isVisible = false; })
+             Button(getAppString('graph_add_error_bars'))
+               .fontSize(FS_DIALOG_LABEL).height(BTN_HEIGHT)
+               .backgroundColor(BTN_BG_ACCENT).fontColor(BTN_TEXT_ACCENT).borderRadius(RADIUS_4)
+               .margin({ left: BTN_GAP })
               .onClick(() => { this.onAdd(); })
           }
           .width('100%')
-          .padding({ left: 16, right: 16, bottom: 16 })
+           .padding({ left: SPACING_16, right: SPACING_16, bottom: SPACING_16 })
           .justifyContent(FlexAlign.End)
         }
         .width(400)
         .constraintSize({ maxHeight: '80%' })
         .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-        .shadow({ radius: 12, color: '#60000000', offsetX: 4, offsetY: 4 })
+         .borderRadius(RADIUS_8)
+         .shadow({ radius: SHADOW_RADIUS, color: SHADOW_COLOR, offsetX: SHADOW_OFFSET_X, offsetY: SHADOW_OFFSET_Y })
       }
       .width('100%')
       .height('100%')

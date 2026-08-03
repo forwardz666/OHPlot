@@ -1,4 +1,10 @@
-import { getAppLanguage, setAppLanguage } from '../../components/LocaleHelper';
+import { getAppLanguage, getSystemLanguage, setAppLanguage } from '../../components/LocaleHelper';
+import {
+  ACCENT, TEXT, BTN_BG, BTN_BG_ACCENT, BTN_TEXT, BTN_TEXT_ACCENT,
+  DIALOG_SIDEBAR_BG, SELECTED_BG, RADIUS_4, RADIUS_8, BTN_HEIGHT,
+  BTN_GAP, FS_DIALOG_LABEL, FS_DIALOG_BODY, FS_DIALOG_SMALL, SPACING_12, SPACING_16,
+  SIDEBAR_ITEM_HEIGHT, INPUT_HEIGHT, INPUT_HEIGHT_TALL
+} from '../../components/Theme';
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 
@@ -23,6 +29,7 @@ const KEY_AUTOSAVE = 'autosave';
 const KEY_AUTOSAVE_INTERVAL = 'autosaveInterval';
 const KEY_SHOW_COMMENTS = 'showComments';
 const KEY_ANTIALIASING = 'antialiasing';
+const KEY_LANGUAGE = 'language';
 
 @CustomDialog
 export struct PreferencesDialog {
@@ -46,10 +53,19 @@ export struct PreferencesDialog {
   ];
 
   aboutToAppear(): void {
-    // getAppPreferredLanguage cannot report "unset" (it falls back to the
-    // system language), so the initial selection mirrors the effective
-    // language; picking "Follow System" resets via 'default'.
-    this.langIndex = getAppLanguage().startsWith('zh') ? 2 : 1;
+    // Persisted language choice; 'default' = follow system.  getAppPreferredLanguage
+    // cannot report "unset" (falls back to system language), so we persist our own.
+    const saved: string = this.getPreference(KEY_LANGUAGE);
+    if (saved === 'default') {
+      this.langIndex = 0;
+    } else if (saved === 'en-Latn-US') {
+      this.langIndex = 1;
+    } else if (saved === 'zh-Hans') {
+      this.langIndex = 2;
+    } else {
+      // First run / legacy: mirror the effective language as before.
+      this.langIndex = getAppLanguage().startsWith('zh') ? 2 : 1;
+    }
 
     // Load persisted preferences from Qt QSettings.
     let v = this.getPreference(KEY_AUTOSAVE);
@@ -93,13 +109,13 @@ export struct PreferencesDialog {
         Column() {
           ForEach(this.categories, (cat: Resource, idx: number) => {
             Text(cat)
-              .fontSize(14)
-              .fontColor(idx === this.selectedCategory ? '#0078D7' : '#333333')
+              .fontSize(FS_DIALOG_LABEL)
+              .fontColor(idx === this.selectedCategory ? ACCENT : TEXT)
               .fontWeight(idx === this.selectedCategory ? FontWeight.Bold : FontWeight.Normal)
-              .backgroundColor(idx === this.selectedCategory ? '#E8F4FD' : '#FFFFFF')
+              .backgroundColor(idx === this.selectedCategory ? SELECTED_BG : '#FFFFFF')
               .width('100%')
-              .height(36)
-              .padding({ left: 12 })
+              .height(SIDEBAR_ITEM_HEIGHT)
+              .padding({ left: SPACING_12 })
               .onClick(() => {
                 this.selectedCategory = idx;
               })
@@ -107,7 +123,7 @@ export struct PreferencesDialog {
         }
         .width(100)
         .height(200)
-        .backgroundColor('#F5F5F5')
+        .backgroundColor(DIALOG_SIDEBAR_BG)
 
         // Right content area
         Column() {
@@ -115,8 +131,8 @@ export struct PreferencesDialog {
             // General
             Row() {
               Text($r('app.string.pref_language'))
-                .fontSize(13)
-                .fontColor('#333333')
+                .fontSize(FS_DIALOG_BODY)
+                .fontColor(TEXT)
               Select([
                 { value: this.langLabels[0] },
                 { value: this.langLabels[1] },
@@ -124,8 +140,8 @@ export struct PreferencesDialog {
               ])
                 .selected(this.langIndex)
                 .value(this.langLabels[this.langIndex])
-                .font({ size: 13 })
-                .height(30)
+                .font({ size: FS_DIALOG_BODY })
+                .height(INPUT_HEIGHT_TALL)
                 .onSelect((idx: number) => {
                   this.langIndex = idx;
                   this.langDirty = true;
@@ -133,26 +149,26 @@ export struct PreferencesDialog {
             }
             .width('100%')
             .justifyContent(FlexAlign.SpaceBetween)
-            .margin({ bottom: 12 })
+            .margin({ bottom: SPACING_12 })
             Row() {
               Text($r('app.string.pref_autosave'))
-                .fontSize(13)
-                .fontColor('#333333')
+                .fontSize(FS_DIALOG_BODY)
+                .fontColor(TEXT)
               Toggle({ type: ToggleType.Switch, isOn: this.autosave })
                 .onChange((val: boolean) => {
                   this.autosave = val;
                 })
             }
             .width('100%')
-            .margin({ bottom: 12 })
+            .margin({ bottom: SPACING_12 })
             Row() {
               Text($r('app.string.pref_autosave_interval'))
-                .fontSize(13)
-                .fontColor('#333333')
+                .fontSize(FS_DIALOG_BODY)
+                .fontColor(TEXT)
               TextInput({ text: this.autosaveInterval, placeholder: '5' })
                 .width(60)
-                .height(28)
-                .fontSize(12)
+                .height(INPUT_HEIGHT)
+                .fontSize(FS_DIALOG_SMALL)
                 .onChange((val: string) => {
                   this.autosaveInterval = val;
                 })
@@ -162,8 +178,8 @@ export struct PreferencesDialog {
             // Tables
             Row() {
               Text($r('app.string.pref_show_comments'))
-                .fontSize(13)
-                .fontColor('#333333')
+                .fontSize(FS_DIALOG_BODY)
+                .fontColor(TEXT)
               Toggle({ type: ToggleType.Switch, isOn: this.showComments })
                 .onChange((val: boolean) => {
                   this.showComments = val;
@@ -174,8 +190,8 @@ export struct PreferencesDialog {
             // Plots
             Row() {
               Text($r('app.string.pref_antialiasing'))
-                .fontSize(13)
-                .fontColor('#333333')
+                .fontSize(FS_DIALOG_BODY)
+                .fontColor(TEXT)
               Toggle({ type: ToggleType.Switch, isOn: this.antialiasing })
                 .onChange((val: boolean) => {
                   this.antialiasing = val;
@@ -185,7 +201,7 @@ export struct PreferencesDialog {
           }
         }
         .layoutWeight(1)
-        .padding({ left: 16, right: 16 })
+        .padding({ left: SPACING_16, right: SPACING_16 })
       }
       .width('100%')
       .height(200)
@@ -193,27 +209,45 @@ export struct PreferencesDialog {
       // Bottom buttons
       Row() {
         Button($r('app.string.common_cancel'))
-          .fontSize(14)
-          .height(32)
-          .backgroundColor('#E0E0E0')
-          .fontColor('#333333')
-          .borderRadius(4)
+          .fontSize(FS_DIALOG_LABEL)
+          .height(BTN_HEIGHT)
+          .backgroundColor(BTN_BG)
+          .fontColor(BTN_TEXT)
+          .borderRadius(RADIUS_4)
           .onClick(() => {
             this.controller.close();
           })
         Button($r('app.string.common_apply'))
-          .fontSize(14)
-          .height(32)
-          .backgroundColor('#0078D7')
-          .fontColor('#FFFFFF')
-          .borderRadius(4)
-          .margin({ left: 12 })
+          .fontSize(FS_DIALOG_LABEL)
+          .height(BTN_HEIGHT)
+          .backgroundColor(BTN_BG_ACCENT)
+          .fontColor(BTN_TEXT_ACCENT)
+          .borderRadius(RADIUS_4)
+          .margin({ left: BTN_GAP })
           .onClick(() => {
             // Language applies immediately: setAppPreferredLanguage refreshes
             // $r bindings and fires onConfigurationUpdate → langTick →
-            // MainLayout.rebuildMenus.  Persisted by the system.
+            // MainLayout.rebuildMenus.  Persist the raw choice so the dialog can
+            // restore "Follow System" (index 0) on next open.
             if (this.langDirty) {
-              setAppLanguage(LANG_TAGS[this.langIndex]);
+              if (this.langIndex === 0) {
+                // 'default' only takes effect after restart (documented).  To switch the
+                // UI immediately, resolve the system language to a concrete tag we ship
+                // resources for (zh → zh-Hans, en → en-Latn-US).  We still persist
+                // 'default' as the user's choice so the dropdown shows "Follow System".
+                const sys: string = getSystemLanguage();
+                if (sys.startsWith('zh')) {
+                  setAppLanguage('zh-Hans');
+                } else if (sys.startsWith('en')) {
+                  setAppLanguage('en-Latn-US');
+                } else {
+                  setAppLanguage('default'); // no matching resource; follows system on restart
+                }
+                this.setPreference(KEY_LANGUAGE, 'default');
+              } else {
+                setAppLanguage(LANG_TAGS[this.langIndex]);
+                this.setPreference(KEY_LANGUAGE, LANG_TAGS[this.langIndex]);
+              }
             }
             // Persist all settings via QSettings.
             this.setPreference(KEY_AUTOSAVE, this.autosave.toString());
@@ -224,12 +258,12 @@ export struct PreferencesDialog {
           })
       }
       .width('100%')
-      .padding({ left: 16, right: 16, bottom: 16 })
+      .padding({ left: SPACING_16, right: SPACING_16, bottom: SPACING_16 })
       .justifyContent(FlexAlign.End)
     }
     .width(360)
     .backgroundColor('#FFFFFF')
-    .borderRadius(8)
-    .padding({ top: 16 })
+    .borderRadius(RADIUS_8)
+    .padding({ top: SPACING_16 })
   }
 }

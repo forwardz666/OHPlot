@@ -5,6 +5,14 @@
 import qohos from 'libqohos.so';
 import hilog from '@ohos.hilog';
 import { getAppString } from '../../components/LocaleHelper';
+import {
+  ACCENT, TEXT, TEXT_MUTED, TEXT_LIST, TEXT_ERROR, TEXT_EMPTY,
+  PANEL_BORDER, BTN_BG, BTN_BG_ACCENT, BTN_TEXT, BTN_TEXT_ACCENT,
+  RADIUS_4, RADIUS_8, BTN_HEIGHT, BTN_GAP,
+  FS_DIALOG_TITLE, FS_DIALOG_LABEL, FS_DIALOG_BODY, FS_DIALOG_SMALL, FS_DIALOG_HINT,
+  SPACING_4, SPACING_6, SPACING_8, SPACING_12, SPACING_16,
+  BACKDROP_COLOR, SHADOW_RADIUS, SHADOW_COLOR, SHADOW_OFFSET_X, SHADOW_OFFSET_Y
+} from '../../components/Theme';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -197,31 +205,31 @@ export struct AddCurveDialog {
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor('#80000000')
+          .backgroundColor(BACKDROP_COLOR)
           .onClick(() => { this.isVisible = false; })
 
         Column() {
-          Text(getAppString('graph_add_remove_curve'))
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#333333')
-            .margin({ top: 16, bottom: 12 })
+           Text(getAppString('graph_add_remove_curve'))
+             .fontSize(FS_DIALOG_TITLE)
+             .fontWeight(FontWeight.Bold)
+             .fontColor(TEXT)
+             .margin({ top: SPACING_16, bottom: SPACING_12 })
 
           Scroll() {
             Column() {
               Row() {
-                Text(getAppString('dlg_export_table'))
-                  .fontSize(13)
-                  .fontColor('#555555')
-                  .width(80)
-                Scroll() {
-                  Column() {
-                    ForEach(this.tables, (t: TableInfo, idx: number) => {
-                      Text(t.label.length > 0 ? t.label : t.name)
-                        .fontSize(12)
-                        .fontColor(idx === this.selTableIdx ? '#0078D7' : '#666666')
-                        .fontWeight(idx === this.selTableIdx ? FontWeight.Bold : FontWeight.Normal)
-                        .padding({ top: 3, bottom: 3, left: 6 })
+                 Text(getAppString('dlg_export_table'))
+                   .fontSize(FS_DIALOG_BODY)
+                   .fontColor(TEXT_MUTED)
+                   .width(80)
+                 Scroll() {
+                   Column() {
+                     ForEach(this.tables, (t: TableInfo, idx: number) => {
+                       Text(t.label.length > 0 ? t.label : t.name)
+                         .fontSize(FS_DIALOG_SMALL)
+                         .fontColor(idx === this.selTableIdx ? ACCENT : TEXT_LIST)
+                         .fontWeight(idx === this.selTableIdx ? FontWeight.Bold : FontWeight.Normal)
+                         .padding({ top: SPACING_4, bottom: SPACING_4, left: SPACING_6 })
                         .width('100%')
                         .onClick(() => { this.onTablePick(idx); })
                     }, (t: TableInfo, idx: number) => t.name + ':' + idx)
@@ -229,16 +237,16 @@ export struct AddCurveDialog {
                 }
                 .layoutWeight(1)
                 .height(80)
-                .border({ width: 1, color: '#D0D0D0' })
+                 .border({ width: 1, color: PANEL_BORDER })
               }
               .width('100%')
-              .margin({ bottom: 12 })
+               .margin({ bottom: SPACING_12 })
 
-              Text(getAppString('dlg_columns_to_plot'))
-                .fontSize(13)
-                .fontColor('#555555')
-                .alignSelf(ItemAlign.Start)
-                .margin({ bottom: 4 })
+               Text(getAppString('dlg_columns_to_plot'))
+                 .fontSize(FS_DIALOG_BODY)
+                 .fontColor(TEXT_MUTED)
+                 .alignSelf(ItemAlign.Start)
+                 .margin({ bottom: SPACING_4 })
               if (this.colNames.length > 0) {
                 Scroll() {
                   Column() {
@@ -251,10 +259,10 @@ export struct AddCurveDialog {
                             next[idx] = val;
                             this.selected = next;
                           })
-                        Text(name)
-                          .fontSize(12)
-                          .fontColor('#555555')
-                          .margin({ left: 8 })
+                         Text(name)
+                           .fontSize(FS_DIALOG_SMALL)
+                           .fontColor(TEXT_MUTED)
+                           .margin({ left: SPACING_8 })
                       }
                       .width('100%')
                       .padding({ top: 3, bottom: 3, left: 6 })
@@ -268,26 +276,26 @@ export struct AddCurveDialog {
                 }
                 .width('100%')
                 .height(120)
-                .border({ width: 1, color: '#D0D0D0' })
+                 .border({ width: 1, color: PANEL_BORDER })
               } else {
-                Text(getAppString('common_no_columns'))
-                  .fontSize(12)
-                  .fontColor('#999999')
+                 Text(getAppString('common_no_columns'))
+                   .fontSize(FS_DIALOG_SMALL)
+                   .fontColor(TEXT_EMPTY)
               }
 
               Row() {
-                Text('Style:')
-                  .fontSize(13)
-                  .fontColor('#555555')
-                  .width(80)
-                Scroll() {
-                  Column() {
-                    ForEach(CURVE_STYLE_KEYS, (s: CurveStyleDef, idx: number) => {
-                      Text(getAppString(s.key))
-                        .fontSize(12)
-                        .fontColor(idx === this.styleIdx ? '#0078D7' : '#666666')
+                 Text('Style:')
+                   .fontSize(FS_DIALOG_BODY)
+                   .fontColor(TEXT_MUTED)
+                   .width(80)
+                 Scroll() {
+                   Column() {
+                     ForEach(CURVE_STYLE_KEYS, (s: CurveStyleDef, idx: number) => {
+                       Text(getAppString(s.key))
+                         .fontSize(FS_DIALOG_SMALL)
+                         .fontColor(idx === this.styleIdx ? ACCENT : TEXT_LIST)
                         .fontWeight(idx === this.styleIdx ? FontWeight.Bold : FontWeight.Normal)
-                        .padding({ top: 3, bottom: 3, left: 6 })
+                        .padding({ top: SPACING_4, bottom: SPACING_4, left: SPACING_6 })
                         .width('100%')
                         .onClick(() => { this.onStylePick(idx); })
                     }, (s: CurveStyleDef, idx: number) => s.id + ':' + idx)
@@ -295,43 +303,43 @@ export struct AddCurveDialog {
                 }
                 .layoutWeight(1)
                 .height(120)
-                .border({ width: 1, color: '#D0D0D0' })
+                 .border({ width: 1, color: PANEL_BORDER })
               }
               .width('100%')
-              .margin({ top: 12 })
+              .margin({ top: SPACING_12 })
 
               if (this.statusMsg) {
                 Text(this.statusMsg)
-                  .fontSize(11)
-                  .fontColor('#CC3333')
-                  .margin({ top: 8 })
+                  .fontSize(FS_DIALOG_HINT)
+                  .fontColor(TEXT_ERROR)
+                  .margin({ top: SPACING_8 })
               }
             }
-            .padding({ left: 16, right: 16 })
+            .padding({ left: SPACING_16, right: SPACING_16 })
           }
           .layoutWeight(1)
           .width('100%')
 
-          Row() {
-            Button(getAppString('common_cancel'))
-              .fontSize(14).height(32)
-              .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
-              .onClick(() => { this.isVisible = false; })
-            Button(getAppString('graph_add_remove_curve'))
-              .fontSize(14).height(32)
-              .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
-              .margin({ left: 12 })
+           Row() {
+             Button(getAppString('common_cancel'))
+               .fontSize(FS_DIALOG_LABEL).height(BTN_HEIGHT)
+               .backgroundColor(BTN_BG).fontColor(BTN_TEXT).borderRadius(RADIUS_4)
+               .onClick(() => { this.isVisible = false; })
+             Button(getAppString('graph_add_remove_curve'))
+               .fontSize(FS_DIALOG_LABEL).height(BTN_HEIGHT)
+               .backgroundColor(BTN_BG_ACCENT).fontColor(BTN_TEXT_ACCENT).borderRadius(RADIUS_4)
+               .margin({ left: BTN_GAP })
               .onClick(() => { this.onAdd(); })
           }
           .width('100%')
-          .padding({ left: 16, right: 16, bottom: 16 })
+           .padding({ left: SPACING_16, right: SPACING_16, bottom: SPACING_16 })
           .justifyContent(FlexAlign.End)
         }
         .width(400)
         .constraintSize({ maxHeight: '80%' })
         .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-        .shadow({ radius: 12, color: '#60000000', offsetX: 4, offsetY: 4 })
+         .borderRadius(RADIUS_8)
+         .shadow({ radius: SHADOW_RADIUS, color: SHADOW_COLOR, offsetX: SHADOW_OFFSET_X, offsetY: SHADOW_OFFSET_Y })
       }
       .width('100%')
       .height('100%')

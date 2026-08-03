@@ -9,6 +9,15 @@ import { picker } from '@kit.CoreFileKit';
 import fs from '@ohos.file.fs';
 import common from '@ohos.app.ability.common';
 import { getAppString } from '../../components/LocaleHelper';
+import {
+  ACCENT, TEXT, TEXT_MUTED, TEXT_LIST, TEXT_HINT, TEXT_EMPTY,
+  BTN_BG, BTN_BG_ACCENT, BTN_TEXT, BTN_TEXT_ACCENT,
+  RADIUS_4, RADIUS_8, BTN_HEIGHT, BTN_GAP,
+  FS_DIALOG_TITLE, FS_DIALOG_LABEL, FS_DIALOG_BODY, FS_DIALOG_SMALL, FS_DIALOG_HINT,
+  SPACING_4, SPACING_6, SPACING_8, SPACING_12, SPACING_16,
+  INPUT_HEIGHT, BACKDROP_COLOR, SHADOW_RADIUS, SHADOW_COLOR,
+  SHADOW_OFFSET_X, SHADOW_OFFSET_Y
+} from '../../components/Theme';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'OHPlot';
@@ -93,7 +102,7 @@ export struct ImportDialog {
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor('#80000000')
+          .backgroundColor(BACKDROP_COLOR)
           .onClick(() => {
             this.isVisible = false;
           })
@@ -102,116 +111,116 @@ export struct ImportDialog {
         Column() {
           // Title
           Text($r('app.string.dlg_import_title'))
-            .fontSize(18)
+            .fontSize(FS_DIALOG_TITLE)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#333333')
-            .margin({ top: 16, bottom: 12 })
+            .fontColor(TEXT)
+            .margin({ top: SPACING_16, bottom: SPACING_12 })
 
           Scroll() {
             Column() {
               // Separator selection
               Row() {
                 Text($r('app.string.dlg_separator'))
-                  .fontSize(13)
-                  .fontColor('#555555')
+                  .fontSize(FS_DIALOG_BODY)
+                  .fontColor(TEXT_MUTED)
                   .width(100)
                 ForEach(this.separators, (label: string, idx: number) => {
                   Text(label)
-                    .fontSize(12)
-                    .fontColor(idx === this.selSepIdx ? '#0078D7' : '#666666')
+                    .fontSize(FS_DIALOG_SMALL)
+                    .fontColor(idx === this.selSepIdx ? ACCENT : TEXT_LIST)
                     .fontWeight(idx === this.selSepIdx ? FontWeight.Bold : FontWeight.Normal)
-                    .padding({ left: 6, right: 6 })
+                    .padding({ left: SPACING_6, right: SPACING_6 })
                     .onClick(() => this.onSepSelect(idx))
                 }, (label: string) => label)
               }
               .width('100%')
-              .margin({ bottom: 8 })
+              .margin({ bottom: SPACING_8 })
 
               // Import mode
               Row() {
                 Text($r('app.string.dlg_import_mode'))
-                  .fontSize(13)
-                  .fontColor('#555555')
+                  .fontSize(FS_DIALOG_BODY)
+                  .fontColor(TEXT_MUTED)
                   .width(100)
                 Text($r('app.string.dlg_import_new_tables'))
-                  .fontSize(12)
-                  .fontColor(this.importMode === 0 ? '#0078D7' : '#666666')
+                  .fontSize(FS_DIALOG_SMALL)
+                  .fontColor(this.importMode === 0 ? ACCENT : TEXT_LIST)
                   .fontWeight(this.importMode === 0 ? FontWeight.Bold : FontWeight.Normal)
-                  .padding({ left: 6, right: 6 })
+                  .padding({ left: SPACING_6, right: SPACING_6 })
                   .onClick(() => { this.importMode = 0; })
                 Text($r('app.string.dlg_import_new_rows'))
-                  .fontSize(12)
-                  .fontColor(this.importMode === 1 ? '#0078D7' : '#666666')
+                  .fontSize(FS_DIALOG_SMALL)
+                  .fontColor(this.importMode === 1 ? ACCENT : TEXT_LIST)
                   .fontWeight(this.importMode === 1 ? FontWeight.Bold : FontWeight.Normal)
-                  .padding({ left: 6, right: 6 })
+                  .padding({ left: SPACING_6, right: SPACING_6 })
                   .onClick(() => { this.importMode = 1; })
                 Text($r('app.string.dlg_import_overwrite'))
-                  .fontSize(12)
-                  .fontColor(this.importMode === 2 ? '#0078D7' : '#666666')
+                  .fontSize(FS_DIALOG_SMALL)
+                  .fontColor(this.importMode === 2 ? ACCENT : TEXT_LIST)
                   .fontWeight(this.importMode === 2 ? FontWeight.Bold : FontWeight.Normal)
-                  .padding({ left: 6, right: 6 })
+                  .padding({ left: SPACING_6, right: SPACING_6 })
                   .onClick(() => { this.importMode = 2; })
               }
               .width('100%')
-              .margin({ bottom: 8 })
+              .margin({ bottom: SPACING_8 })
 
               // Options
               Row() {
                 Text($r('app.string.dlg_import_ignored_lines'))
-                  .fontSize(13)
-                  .fontColor('#555555')
+                  .fontSize(FS_DIALOG_BODY)
+                  .fontColor(TEXT_MUTED)
                   .width(100)
                 TextInput({ text: this.ignoredLines, placeholder: '0' })
                   .width(60)
-                  .height(28)
-                  .fontSize(12)
+                  .height(INPUT_HEIGHT)
+                  .fontSize(FS_DIALOG_SMALL)
                   .onChange((val: string) => { this.ignoredLines = val; })
               }
               .width('100%')
-              .margin({ bottom: 8 })
+              .margin({ bottom: SPACING_8 })
 
               Row() {
                 Text($r('app.string.dlg_import_convert_numeric'))
-                  .fontSize(13)
-                  .fontColor('#555555')
+                  .fontSize(FS_DIALOG_BODY)
+                  .fontColor(TEXT_MUTED)
                   .width(140)
                 Toggle({ type: ToggleType.Switch, isOn: this.convertToNumeric })
                   .onChange((val: boolean) => { this.convertToNumeric = val; })
               }
               .width('100%')
-              .margin({ bottom: 6 })
+              .margin({ bottom: SPACING_6 })
 
               Row() {
                 Text($r('app.string.dlg_import_rename_columns'))
-                  .fontSize(13)
-                  .fontColor('#555555')
+                  .fontSize(FS_DIALOG_BODY)
+                  .fontColor(TEXT_MUTED)
                   .width(140)
                 Toggle({ type: ToggleType.Switch, isOn: this.renameColumns })
                   .onChange((val: boolean) => { this.renameColumns = val; })
               }
               .width('100%')
-              .margin({ bottom: 6 })
+              .margin({ bottom: SPACING_6 })
 
               Row() {
                 Text($r('app.string.dlg_import_strip_spaces'))
-                  .fontSize(13)
-                  .fontColor('#555555')
+                  .fontSize(FS_DIALOG_BODY)
+                  .fontColor(TEXT_MUTED)
                   .width(140)
                 Toggle({ type: ToggleType.Switch, isOn: this.stripSpaces })
                   .onChange((val: boolean) => { this.stripSpaces = val; })
               }
               .width('100%')
-              .margin({ bottom: 6 })
+              .margin({ bottom: SPACING_6 })
 
               // Status message
               if (this.statusMsg) {
                 Text(this.statusMsg)
-                  .fontSize(11)
-                  .fontColor('#888888')
-                  .margin({ top: 8, bottom: 4 })
+                  .fontSize(FS_DIALOG_HINT)
+                  .fontColor(TEXT_HINT)
+                  .margin({ top: SPACING_8, bottom: SPACING_4 })
               }
             }
-            .padding({ left: 16, right: 16 })
+            .padding({ left: SPACING_16, right: SPACING_16 })
           }
           .layoutWeight(1)
           .width('100%')
@@ -219,34 +228,34 @@ export struct ImportDialog {
           // Buttons
           Row() {
             Button($r('app.string.common_cancel'))
-              .fontSize(14)
-              .height(32)
-              .backgroundColor('#E0E0E0')
-              .fontColor('#333333')
-              .borderRadius(4)
+              .fontSize(FS_DIALOG_LABEL)
+              .height(BTN_HEIGHT)
+              .backgroundColor(BTN_BG)
+              .fontColor(BTN_TEXT)
+              .borderRadius(RADIUS_4)
               .onClick(() => {
                 this.isVisible = false;
               })
             Button($r('app.string.dlg_import_action'))
-              .fontSize(14)
-              .height(32)
-              .backgroundColor('#0078D7')
-              .fontColor('#FFFFFF')
-              .borderRadius(4)
-              .margin({ left: 12 })
+              .fontSize(FS_DIALOG_LABEL)
+              .height(BTN_HEIGHT)
+              .backgroundColor(BTN_BG_ACCENT)
+              .fontColor(BTN_TEXT_ACCENT)
+              .borderRadius(RADIUS_4)
+              .margin({ left: BTN_GAP })
               .onClick(() => {
                 this.onImport();
               })
           }
           .width('100%')
-          .padding({ left: 16, right: 16, bottom: 16 })
+          .padding({ left: SPACING_16, right: SPACING_16, bottom: SPACING_16 })
           .justifyContent(FlexAlign.End)
         }
         .width(380)
         .constraintSize({ maxHeight: '80%' })
         .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-        .shadow({ radius: 12, color: '#60000000', offsetX: 4, offsetY: 4 })
+        .borderRadius(RADIUS_8)
+        .shadow({ radius: SHADOW_RADIUS, color: SHADOW_COLOR, offsetX: SHADOW_OFFSET_X, offsetY: SHADOW_OFFSET_Y })
       }
       .width('100%')
       .height('100%')

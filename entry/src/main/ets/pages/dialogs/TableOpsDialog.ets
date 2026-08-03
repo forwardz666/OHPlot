@@ -49,6 +49,12 @@ interface SortTableArgs {
   ascending: boolean;
 }
 
+interface TableSizeCommandArgs {
+  tableId: string;
+  rows: number;
+  cols: number;
+}
+
 function fetchColNames(tableId: string): string[] {
   try {
     const injector = qohos as QohosInjector;
@@ -418,6 +424,104 @@ export struct SortTableDialog {
         }
         .width(380)
         .constraintSize({ maxHeight: '80%' })
+        .backgroundColor('#FFFFFF')
+        .borderRadius(8)
+        .shadow({ radius: 12, color: '#60000000', offsetX: 4, offsetY: 4 })
+      }
+      .width('100%')
+      .height('100%')
+    }
+  }
+}
+
+// ── Table Size ──────────────────────────────────────────────────────────
+@Component
+export struct TableSizeDialog {
+  @Link isVisible: boolean;
+  @Prop tableId: string = '';
+  @State rowsText: string = '';
+  @State colsText: string = '';
+
+  onResize(): void {
+    let rows: number = parseInt(this.rowsText);
+    let cols: number = parseInt(this.colsText);
+    if (isNaN(rows) || rows < 1) { rows = 1; }
+    if (isNaN(cols) || cols < 1) { cols = 1; }
+    try {
+      const injector = qohos as QohosInjector;
+      const result: string = injector.callQtCommand('tableSize',
+        JSON.stringify({ tableId: this.tableId, rows: rows, cols: cols } as TableSizeCommandArgs));
+      hilog.info(DOMAIN, TAG, 'tableSize(%{public}d × %{public}d) queued: %{public}s', rows, cols, result);
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'tableSize failed: %{public}s', (e as Error).message);
+    }
+    this.isVisible = false;
+  }
+
+  build() {
+    if (this.isVisible) {
+      Stack() {
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor('#80000000')
+          .onClick(() => { this.isVisible = false; })
+
+        Column() {
+          Text(getAppString('dlg_table_size') + ' — ' + this.tableId)
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#333333')
+            .margin({ top: 16, bottom: 12 })
+
+          Row() {
+            Text($r('app.string.dlg_num_rows'))
+              .fontSize(13)
+              .fontColor('#555555')
+              .layoutWeight(1)
+            TextInput({ text: this.rowsText, placeholder: '30' })
+              .type(InputType.Number)
+              .fontSize(13)
+              .width(80)
+              .height(34)
+              .onChange((val: string) => { this.rowsText = val; })
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16 })
+          .margin({ bottom: 8 })
+
+          Row() {
+            Text($r('app.string.dlg_num_cols'))
+              .fontSize(13)
+              .fontColor('#555555')
+              .layoutWeight(1)
+            TextInput({ text: this.colsText, placeholder: '2' })
+              .type(InputType.Number)
+              .fontSize(13)
+              .width(80)
+              .height(34)
+              .onChange((val: string) => { this.colsText = val; })
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16 })
+          .margin({ bottom: 12 })
+
+          Row() {
+            Button($r('app.string.common_cancel'))
+              .fontSize(14).height(32)
+              .backgroundColor('#E0E0E0').fontColor('#333333').borderRadius(4)
+              .onClick(() => { this.isVisible = false; })
+            Button($r('app.string.common_ok'))
+              .fontSize(14).height(32)
+              .backgroundColor('#0078D7').fontColor('#FFFFFF').borderRadius(4)
+              .margin({ left: 12 })
+              .onClick(() => { this.onResize(); })
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16, bottom: 16 })
+          .justifyContent(FlexAlign.End)
+        }
+        .width(340)
         .backgroundColor('#FFFFFF')
         .borderRadius(8)
         .shadow({ radius: 12, color: '#60000000', offsetX: 4, offsetY: 4 })

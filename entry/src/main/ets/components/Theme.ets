@@ -28,3 +28,80 @@ export const H_MENU: number = 28;
 export const H_STATUS: number = 24;
 // Disabled button opacity (greyed toolbar buttons).
 export const OPACITY_DISABLED: number = 0.4;
+
+// ─── Dialog tokens (Win SciDAVis 2.7.2 light palette) ───────────────
+// Derived from Windows QToolBar/QDialog chrome + reference screenshots
+// (diagnostics/ui-alignment/2_对话框/).
+
+// Dialog surface fill — the outer panel behind all content.
+// Win dialogs use #F8F8F8 for the "page" area behind stacked groups;
+// the Preferences left-nav uses a slightly darker #F5F5F5.
+export const DIALOG_BG: string = '#F8F8F8';
+// Dialog left-nav sidebar fill (darker than the content page).
+export const DIALOG_SIDEBAR_BG: string = '#F5F5F5';
+// Dialog border / separator between sections.
+export const DIALOG_BORDER: string = '#E0E0E0';
+// Accent blue — selected items, focused buttons, checkbox marks.
+// Matches Win32 themed button highlight (#0078D7).
+export const ACCENT: string = '#0078D7';
+// Tooltip background (Win classic info-tip yellow).
+export const TOOLTIP_BG: string = '#FFFFE1';
+// List/scroll panel inner border (the 1px box around table lists).
+export const PANEL_BORDER: string = '#D0D0D0';
+// Selected-item highlight fill (light blue tint behind accent text).
+export const SELECTED_BG: string = '#E8F4FD';
+// Text colours — dialog-specific extensions.
+export const TEXT_MUTED: string = '#555555';
+export const TEXT_HINT: string = '#888888';
+export const TEXT_LIST: string = '#666666';
+export const TEXT_ERROR: string = '#CC3333';
+export const TEXT_EMPTY: string = '#999999';
+
+// ─── Spacing scale (vp) ─────────────────────────────────────────────
+export const SPACING_4: number = 4;
+export const SPACING_6: number = 6;
+export const SPACING_8: number = 8;
+export const SPACING_12: number = 12;
+export const SPACING_16: number = 16;
+
+// ─── Border radius scale (vp) ───────────────────────────────────────
+export const RADIUS_4: number = 4;
+export const RADIUS_8: number = 8;
+
+// ─── Elevation / shadow ─────────────────────────────────────────────
+// Standard dialog drop-shadow (matches .shadow({ radius, color, offsetX, offsetY })).
+export const SHADOW_RADIUS: number = 12;
+export const SHADOW_COLOR: string = '#60000000';
+export const SHADOW_OFFSET_X: number = 4;
+export const SHADOW_OFFSET_Y: number = 4;
+
+// ─── Dialog font sizes (vp) ─────────────────────────────────────────
+export const FS_DIALOG_TITLE: number = 18;
+export const FS_DIALOG_LABEL: number = 14;
+export const FS_DIALOG_BODY: number = 13;
+export const FS_DIALOG_SMALL: number = 12;
+export const FS_DIALOG_HINT: number = 11;
+
+// ─── Button style tokens ────────────────────────────────────────────
+export const BTN_HEIGHT: number = 32;
+// Secondary / cancel button surface.
+export const BTN_BG: string = '#E0E0E0';
+export const BTN_BG_ACCENT: string = '#0078D7';
+export const BTN_TEXT: string = '#333333';
+export const BTN_TEXT_ACCENT: string = '#FFFFFF';
+// Gap between adjacent buttons in a row.
+export const BTN_GAP: number = 12;
+
+// ─── Input field tokens ─────────────────────────────────────────────
+export const INPUT_HEIGHT: number = 28;
+export const INPUT_HEIGHT_TALL: number = 30;
+
+// ─── Tab / sidebar nav style ────────────────────────────────────────
+export const TAB_INACTIVE_BG: string = '#E9E9E9';
+export const TAB_BORDER: string = '#C0C0C0';
+export const SIDEBAR_SELECTED_BG: string = '#E8F4FD';
+export const SIDEBAR_SELECTED_BORDER: string = '#99BFE8';
+export const SIDEBAR_ITEM_HEIGHT: number = 36;
+
+// ─── Backdrop ────────────────────────────────────────────────────────
+export const BACKDROP_COLOR: string = '#80000000';

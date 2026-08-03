@@ -8,6 +8,14 @@ import hilog from '@ohos.hilog';
 import { picker } from '@kit.CoreFileKit';
 import common from '@ohos.app.ability.common';
 import { getAppString } from '../../components/LocaleHelper';
+import {
+  ACCENT, TEXT, TEXT_MUTED, TEXT_LIST, TEXT_HINT, TEXT_EMPTY,
+  PANEL_BORDER, BTN_BG, BTN_BG_ACCENT, BTN_TEXT, BTN_TEXT_ACCENT,
+  RADIUS_4, RADIUS_8, BTN_HEIGHT, BTN_GAP,
+  FS_DIALOG_TITLE, FS_DIALOG_LABEL, FS_DIALOG_BODY, FS_DIALOG_SMALL, FS_DIALOG_HINT,
+  SPACING_4, SPACING_6, SPACING_8, SPACING_12, SPACING_16,
+  BACKDROP_COLOR, SHADOW_RADIUS, SHADOW_COLOR, SHADOW_OFFSET_X, SHADOW_OFFSET_Y
+} from '../../components/Theme';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'ArkSciDAVis';
@@ -118,7 +126,7 @@ export struct ExportDialog {
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor('#80000000')
+          .backgroundColor(BACKDROP_COLOR)
           .onClick(() => {
             this.isVisible = false;
           })
@@ -127,28 +135,28 @@ export struct ExportDialog {
         Column() {
           // Title
           Text($r('app.string.dlg_export_title'))
-            .fontSize(18)
+            .fontSize(FS_DIALOG_TITLE)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#333333')
-            .margin({ top: 16, bottom: 12 })
+            .fontColor(TEXT)
+            .margin({ top: SPACING_16, bottom: SPACING_12 })
 
           Scroll() {
             Column() {
               // Table selection
               Row() {
                 Text($r('app.string.dlg_export_table'))
-                  .fontSize(13)
-                  .fontColor('#555555')
+                  .fontSize(FS_DIALOG_BODY)
+                  .fontColor(TEXT_MUTED)
                   .width(80)
                 if (this.tableList.length > 0) {
                   Scroll() {
                     Column() {
                       ForEach(this.tableList, (table: TableInfo) => {
                         Text(table.name)
-                          .fontSize(12)
-                          .fontColor(table.name === this.selectedTable ? '#0078D7' : '#666666')
+                          .fontSize(FS_DIALOG_SMALL)
+                          .fontColor(table.name === this.selectedTable ? ACCENT : TEXT_LIST)
                           .fontWeight(table.name === this.selectedTable ? FontWeight.Bold : FontWeight.Normal)
-                          .padding({ top: 3, bottom: 3, left: 6 })
+                          .padding({ top: SPACING_4, bottom: SPACING_4, left: SPACING_6 })
                           .width('100%')
                           .onClick(() => { this.selectedTable = table.name; })
                       }, (table: TableInfo) => table.name)
@@ -156,28 +164,28 @@ export struct ExportDialog {
                   }
                   .layoutWeight(1)
                   .height(100)
-                  .border({ width: 1, color: '#D0D0D0' })
+                  .border({ width: 1, color: PANEL_BORDER })
                 } else {
                   Text($r('app.string.common_no_tables'))
-                    .fontSize(12)
-                    .fontColor('#999999')
+                    .fontSize(FS_DIALOG_SMALL)
+                    .fontColor(TEXT_EMPTY)
                 }
               }
               .width('100%')
-              .margin({ bottom: 12 })
+              .margin({ bottom: SPACING_12 })
 
               // Separator
               Row() {
                 Text($r('app.string.dlg_separator'))
-                  .fontSize(13)
-                  .fontColor('#555555')
+                  .fontSize(FS_DIALOG_BODY)
+                  .fontColor(TEXT_MUTED)
                   .width(80)
                 ForEach(this.separators, (label: string, idx: number) => {
                   Text(label)
-                    .fontSize(12)
-                    .fontColor(idx === this.selSepIdx ? '#0078D7' : '#666666')
+                    .fontSize(FS_DIALOG_SMALL)
+                    .fontColor(idx === this.selSepIdx ? ACCENT : TEXT_LIST)
                     .fontWeight(idx === this.selSepIdx ? FontWeight.Bold : FontWeight.Normal)
-                    .padding({ left: 6, right: 6 })
+                    .padding({ left: SPACING_6, right: SPACING_6 })
                     .onClick(() => {
                       this.selSepIdx = idx;
                       this.separator = this.separatorValues[idx];
@@ -185,29 +193,29 @@ export struct ExportDialog {
                 }, (label: string) => label)
               }
               .width('100%')
-              .margin({ bottom: 8 })
+              .margin({ bottom: SPACING_8 })
 
               // Column names toggle
               Row() {
                 Text($r('app.string.dlg_export_include_names'))
-                  .fontSize(13)
-                  .fontColor('#555555')
+                  .fontSize(FS_DIALOG_BODY)
+                  .fontColor(TEXT_MUTED)
                   .layoutWeight(1)
                 Toggle({ type: ToggleType.Switch, isOn: this.includeColNames })
                   .onChange((val: boolean) => { this.includeColNames = val; })
               }
               .width('100%')
-              .margin({ bottom: 6 })
+              .margin({ bottom: SPACING_6 })
 
               // Status message
               if (this.statusMsg) {
                 Text(this.statusMsg)
-                  .fontSize(11)
-                  .fontColor('#888888')
-                  .margin({ top: 8, bottom: 4 })
+                  .fontSize(FS_DIALOG_HINT)
+                  .fontColor(TEXT_HINT)
+                  .margin({ top: SPACING_8, bottom: SPACING_4 })
               }
             }
-            .padding({ left: 16, right: 16 })
+            .padding({ left: SPACING_16, right: SPACING_16 })
           }
           .layoutWeight(1)
           .width('100%')
@@ -215,34 +223,34 @@ export struct ExportDialog {
           // Buttons
           Row() {
             Button($r('app.string.common_cancel'))
-              .fontSize(14)
-              .height(32)
-              .backgroundColor('#E0E0E0')
-              .fontColor('#333333')
-              .borderRadius(4)
+              .fontSize(FS_DIALOG_LABEL)
+              .height(BTN_HEIGHT)
+              .backgroundColor(BTN_BG)
+              .fontColor(BTN_TEXT)
+              .borderRadius(RADIUS_4)
               .onClick(() => {
                 this.isVisible = false;
               })
             Button($r('app.string.dlg_export_action'))
-              .fontSize(14)
-              .height(32)
-              .backgroundColor('#0078D7')
-              .fontColor('#FFFFFF')
-              .borderRadius(4)
-              .margin({ left: 12 })
+              .fontSize(FS_DIALOG_LABEL)
+              .height(BTN_HEIGHT)
+              .backgroundColor(BTN_BG_ACCENT)
+              .fontColor(BTN_TEXT_ACCENT)
+              .borderRadius(RADIUS_4)
+              .margin({ left: BTN_GAP })
               .onClick(() => {
                 this.onExport();
               })
           }
           .width('100%')
-          .padding({ left: 16, right: 16, bottom: 16 })
+          .padding({ left: SPACING_16, right: SPACING_16, bottom: SPACING_16 })
           .justifyContent(FlexAlign.End)
         }
         .width(380)
         .constraintSize({ maxHeight: '80%' })
         .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-        .shadow({ radius: 12, color: '#60000000', offsetX: 4, offsetY: 4 })
+        .borderRadius(RADIUS_8)
+        .shadow({ radius: SHADOW_RADIUS, color: SHADOW_COLOR, offsetX: SHADOW_OFFSET_X, offsetY: SHADOW_OFFSET_Y })
       }
       .width('100%')
       .height('100%')

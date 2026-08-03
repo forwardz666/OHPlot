@@ -1,337 +1,2048 @@
 {
   "string": [
-    { "name": "module_desc", "value": "OHPlot Qt application" },
-    { "name": "read_pasteboard_reason", "value": "Paste data from other apps into tables" },
-    { "name": "ability_desc", "value": "OHPlot main ability" },
-    { "name": "menu_file", "value": "File" },
-    { "name": "menu_edit", "value": "Edit" },
-    { "name": "menu_view", "value": "View" },
-    { "name": "menu_table", "value": "Table" },
-    { "name": "menu_plot", "value": "Plot" },
-    { "name": "menu_analysis", "value": "Analysis" },
-    { "name": "menu_help", "value": "Help" },
-    { "name": "file_new_project", "value": "New Project" },
-    { "name": "file_new_table", "value": "New Table" },
-    { "name": "file_new_notes", "value": "New Notes" },
-    { "name": "file_new_matrix", "value": "New Matrix" },
-    { "name": "file_open", "value": "Open..." },
-    { "name": "file_close", "value": "Close" },
-    { "name": "file_save_project", "value": "Save Project" },
-    { "name": "file_save_as", "value": "Save Project As..." },
-    { "name": "file_import", "value": "Import" },
-    { "name": "file_export", "value": "Export" },
-    { "name": "file_print", "value": "Print..." },
-    { "name": "file_quit", "value": "Quit" },
-    { "name": "edit_undo", "value": "Undo" },
-    { "name": "edit_redo", "value": "Redo" },
-    { "name": "edit_cut", "value": "Cut" },
-    { "name": "edit_copy", "value": "Copy" },
-    { "name": "edit_paste", "value": "Paste" },
-    { "name": "edit_delete", "value": "Delete" },
-    { "name": "edit_select_all", "value": "Select All" },
-    { "name": "view_toolbars", "value": "Toolbars" },
-    { "name": "view_plots", "value": "Plots" },
-    { "name": "view_tables", "value": "Tables" },
-    { "name": "view_notes", "value": "Notes" },
-    { "name": "view_log", "value": "Log" },
-    { "name": "view_script_console", "value": "Script Console" },
-    { "name": "table_add_columns", "value": "Add Columns..." },
-    { "name": "table_set_values", "value": "Set Column Values..." },
-    { "name": "table_sort", "value": "Sort Table" },
-    { "name": "table_statistics", "value": "Table Statistics" },
-    { "name": "plot_add_remove_curves", "value": "Add/Remove Curves..." },
-    { "name": "plot_add_error_bars", "value": "Add Error Bars..." },
-    { "name": "plot_2d", "value": "2D Plot" },
-    { "name": "plot_3d", "value": "3D Plot" },
-    { "name": "analysis_fit", "value": "Fit" },
-    { "name": "analysis_fft", "value": "FFT" },
-    { "name": "analysis_smooth", "value": "Smooth" },
-    { "name": "analysis_integrate", "value": "Integrate" },
-    { "name": "analysis_differentiate", "value": "Differentiate" },
-    { "name": "help_help", "value": "Help..." },
-    { "name": "help_about", "value": "About OHPlot..." },
-    { "name": "notes_title", "value": "Notes" },
-    { "name": "status_ready", "value": "Ready" },
-    { "name": "about_title", "value": "About OHPlot" },
-    { "name": "about_version", "value": "OHPlot 2.0.0" },
-    { "name": "about_desc", "value": "Scientific Data Analysis and Visualization" },
-    { "name": "about_copyright", "value": "Copyright (C) 2024 SciDAVis Team — OHPlot OpenHarmony port" },
-    { "name": "about_close", "value": "Close" },
-    { "name": "toolbar_new_table", "value": "New Table" },
-    { "name": "toolbar_open", "value": "Open Project" },
-    { "name": "toolbar_save", "value": "Save Project" },
-    { "name": "toolbar_import", "value": "Import ASCII" },
-    { "name": "toolbar_export", "value": "Export ASCII" },
-    { "name": "toolbar_cut", "value": "Cut" },
-    { "name": "toolbar_copy", "value": "Copy" },
-    { "name": "toolbar_paste", "value": "Paste" },
-    { "name": "toolbar_undo", "value": "Undo" },
-    { "name": "toolbar_redo", "value": "Redo" },
-    { "name": "toolbar_plot_line", "value": "Plot Line" },
-    { "name": "toolbar_plot_scatter", "value": "Plot Scatter" },
-    { "name": "not_adapted", "value": "This feature has not been adapted yet" },
-    { "name": "file_new_note", "value": "New Note" },
-    { "name": "file_new_graph", "value": "New Graph" },
-    { "name": "file_open_project", "value": "Open Project..." },
-    { "name": "file_import_ascii", "value": "Import ASCII..." },
-    { "name": "file_export_ascii", "value": "Export ASCII..." },
-    { "name": "edit_cut_selection", "value": "Cut Selection" },
-    { "name": "edit_copy_selection", "value": "Copy Selection" },
-    { "name": "edit_paste_selection", "value": "Paste Selection" },
-    { "name": "edit_delete_selection", "value": "Delete Selection" },
-    { "name": "edit_preferences", "value": "Preferences..." },
-    { "name": "view_project_browser", "value": "Project Browser" },
-    { "name": "view_plot_list", "value": "Plot List" },
-    { "name": "view_table_list", "value": "Table List" },
-    { "name": "view_note_pad", "value": "Note Pad" },
-    { "name": "view_results_log", "value": "Results Log" },
-    { "name": "menu_matrix", "value": "Matrix" },
-    { "name": "matrix_set_dimensions", "value": "Set Dimensions..." },
-    { "name": "matrix_set_values", "value": "Set Values..." },
-    { "name": "matrix_transpose", "value": "Transpose" },
-    { "name": "matrix_invert", "value": "Invert" },
-    { "name": "menu_graph", "value": "Graph" },
-    { "name": "graph_properties", "value": "Properties..." },
-    { "name": "graph_export_image", "value": "Export Image..." },
-    { "name": "graph_add_remove_curve", "value": "Add/Remove Curve..." },
-    { "name": "graph_add_error_bars", "value": "Add Error Bars..." },
-    { "name": "graph_add_function", "value": "Add Function..." },
-    { "name": "graph_rescale", "value": "Rescale To Show All" },
-    { "name": "table_sort_table", "value": "Sort Table..." },
-    { "name": "table_stats_columns", "value": "Statistics on Columns" },
-    { "name": "table_stats_rows", "value": "Statistics on Rows" },
-    { "name": "plot_line", "value": "Line" },
-    { "name": "plot_scatter", "value": "Scatter" },
-    { "name": "plot_line_symbol", "value": "Line + Symbol" },
-    { "name": "plot_vertical_bars", "value": "Vertical Bars" },
-    { "name": "plot_horizontal_bars", "value": "Horizontal Bars" },
-    { "name": "plot_area", "value": "Area" },
-    { "name": "plot_pie", "value": "Pie" },
-    { "name": "plot_vertical_drop_lines", "value": "Vertical Drop Lines" },
-    { "name": "plot_spline", "value": "Spline" },
-    { "name": "plot_vertical_steps", "value": "Vertical Steps" },
-    { "name": "plot_horizontal_steps", "value": "Horizontal Steps" },
-    { "name": "plot_histogram", "value": "Histogram" },
-    { "name": "plot_box", "value": "Box Plot" },
-    { "name": "plot_explorer_2d", "value": "Plot Explorer (2D)" },
-    { "name": "analysis_fit_linear", "value": "Fit Linear" },
-    { "name": "analysis_fit_polynomial", "value": "Fit Polynomial..." },
-    { "name": "analysis_fit_gaussian", "value": "Fit Gaussian" },
-    { "name": "analysis_fit_lorentzian", "value": "Fit Lorentzian" },
-    { "name": "analysis_fit_boltzmann", "value": "Fit Boltzmann (Sigmoidal)" },
-    { "name": "analysis_fft_dlg", "value": "FFT..." },
-    { "name": "analysis_fft_filter", "value": "FFT Filter..." },
-    { "name": "analysis_smooth_dlg", "value": "Smooth..." },
-    { "name": "analysis_interpolate", "value": "Interpolate..." },
-    { "name": "analysis_correlate", "value": "Correlate..." },
-    { "name": "menu_windows", "value": "Windows" },
-    { "name": "win_cascade", "value": "Cascade" },
-    { "name": "win_maximize", "value": "Maximize Window" },
-    { "name": "win_minimize", "value": "Minimize Window" },
-    { "name": "win_close", "value": "Close Window" },
-    { "name": "help_browser", "value": "Help Browser" },
-    { "name": "help_about_ohplot", "value": "About OHPlot" },
-    { "name": "tbmenu_new_table", "value": "New Table" },
-    { "name": "tbmenu_new_matrix", "value": "New Matrix" },
-    { "name": "tbmenu_new_note", "value": "New Note" },
-    { "name": "tbmenu_new_graph", "value": "New Graph" },
-    { "name": "tbmenu_new_function_plot", "value": "New Function Plot" },
-    { "name": "tbmenu_new_3d_surface", "value": "New 3D Surface Plot" },
-    { "name": "tbmenu_auto_layout", "value": "Automatic Layout" },
-    { "name": "tbmenu_add_layer", "value": "Add Layer" },
-    { "name": "tbmenu_remove_layer", "value": "Remove Layer" },
-    { "name": "tbmenu_arrange_layers", "value": "Arrange Layers..." },
-    { "name": "tbmenu_add_remove_curve", "value": "Add/Remove Curve..." },
-    { "name": "tbmenu_add_error_bars", "value": "Add Error Bars..." },
-    { "name": "tbmenu_add_function", "value": "Add Function..." },
-    { "name": "tbmenu_add_text", "value": "Add Text" },
-    { "name": "tbmenu_draw_arrow", "value": "Draw Arrow" },
-    { "name": "tbmenu_draw_line", "value": "Draw Line" },
-    { "name": "tbmenu_add_timestamp", "value": "Add Time Stamp" },
-    { "name": "tbmenu_add_image", "value": "Add Image" },
-    { "name": "tbmenu_new_legend", "value": "New Legend" },
-    { "name": "tbmenu_line", "value": "Line" },
-    { "name": "tbmenu_scatter", "value": "Scatter" },
-    { "name": "tbmenu_line_symbol", "value": "Line + Symbol" },
-    { "name": "tbmenu_spline", "value": "Spline" },
-    { "name": "tbmenu_vertical_drop_lines", "value": "Vertical Drop Lines" },
-    { "name": "tbmenu_horizontal_steps", "value": "Horizontal Steps" },
-    { "name": "tbmenu_vertical_steps", "value": "Vertical Steps" },
-    { "name": "tbmenu_vertical_bars", "value": "Vertical Bars" },
-    { "name": "tbmenu_horizontal_bars", "value": "Horizontal Bars" },
-    { "name": "tbmenu_vectors_xyxy", "value": "Vectors XYXY" },
-    { "name": "tbmenu_vectors_xyam", "value": "Vectors XYAM" },
-    { "name": "tip_new_project", "value": "New Project" },
-    { "name": "tip_new_aspect", "value": "New" },
-    { "name": "tip_open", "value": "Open Project" },
-    { "name": "tip_open_template", "value": "Open Template" },
-    { "name": "tip_import", "value": "Import ASCII" },
-    { "name": "tip_save", "value": "Save Project" },
-    { "name": "tip_save_template", "value": "Save As Template" },
-    { "name": "tip_print", "value": "Print" },
-    { "name": "tip_export_pdf", "value": "Export to PDF" },
-    { "name": "tip_project_browser", "value": "Project Explorer" },
-    { "name": "tip_log", "value": "Results Log" },
-    { "name": "tip_undo", "value": "Undo" },
-    { "name": "tip_redo", "value": "Redo" },
-    { "name": "tip_cut", "value": "Cut" },
-    { "name": "tip_copy", "value": "Copy" },
-    { "name": "tip_paste", "value": "Paste" },
-    { "name": "tip_delete", "value": "Delete" },
-    { "name": "tip_graph_pointer", "value": "Pointer" },
-    { "name": "tip_layers", "value": "Manage Layers" },
-    { "name": "tip_curves", "value": "Add/Remove Curves" },
-    { "name": "tip_enrichments", "value": "Add Text/Annotation" },
-    { "name": "tip_zoom_in", "value": "Zoom In" },
-    { "name": "tip_zoom_out", "value": "Zoom Out" },
-    { "name": "tip_rescale", "value": "Show All" },
-    { "name": "tip_screen_reader", "value": "Screen Reader" },
-    { "name": "tip_data_reader", "value": "Data Reader" },
-    { "name": "tip_select_range", "value": "Select Data Range" },
-    { "name": "tip_plot_lines", "value": "Line/Scatter Plot" },
-    { "name": "tip_plot_bars", "value": "Bar Chart" },
-    { "name": "tip_plot_area", "value": "Area Plot" },
-    { "name": "tip_plot_pie", "value": "Pie Chart" },
-    { "name": "tip_plot_histogram", "value": "Histogram" },
-    { "name": "tip_plot_box", "value": "Box Plot" },
-    { "name": "tip_plot_vectors", "value": "Vector Plot" },
-    { "name": "tip_plot3d_ribbon", "value": "3D Ribbon Plot" },
-    { "name": "tip_plot3d_bars", "value": "3D Bar Plot" },
-    { "name": "tip_plot3d_scatter", "value": "3D Scatter Plot" },
-    { "name": "tip_plot3d_trajectory", "value": "3D Trajectory Plot" },
-    { "name": "tip_table_size", "value": "Table Size" },
-    { "name": "tip_add_column", "value": "Add Column" },
-    { "name": "tip_stats_columns", "value": "Column Statistics" },
-    { "name": "tip_stats_rows", "value": "Row Statistics" },
-    { "name": "pref_general", "value": "General" },
-    { "name": "pref_tables", "value": "Tables" },
-    { "name": "pref_plots", "value": "Plots" },
-    { "name": "pref_autosave", "value": "Autosave" },
-    { "name": "pref_autosave_interval", "value": "Autosave interval (min)" },
-    { "name": "pref_show_comments", "value": "Show comments" },
-    { "name": "pref_antialiasing", "value": "Antialiasing" },
-    { "name": "pref_language", "value": "Language" },
-    { "name": "pref_lang_system", "value": "Follow System" },
-    { "name": "pref_lang_english", "value": "English" },
-    { "name": "pref_lang_chinese", "value": "简体中文" },
-    { "name": "common_ok", "value": "OK" },
-    { "name": "common_cancel", "value": "Cancel" },
-    { "name": "common_apply", "value": "Apply" },
-    { "name": "common_close", "value": "Close" },
-    { "name": "common_clear", "value": "Clear" },
-    { "name": "common_refresh", "value": "Refresh" },
-    { "name": "common_loading", "value": "Loading..." },
-    { "name": "common_empty", "value": "(empty)" },
-    { "name": "common_no_columns", "value": "No columns" },
-    { "name": "common_no_curves", "value": "No curves" },
-    { "name": "common_no_tables", "value": "No tables available" },
-    { "name": "common_no_plots", "value": "No plots available" },
-    { "name": "panel_results_log", "value": "Results Log" },
-    { "name": "panel_project", "value": "Project" },
-    { "name": "panel_plots", "value": "Plots" },
-    { "name": "panel_curves", "value": "Curves" },
-    { "name": "dlg_import_title", "value": "Import ASCII Data" },
-    { "name": "dlg_separator", "value": "Separator:" },
-    { "name": "dlg_import_mode", "value": "Import Mode:" },
-    { "name": "dlg_import_new_tables", "value": "New Tables" },
-    { "name": "dlg_import_new_rows", "value": "New Rows" },
-    { "name": "dlg_import_overwrite", "value": "Overwrite" },
-    { "name": "dlg_import_ignored_lines", "value": "Ignored lines:" },
-    { "name": "dlg_import_convert_numeric", "value": "Convert to numeric:" },
-    { "name": "dlg_import_rename_columns", "value": "Rename columns:" },
-    { "name": "dlg_import_strip_spaces", "value": "Strip spaces:" },
-    { "name": "dlg_import_action", "value": "Import..." },
-    { "name": "dlg_export_title", "value": "Export ASCII Data" },
-    { "name": "dlg_export_table", "value": "Table:" },
-    { "name": "dlg_export_include_names", "value": "Include column names:" },
-    { "name": "dlg_export_action", "value": "Export" },
-    { "name": "dlg_add_columns", "value": "Add Columns" },
-    { "name": "dlg_num_columns", "value": "Number of columns:" },
-    { "name": "dlg_set_col_values", "value": "Set Column Values" },
-    { "name": "dlg_column", "value": "Column:" },
-    { "name": "dlg_formula_muparser", "value": "Formula (muParser):" },
-    { "name": "dlg_example_col", "value": "e.g. i  or  col(\"1\")*2" },
-    { "name": "dlg_examples_hint", "value": "Examples: i • rand() • sin(0.1*i) • col(\"1\")+1   (i = row number)" },
-    { "name": "dlg_sort_table", "value": "Sort Table" },
-    { "name": "dlg_sort_by", "value": "Sort by:" },
-    { "name": "dlg_each_col_separately", "value": "(each column separately)" },
-    { "name": "dlg_order", "value": "Order:" },
-    { "name": "dlg_ascending", "value": "Ascending" },
-    { "name": "dlg_descending", "value": "Descending" },
-    { "name": "dlg_sort_action", "value": "Sort" },
-    { "name": "dlg_matrix_dims", "value": "Matrix Dimensions" },
-    { "name": "dlg_rows", "value": "Rows:" },
-    { "name": "dlg_cols", "value": "Columns:" },
-    { "name": "dlg_set_matrix_values", "value": "Set Matrix Values" },
-    { "name": "dlg_example_matrix", "value": "e.g. i*j  or  sin(x)*cos(y)" },
-    { "name": "dlg_matrix_vars_hint", "value": "Variables: i,row • j,col • x,y (coordinates)" },
-    { "name": "dlg_curve", "value": "Curve:" },
-    { "name": "dlg_method", "value": "Method:" },
-    { "name": "dlg_filter_type", "value": "Filter type:" },
-    { "name": "dlg_correlate", "value": "Correlate" },
-    { "name": "dlg_autocorr_hint", "value": "Pick the same column twice for an autocorrelation." },
-    { "name": "dlg_columns_to_plot", "value": "Columns to plot (Y):" },
-    { "name": "dlg_plot_action", "value": "Plot" },
-    { "name": "dlg_graph_props", "value": "Graph Properties" },
-    { "name": "dlg_graph_title_ph", "value": "Graph title" },
-    { "name": "dlg_x_axis_title_ph", "value": "X axis title" },
-    { "name": "dlg_y_axis_title_ph", "value": "Y axis title" },
-    { "name": "dlg_log_x", "value": "Log X axis" },
-    { "name": "dlg_log_y", "value": "Log Y axis" },
-    { "name": "dlg_toggle_legend", "value": "Toggle Legend" },
-    { "name": "dlg_script_console", "value": "Script Console" },
-    { "name": "dlg_script_unavailable", "value": "Scripting backend is not yet available on OpenHarmony." },
-    { "name": "dlg_script_todo", "value": "TODO: muParser/Python console will be wired in a later phase." },
-    { "name": "page_table_prefix", "value": "Table: " },
-    { "name": "page_create_plot_hint", "value": "Create a plot from a table (Qt backend)" },
-    { "name": "msg_new_project_confirm", "value": "Unsaved changes in the current project will be lost. Create a new project?" },
-    { "name": "common_add", "value": "Add" },
-    { "name": "msg_enter_formula", "value": "Please enter a formula." },
-    { "name": "msg_select_table", "value": "Please select a table first." },
-    { "name": "msg_import_failed", "value": "Import failed: " },
-    { "name": "msg_export_failed", "value": "Export failed: " },
-    { "name": "msg_pie_one_column", "value": "Pie plots need exactly one column." },
-    { "name": "msg_select_column", "value": "Please select at least one column." },
-    { "name": "dlg_title_analysis", "value": "Analysis" },
-    { "name": "dlg_title_fit_poly", "value": "Fit Polynomial" },
-    { "name": "dlg_title_interpolate", "value": "Interpolate" },
-    { "name": "dlg_title_fft_filter", "value": "FFT Filter" },
-    { "name": "dlg_method_savgol", "value": "Savitzky-Golay" },
-    { "name": "dlg_method_fft", "value": "FFT" },
-    { "name": "dlg_method_moving_avg", "value": "Moving Average" },
-    { "name": "dlg_method_linear", "value": "Linear" },
-    { "name": "dlg_method_cubic", "value": "Cubic" },
-    { "name": "dlg_method_akima", "value": "Akima" },
-    { "name": "dlg_filter_low_pass", "value": "Low Pass" },
-    { "name": "dlg_filter_high_pass", "value": "High Pass" },
-    { "name": "dlg_filter_band_pass", "value": "Band Pass" },
-    { "name": "dlg_filter_band_block", "value": "Band Block" },
-    { "name": "dlg_poly_order_range", "value": "Polynomial order (2-9):" },
-    { "name": "dlg_poly_order", "value": "Polynomial order:" },
-    { "name": "dlg_points", "value": "Points:" },
-    { "name": "dlg_low_freq", "value": "Low frequency:" },
-    { "name": "dlg_high_freq", "value": "High frequency:" },
-    { "name": "dlg_cutoff_freq", "value": "Cutoff frequency:" },
-    { "name": "dlg_column_1", "value": "Column 1:" },
-    { "name": "dlg_column_2", "value": "Column 2:" },
-    { "name": "msg_no_curves", "value": "The active plot has no analysable curves." },
-    { "name": "msg_valid_freq", "value": "Please enter valid frequencies." },
-    { "name": "msg_two_columns", "value": "The table needs at least two columns." },
-    { "name": "msg_dialog_blocked", "value": "Dialog not yet available on tablet: " },
-    { "name": "msg_file_dialog_unwired", "value": "File dialog not yet wired: " },
-    { "name": "msg_input_dialog_unavailable", "value": "Input dialog not yet available: " },
-    { "name": "msg_color_picker_unavailable", "value": "Color picker not yet available" },
-    { "name": "msg_font_picker_unavailable", "value": "Font picker not yet available" },
-    { "name": "op_save_as", "value": "Save As" },
-    { "name": "op_export", "value": "Export" },
-    { "name": "op_export_image", "value": "Export Image" },
-    { "name": "msg_op_write_failed", "value": " failed: backend could not write the file" },
-    { "name": "msg_op_exported", "value": ": file exported" },
-    { "name": "msg_op_export_failed", "value": " export failed: " },
-    { "name": "msg_table_empty_prefix", "value": "Table '" },
-    { "name": "msg_table_empty_suffix", "value": "' is empty" },
-    { "name": "msg_no_table_selected", "value": "No table selected" },
-    { "name": "msg_no_plot_data", "value": "No plot data" },
-    { "name": "msg_plot_too_small", "value": "Plot area too small" }
+    {
+      "name": "module_desc",
+      "value": "OHPlot Qt application"
+    },
+    {
+      "name": "read_pasteboard_reason",
+      "value": "Paste data from other apps into tables"
+    },
+    {
+      "name": "ability_desc",
+      "value": "OHPlot main ability"
+    },
+    {
+      "name": "menu_file",
+      "value": "File"
+    },
+    {
+      "name": "menu_edit",
+      "value": "Edit"
+    },
+    {
+      "name": "menu_view",
+      "value": "View"
+    },
+    {
+      "name": "menu_table",
+      "value": "Table"
+    },
+    {
+      "name": "menu_plot",
+      "value": "Plot"
+    },
+    {
+      "name": "menu_analysis",
+      "value": "Analysis"
+    },
+    {
+      "name": "menu_help",
+      "value": "Help"
+    },
+    {
+      "name": "file_new_project",
+      "value": "New Project"
+    },
+    {
+      "name": "file_new_table",
+      "value": "New Table"
+    },
+    {
+      "name": "file_new_notes",
+      "value": "New Notes"
+    },
+    {
+      "name": "file_new_matrix",
+      "value": "New Matrix"
+    },
+    {
+      "name": "file_open",
+      "value": "Open..."
+    },
+    {
+      "name": "file_close",
+      "value": "Close"
+    },
+    {
+      "name": "file_save_project",
+      "value": "Save Project"
+    },
+    {
+      "name": "file_save_as",
+      "value": "Save Project As..."
+    },
+    {
+      "name": "file_import",
+      "value": "Import"
+    },
+    {
+      "name": "file_export",
+      "value": "Export"
+    },
+    {
+      "name": "file_print",
+      "value": "Print..."
+    },
+    {
+      "name": "file_quit",
+      "value": "Quit"
+    },
+    {
+      "name": "edit_undo",
+      "value": "Undo"
+    },
+    {
+      "name": "edit_redo",
+      "value": "Redo"
+    },
+    {
+      "name": "edit_cut",
+      "value": "Cut"
+    },
+    {
+      "name": "edit_copy",
+      "value": "Copy"
+    },
+    {
+      "name": "edit_paste",
+      "value": "Paste"
+    },
+    {
+      "name": "edit_delete",
+      "value": "Delete"
+    },
+    {
+      "name": "edit_select_all",
+      "value": "Select All"
+    },
+    {
+      "name": "view_toolbars",
+      "value": "Toolbars"
+    },
+    {
+      "name": "view_plots",
+      "value": "Plots"
+    },
+    {
+      "name": "view_tables",
+      "value": "Tables"
+    },
+    {
+      "name": "view_notes",
+      "value": "Notes"
+    },
+    {
+      "name": "view_log",
+      "value": "Log"
+    },
+    {
+      "name": "view_script_console",
+      "value": "Script Console"
+    },
+    {
+      "name": "table_add_columns",
+      "value": "Add Columns..."
+    },
+    {
+      "name": "table_set_values",
+      "value": "Set Column Values..."
+    },
+    {
+      "name": "table_sort",
+      "value": "Sort Table"
+    },
+    {
+      "name": "table_statistics",
+      "value": "Table Statistics"
+    },
+    {
+      "name": "plot_add_remove_curves",
+      "value": "Add/Remove Curves..."
+    },
+    {
+      "name": "plot_add_error_bars",
+      "value": "Add Error Bars..."
+    },
+    {
+      "name": "plot_2d",
+      "value": "2D Plot"
+    },
+    {
+      "name": "plot_3d",
+      "value": "3D Plot"
+    },
+    {
+      "name": "analysis_fit",
+      "value": "Fit"
+    },
+    {
+      "name": "analysis_fft",
+      "value": "FFT"
+    },
+    {
+      "name": "analysis_smooth",
+      "value": "Smooth"
+    },
+    {
+      "name": "analysis_integrate",
+      "value": "Integrate"
+    },
+    {
+      "name": "analysis_differentiate",
+      "value": "Differentiate"
+    },
+    {
+      "name": "help_help",
+      "value": "Help..."
+    },
+    {
+      "name": "help_about",
+      "value": "About OHPlot..."
+    },
+    {
+      "name": "notes_title",
+      "value": "Notes"
+    },
+    {
+      "name": "status_ready",
+      "value": "Ready"
+    },
+    {
+      "name": "about_title",
+      "value": "About OHPlot"
+    },
+    {
+      "name": "about_version",
+      "value": "OHPlot 2.0.0"
+    },
+    {
+      "name": "about_desc",
+      "value": "Scientific Data Analysis and Visualization"
+    },
+    {
+      "name": "about_copyright",
+      "value": "Copyright (C) 2024 SciDAVis Team — OHPlot OpenHarmony port"
+    },
+    {
+      "name": "about_close",
+      "value": "Close"
+    },
+    {
+      "name": "toolbar_new_table",
+      "value": "New Table"
+    },
+    {
+      "name": "toolbar_open",
+      "value": "Open Project"
+    },
+    {
+      "name": "toolbar_save",
+      "value": "Save Project"
+    },
+    {
+      "name": "toolbar_import",
+      "value": "Import ASCII"
+    },
+    {
+      "name": "toolbar_export",
+      "value": "Export ASCII"
+    },
+    {
+      "name": "toolbar_cut",
+      "value": "Cut"
+    },
+    {
+      "name": "toolbar_copy",
+      "value": "Copy"
+    },
+    {
+      "name": "toolbar_paste",
+      "value": "Paste"
+    },
+    {
+      "name": "toolbar_undo",
+      "value": "Undo"
+    },
+    {
+      "name": "toolbar_redo",
+      "value": "Redo"
+    },
+    {
+      "name": "toolbar_plot_line",
+      "value": "Plot Line"
+    },
+    {
+      "name": "toolbar_plot_scatter",
+      "value": "Plot Scatter"
+    },
+    {
+      "name": "not_adapted",
+      "value": "This feature has not been adapted yet"
+    },
+    {
+      "name": "file_new_note",
+      "value": "New Note"
+    },
+    {
+      "name": "file_new_graph",
+      "value": "New Graph"
+    },
+    {
+      "name": "file_open_project",
+      "value": "Open Project..."
+    },
+    {
+      "name": "file_import_ascii",
+      "value": "Import ASCII..."
+    },
+    {
+      "name": "file_export_ascii",
+      "value": "Export ASCII..."
+    },
+    {
+      "name": "edit_cut_selection",
+      "value": "Cut Selection"
+    },
+    {
+      "name": "edit_copy_selection",
+      "value": "Copy Selection"
+    },
+    {
+      "name": "edit_paste_selection",
+      "value": "Paste Selection"
+    },
+    {
+      "name": "edit_delete_selection",
+      "value": "Delete Selection"
+    },
+    {
+      "name": "edit_preferences",
+      "value": "Preferences..."
+    },
+    {
+      "name": "view_project_browser",
+      "value": "Project Browser"
+    },
+    {
+      "name": "view_plot_list",
+      "value": "Plot List"
+    },
+    {
+      "name": "view_table_list",
+      "value": "Table List"
+    },
+    {
+      "name": "view_note_pad",
+      "value": "Note Pad"
+    },
+    {
+      "name": "view_results_log",
+      "value": "Results Log"
+    },
+    {
+      "name": "menu_matrix",
+      "value": "Matrix"
+    },
+    {
+      "name": "matrix_set_dimensions",
+      "value": "Set Dimensions..."
+    },
+    {
+      "name": "matrix_set_values",
+      "value": "Set Values..."
+    },
+    {
+      "name": "matrix_transpose",
+      "value": "Transpose"
+    },
+    {
+      "name": "matrix_invert",
+      "value": "Invert"
+    },
+    {
+      "name": "menu_graph",
+      "value": "Graph"
+    },
+    {
+      "name": "graph_properties",
+      "value": "Properties..."
+    },
+    {
+      "name": "graph_export_image",
+      "value": "Export Image..."
+    },
+    {
+      "name": "graph_add_remove_curve",
+      "value": "Add/Remove Curve..."
+    },
+    {
+      "name": "graph_add_error_bars",
+      "value": "Add Error Bars..."
+    },
+    {
+      "name": "graph_add_function",
+      "value": "Add Function..."
+    },
+    {
+      "name": "graph_rescale",
+      "value": "Rescale To Show All"
+    },
+    {
+      "name": "table_sort_table",
+      "value": "Sort Table..."
+    },
+    {
+      "name": "table_stats_columns",
+      "value": "Statistics on Columns"
+    },
+    {
+      "name": "table_stats_rows",
+      "value": "Statistics on Rows"
+    },
+    {
+      "name": "plot_line",
+      "value": "Line"
+    },
+    {
+      "name": "plot_scatter",
+      "value": "Scatter"
+    },
+    {
+      "name": "plot_line_symbol",
+      "value": "Line + Symbol"
+    },
+    {
+      "name": "plot_vertical_bars",
+      "value": "Vertical Bars"
+    },
+    {
+      "name": "plot_horizontal_bars",
+      "value": "Horizontal Bars"
+    },
+    {
+      "name": "plot_area",
+      "value": "Area"
+    },
+    {
+      "name": "plot_pie",
+      "value": "Pie"
+    },
+    {
+      "name": "plot_vertical_drop_lines",
+      "value": "Vertical Drop Lines"
+    },
+    {
+      "name": "plot_spline",
+      "value": "Spline"
+    },
+    {
+      "name": "plot_vertical_steps",
+      "value": "Vertical Steps"
+    },
+    {
+      "name": "plot_horizontal_steps",
+      "value": "Horizontal Steps"
+    },
+    {
+      "name": "plot_histogram",
+      "value": "Histogram"
+    },
+    {
+      "name": "plot_box",
+      "value": "Box Plot"
+    },
+    {
+      "name": "plot_explorer_2d",
+      "value": "Plot Explorer (2D)"
+    },
+    {
+      "name": "analysis_fit_linear",
+      "value": "Fit Linear"
+    },
+    {
+      "name": "analysis_fit_polynomial",
+      "value": "Fit Polynomial..."
+    },
+    {
+      "name": "analysis_fit_gaussian",
+      "value": "Fit Gaussian"
+    },
+    {
+      "name": "analysis_fit_lorentzian",
+      "value": "Fit Lorentzian"
+    },
+    {
+      "name": "analysis_fit_boltzmann",
+      "value": "Fit Boltzmann (Sigmoidal)"
+    },
+    {
+      "name": "analysis_fft_dlg",
+      "value": "FFT..."
+    },
+    {
+      "name": "analysis_fft_filter",
+      "value": "FFT Filter..."
+    },
+    {
+      "name": "analysis_smooth_dlg",
+      "value": "Smooth..."
+    },
+    {
+      "name": "analysis_interpolate",
+      "value": "Interpolate..."
+    },
+    {
+      "name": "analysis_correlate",
+      "value": "Correlate..."
+    },
+    {
+      "name": "menu_windows",
+      "value": "Windows"
+    },
+    {
+      "name": "win_cascade",
+      "value": "Cascade"
+    },
+    {
+      "name": "win_maximize",
+      "value": "Maximize Window"
+    },
+    {
+      "name": "win_minimize",
+      "value": "Minimize Window"
+    },
+    {
+      "name": "win_close",
+      "value": "Close Window"
+    },
+    {
+      "name": "help_browser",
+      "value": "Help Browser"
+    },
+    {
+      "name": "help_about_ohplot",
+      "value": "About OHPlot"
+    },
+    {
+      "name": "tbmenu_new_table",
+      "value": "New Table"
+    },
+    {
+      "name": "tbmenu_new_matrix",
+      "value": "New Matrix"
+    },
+    {
+      "name": "tbmenu_new_note",
+      "value": "New Note"
+    },
+    {
+      "name": "tbmenu_new_graph",
+      "value": "New Graph"
+    },
+    {
+      "name": "tbmenu_new_function_plot",
+      "value": "New Function Plot"
+    },
+    {
+      "name": "tbmenu_new_3d_surface",
+      "value": "New 3D Surface Plot"
+    },
+    {
+      "name": "tbmenu_auto_layout",
+      "value": "Automatic Layout"
+    },
+    {
+      "name": "tbmenu_add_layer",
+      "value": "Add Layer"
+    },
+    {
+      "name": "tbmenu_remove_layer",
+      "value": "Remove Layer"
+    },
+    {
+      "name": "tbmenu_arrange_layers",
+      "value": "Arrange Layers..."
+    },
+    {
+      "name": "tbmenu_add_remove_curve",
+      "value": "Add/Remove Curve..."
+    },
+    {
+      "name": "tbmenu_add_error_bars",
+      "value": "Add Error Bars..."
+    },
+    {
+      "name": "tbmenu_add_function",
+      "value": "Add Function..."
+    },
+    {
+      "name": "tbmenu_add_text",
+      "value": "Add Text"
+    },
+    {
+      "name": "tbmenu_draw_arrow",
+      "value": "Draw Arrow"
+    },
+    {
+      "name": "tbmenu_draw_line",
+      "value": "Draw Line"
+    },
+    {
+      "name": "tbmenu_add_timestamp",
+      "value": "Add Time Stamp"
+    },
+    {
+      "name": "tbmenu_add_image",
+      "value": "Add Image"
+    },
+    {
+      "name": "tbmenu_new_legend",
+      "value": "New Legend"
+    },
+    {
+      "name": "tbmenu_line",
+      "value": "Line"
+    },
+    {
+      "name": "tbmenu_scatter",
+      "value": "Scatter"
+    },
+    {
+      "name": "tbmenu_line_symbol",
+      "value": "Line + Symbol"
+    },
+    {
+      "name": "tbmenu_spline",
+      "value": "Spline"
+    },
+    {
+      "name": "tbmenu_vertical_drop_lines",
+      "value": "Vertical Drop Lines"
+    },
+    {
+      "name": "tbmenu_horizontal_steps",
+      "value": "Horizontal Steps"
+    },
+    {
+      "name": "tbmenu_vertical_steps",
+      "value": "Vertical Steps"
+    },
+    {
+      "name": "tbmenu_vertical_bars",
+      "value": "Vertical Bars"
+    },
+    {
+      "name": "tbmenu_horizontal_bars",
+      "value": "Horizontal Bars"
+    },
+    {
+      "name": "tbmenu_vectors_xyxy",
+      "value": "Vectors XYXY"
+    },
+    {
+      "name": "tbmenu_vectors_xyam",
+      "value": "Vectors XYAM"
+    },
+    {
+      "name": "tip_new_project",
+      "value": "New Project"
+    },
+    {
+      "name": "tip_new_aspect",
+      "value": "New"
+    },
+    {
+      "name": "tip_open",
+      "value": "Open Project"
+    },
+    {
+      "name": "tip_open_template",
+      "value": "Open Template"
+    },
+    {
+      "name": "tip_import",
+      "value": "Import ASCII"
+    },
+    {
+      "name": "tip_save",
+      "value": "Save Project"
+    },
+    {
+      "name": "tip_save_template",
+      "value": "Save As Template"
+    },
+    {
+      "name": "tip_print",
+      "value": "Print"
+    },
+    {
+      "name": "tip_export_pdf",
+      "value": "Export to PDF"
+    },
+    {
+      "name": "tip_project_browser",
+      "value": "Project Explorer"
+    },
+    {
+      "name": "tip_log",
+      "value": "Results Log"
+    },
+    {
+      "name": "tip_undo",
+      "value": "Undo"
+    },
+    {
+      "name": "tip_redo",
+      "value": "Redo"
+    },
+    {
+      "name": "tip_cut",
+      "value": "Cut"
+    },
+    {
+      "name": "tip_copy",
+      "value": "Copy"
+    },
+    {
+      "name": "tip_paste",
+      "value": "Paste"
+    },
+    {
+      "name": "tip_delete",
+      "value": "Delete"
+    },
+    {
+      "name": "tip_graph_pointer",
+      "value": "Pointer"
+    },
+    {
+      "name": "tip_layers",
+      "value": "Manage Layers"
+    },
+    {
+      "name": "tip_curves",
+      "value": "Add/Remove Curves"
+    },
+    {
+      "name": "tip_enrichments",
+      "value": "Add Text/Annotation"
+    },
+    {
+      "name": "tip_zoom_in",
+      "value": "Zoom In"
+    },
+    {
+      "name": "tip_zoom_out",
+      "value": "Zoom Out"
+    },
+    {
+      "name": "tip_rescale",
+      "value": "Show All"
+    },
+    {
+      "name": "tip_screen_reader",
+      "value": "Screen Reader"
+    },
+    {
+      "name": "tip_data_reader",
+      "value": "Data Reader"
+    },
+    {
+      "name": "tip_select_range",
+      "value": "Select Data Range"
+    },
+    {
+      "name": "tip_plot_lines",
+      "value": "Line/Scatter Plot"
+    },
+    {
+      "name": "tip_plot_bars",
+      "value": "Bar Chart"
+    },
+    {
+      "name": "tip_plot_area",
+      "value": "Area Plot"
+    },
+    {
+      "name": "tip_plot_pie",
+      "value": "Pie Chart"
+    },
+    {
+      "name": "tip_plot_histogram",
+      "value": "Histogram"
+    },
+    {
+      "name": "tip_plot_box",
+      "value": "Box Plot"
+    },
+    {
+      "name": "tip_plot_vectors",
+      "value": "Vector Plot"
+    },
+    {
+      "name": "tip_plot3d_ribbon",
+      "value": "3D Ribbon Plot"
+    },
+    {
+      "name": "tip_plot3d_bars",
+      "value": "3D Bar Plot"
+    },
+    {
+      "name": "tip_plot3d_scatter",
+      "value": "3D Scatter Plot"
+    },
+    {
+      "name": "tip_plot3d_trajectory",
+      "value": "3D Trajectory Plot"
+    },
+    {
+      "name": "tip_table_size",
+      "value": "Table Size"
+    },
+    {
+      "name": "tip_add_column",
+      "value": "Add Column"
+    },
+    {
+      "name": "tip_stats_columns",
+      "value": "Column Statistics"
+    },
+    {
+      "name": "tip_stats_rows",
+      "value": "Row Statistics"
+    },
+    {
+      "name": "pref_general",
+      "value": "General"
+    },
+    {
+      "name": "pref_tables",
+      "value": "Tables"
+    },
+    {
+      "name": "pref_plots",
+      "value": "Plots"
+    },
+    {
+      "name": "pref_autosave",
+      "value": "Autosave"
+    },
+    {
+      "name": "pref_autosave_interval",
+      "value": "Autosave interval (min)"
+    },
+    {
+      "name": "pref_show_comments",
+      "value": "Show comments"
+    },
+    {
+      "name": "pref_antialiasing",
+      "value": "Antialiasing"
+    },
+    {
+      "name": "pref_language",
+      "value": "Language"
+    },
+    {
+      "name": "pref_lang_system",
+      "value": "Follow System"
+    },
+    {
+      "name": "pref_lang_english",
+      "value": "English"
+    },
+    {
+      "name": "pref_lang_chinese",
+      "value": "简体中文"
+    },
+    {
+      "name": "common_ok",
+      "value": "OK"
+    },
+    {
+      "name": "common_cancel",
+      "value": "Cancel"
+    },
+    {
+      "name": "common_apply",
+      "value": "Apply"
+    },
+    {
+      "name": "common_close",
+      "value": "Close"
+    },
+    {
+      "name": "common_clear",
+      "value": "Clear"
+    },
+    {
+      "name": "common_refresh",
+      "value": "Refresh"
+    },
+    {
+      "name": "common_loading",
+      "value": "Loading..."
+    },
+    {
+      "name": "common_empty",
+      "value": "(empty)"
+    },
+    {
+      "name": "common_no_columns",
+      "value": "No columns"
+    },
+    {
+      "name": "common_no_curves",
+      "value": "No curves"
+    },
+    {
+      "name": "common_no_tables",
+      "value": "No tables available"
+    },
+    {
+      "name": "common_no_plots",
+      "value": "No plots available"
+    },
+    {
+      "name": "panel_results_log",
+      "value": "Results Log"
+    },
+    {
+      "name": "panel_project",
+      "value": "Project"
+    },
+    {
+      "name": "panel_plots",
+      "value": "Plots"
+    },
+    {
+      "name": "panel_curves",
+      "value": "Curves"
+    },
+    {
+      "name": "dlg_import_title",
+      "value": "Import ASCII Data"
+    },
+    {
+      "name": "dlg_separator",
+      "value": "Separator:"
+    },
+    {
+      "name": "dlg_import_mode",
+      "value": "Import Mode:"
+    },
+    {
+      "name": "dlg_import_new_tables",
+      "value": "New Tables"
+    },
+    {
+      "name": "dlg_import_new_rows",
+      "value": "New Rows"
+    },
+    {
+      "name": "dlg_import_overwrite",
+      "value": "Overwrite"
+    },
+    {
+      "name": "dlg_import_ignored_lines",
+      "value": "Ignored lines:"
+    },
+    {
+      "name": "dlg_import_convert_numeric",
+      "value": "Convert to numeric:"
+    },
+    {
+      "name": "dlg_import_rename_columns",
+      "value": "Rename columns:"
+    },
+    {
+      "name": "dlg_import_strip_spaces",
+      "value": "Strip spaces:"
+    },
+    {
+      "name": "dlg_import_action",
+      "value": "Import..."
+    },
+    {
+      "name": "dlg_export_title",
+      "value": "Export ASCII Data"
+    },
+    {
+      "name": "dlg_export_table",
+      "value": "Table:"
+    },
+    {
+      "name": "dlg_export_include_names",
+      "value": "Include column names:"
+    },
+    {
+      "name": "dlg_export_action",
+      "value": "Export"
+    },
+    {
+      "name": "dlg_add_columns",
+      "value": "Add Columns"
+    },
+    {
+      "name": "dlg_num_columns",
+      "value": "Number of columns:"
+    },
+    {
+      "name": "dlg_set_col_values",
+      "value": "Set Column Values"
+    },
+    {
+      "name": "dlg_column",
+      "value": "Column:"
+    },
+    {
+      "name": "dlg_formula_muparser",
+      "value": "Formula (muParser):"
+    },
+    {
+      "name": "dlg_example_col",
+      "value": "e.g. i  or  col(\"1\")*2"
+    },
+    {
+      "name": "dlg_examples_hint",
+      "value": "Examples: i • rand() • sin(0.1*i) • col(\"1\")+1   (i = row number)"
+    },
+    {
+      "name": "dlg_sort_table",
+      "value": "Sort Table"
+    },
+    {
+      "name": "dlg_sort_by",
+      "value": "Sort by:"
+    },
+    {
+      "name": "dlg_each_col_separately",
+      "value": "(each column separately)"
+    },
+    {
+      "name": "dlg_order",
+      "value": "Order:"
+    },
+    {
+      "name": "dlg_ascending",
+      "value": "Ascending"
+    },
+    {
+      "name": "dlg_descending",
+      "value": "Descending"
+    },
+    {
+      "name": "dlg_sort_action",
+      "value": "Sort"
+    },
+    {
+      "name": "dlg_matrix_dims",
+      "value": "Matrix Dimensions"
+    },
+    {
+      "name": "dlg_rows",
+      "value": "Rows:"
+    },
+    {
+      "name": "dlg_cols",
+      "value": "Columns:"
+    },
+    {
+      "name": "dlg_set_matrix_values",
+      "value": "Set Matrix Values"
+    },
+    {
+      "name": "dlg_example_matrix",
+      "value": "e.g. i*j  or  sin(x)*cos(y)"
+    },
+    {
+      "name": "dlg_matrix_vars_hint",
+      "value": "Variables: i,row • j,col • x,y (coordinates)"
+    },
+    {
+      "name": "dlg_curve",
+      "value": "Curve:"
+    },
+    {
+      "name": "dlg_method",
+      "value": "Method:"
+    },
+    {
+      "name": "dlg_filter_type",
+      "value": "Filter type:"
+    },
+    {
+      "name": "dlg_correlate",
+      "value": "Correlate"
+    },
+    {
+      "name": "dlg_autocorr_hint",
+      "value": "Pick the same column twice for an autocorrelation."
+    },
+    {
+      "name": "dlg_columns_to_plot",
+      "value": "Columns to plot (Y):"
+    },
+    {
+      "name": "dlg_plot_action",
+      "value": "Plot"
+    },
+    {
+      "name": "dlg_graph_props",
+      "value": "Graph Properties"
+    },
+    {
+      "name": "dlg_graph_title_ph",
+      "value": "Graph title"
+    },
+    {
+      "name": "dlg_x_axis_title_ph",
+      "value": "X axis title"
+    },
+    {
+      "name": "dlg_y_axis_title_ph",
+      "value": "Y axis title"
+    },
+    {
+      "name": "dlg_log_x",
+      "value": "Log X axis"
+    },
+    {
+      "name": "dlg_log_y",
+      "value": "Log Y axis"
+    },
+    {
+      "name": "dlg_toggle_legend",
+      "value": "Toggle Legend"
+    },
+    {
+      "name": "dlg_script_console",
+      "value": "Script Console"
+    },
+    {
+      "name": "dlg_script_unavailable",
+      "value": "Scripting backend is not yet available on OpenHarmony."
+    },
+    {
+      "name": "dlg_script_todo",
+      "value": "TODO: muParser/Python console will be wired in a later phase."
+    },
+    {
+      "name": "page_table_prefix",
+      "value": "Table: "
+    },
+    {
+      "name": "page_create_plot_hint",
+      "value": "Create a plot from a table (Qt backend)"
+    },
+    {
+      "name": "msg_new_project_confirm",
+      "value": "Unsaved changes in the current project will be lost. Create a new project?"
+    },
+    {
+      "name": "common_add",
+      "value": "Add"
+    },
+    {
+      "name": "msg_enter_formula",
+      "value": "Please enter a formula."
+    },
+    {
+      "name": "msg_select_table",
+      "value": "Please select a table first."
+    },
+    {
+      "name": "msg_import_failed",
+      "value": "Import failed: "
+    },
+    {
+      "name": "msg_export_failed",
+      "value": "Export failed: "
+    },
+    {
+      "name": "msg_pie_one_column",
+      "value": "Pie plots need exactly one column."
+    },
+    {
+      "name": "msg_select_column",
+      "value": "Please select at least one column."
+    },
+    {
+      "name": "dlg_title_analysis",
+      "value": "Analysis"
+    },
+    {
+      "name": "dlg_title_fit_poly",
+      "value": "Fit Polynomial"
+    },
+    {
+      "name": "dlg_title_interpolate",
+      "value": "Interpolate"
+    },
+    {
+      "name": "dlg_title_fft_filter",
+      "value": "FFT Filter"
+    },
+    {
+      "name": "dlg_method_savgol",
+      "value": "Savitzky-Golay"
+    },
+    {
+      "name": "dlg_method_fft",
+      "value": "FFT"
+    },
+    {
+      "name": "dlg_method_moving_avg",
+      "value": "Moving Average"
+    },
+    {
+      "name": "dlg_method_linear",
+      "value": "Linear"
+    },
+    {
+      "name": "dlg_method_cubic",
+      "value": "Cubic"
+    },
+    {
+      "name": "dlg_method_akima",
+      "value": "Akima"
+    },
+    {
+      "name": "dlg_filter_low_pass",
+      "value": "Low Pass"
+    },
+    {
+      "name": "dlg_filter_high_pass",
+      "value": "High Pass"
+    },
+    {
+      "name": "dlg_filter_band_pass",
+      "value": "Band Pass"
+    },
+    {
+      "name": "dlg_filter_band_block",
+      "value": "Band Block"
+    },
+    {
+      "name": "dlg_poly_order_range",
+      "value": "Polynomial order (2-9):"
+    },
+    {
+      "name": "dlg_poly_order",
+      "value": "Polynomial order:"
+    },
+    {
+      "name": "dlg_points",
+      "value": "Points:"
+    },
+    {
+      "name": "dlg_low_freq",
+      "value": "Low frequency:"
+    },
+    {
+      "name": "dlg_high_freq",
+      "value": "High frequency:"
+    },
+    {
+      "name": "dlg_cutoff_freq",
+      "value": "Cutoff frequency:"
+    },
+    {
+      "name": "dlg_column_1",
+      "value": "Column 1:"
+    },
+    {
+      "name": "dlg_column_2",
+      "value": "Column 2:"
+    },
+    {
+      "name": "msg_no_curves",
+      "value": "The active plot has no analysable curves."
+    },
+    {
+      "name": "msg_valid_freq",
+      "value": "Please enter valid frequencies."
+    },
+    {
+      "name": "msg_two_columns",
+      "value": "The table needs at least two columns."
+    },
+    {
+      "name": "msg_dialog_blocked",
+      "value": "Dialog not yet available on tablet: "
+    },
+    {
+      "name": "msg_file_dialog_unwired",
+      "value": "File dialog not yet wired: "
+    },
+    {
+      "name": "msg_input_dialog_unavailable",
+      "value": "Input dialog not yet available: "
+    },
+    {
+      "name": "msg_color_picker_unavailable",
+      "value": "Color picker not yet available"
+    },
+    {
+      "name": "msg_font_picker_unavailable",
+      "value": "Font picker not yet available"
+    },
+    {
+      "name": "op_save_as",
+      "value": "Save As"
+    },
+    {
+      "name": "op_export",
+      "value": "Export"
+    },
+    {
+      "name": "op_export_image",
+      "value": "Export Image"
+    },
+    {
+      "name": "msg_op_write_failed",
+      "value": " failed: backend could not write the file"
+    },
+    {
+      "name": "msg_op_exported",
+      "value": ": file exported"
+    },
+    {
+      "name": "msg_op_export_failed",
+      "value": " export failed: "
+    },
+    {
+      "name": "msg_table_empty_prefix",
+      "value": "Table '"
+    },
+    {
+      "name": "msg_table_empty_suffix",
+      "value": "' is empty"
+    },
+    {
+      "name": "msg_no_table_selected",
+      "value": "No table selected"
+    },
+    {
+      "name": "msg_no_plot_data",
+      "value": "No plot data"
+    },
+    {
+      "name": "msg_plot_too_small",
+      "value": "Plot area too small"
+    },
+    {
+      "name": "analysis_quick_fit",
+      "value": "Quick Fit"
+    },
+    {
+      "name": "dlg_assoc_column",
+      "value": "Column"
+    },
+    {
+      "name": "dlg_assoc_list",
+      "value": "Associations"
+    },
+    {
+      "name": "dlg_assoc_spreadsheet",
+      "value": "Spreadsheet:"
+    },
+    {
+      "name": "dlg_assoc_title",
+      "value": "Plot Associations"
+    },
+    {
+      "name": "dlg_assoc_update",
+      "value": "Update curves"
+    },
+    {
+      "name": "dlg_axes_backbones",
+      "value": "Backbones"
+    },
+    {
+      "name": "dlg_axes_from",
+      "value": "From"
+    },
+    {
+      "name": "dlg_axes_invalid_range",
+      "value": "Please enter valid From/To values"
+    },
+    {
+      "name": "dlg_axes_inverted",
+      "value": "Inverted"
+    },
+    {
+      "name": "dlg_axes_line_width",
+      "value": "Line width"
+    },
+    {
+      "name": "dlg_axes_major_grid",
+      "value": "Major Grids"
+    },
+    {
+      "name": "dlg_axes_minor_grid",
+      "value": "Minor Grids"
+    },
+    {
+      "name": "dlg_axes_show",
+      "value": "Show axis"
+    },
+    {
+      "name": "dlg_axes_step",
+      "value": "Step"
+    },
+    {
+      "name": "dlg_axes_tab_axis",
+      "value": "Axis"
+    },
+    {
+      "name": "dlg_axes_tab_frame",
+      "value": "Frame"
+    },
+    {
+      "name": "dlg_axes_tab_grid",
+      "value": "Grid"
+    },
+    {
+      "name": "dlg_axes_tab_scale",
+      "value": "Scale"
+    },
+    {
+      "name": "dlg_axes_title",
+      "value": "General Plot Options"
+    },
+    {
+      "name": "dlg_axes_title_label",
+      "value": "Title"
+    },
+    {
+      "name": "dlg_axes_title_ph",
+      "value": "Axis title"
+    },
+    {
+      "name": "dlg_axes_to",
+      "value": "To"
+    },
+    {
+      "name": "dlg_axes_type",
+      "value": "Type"
+    },
+    {
+      "name": "dlg_curve_range_dataset",
+      "value": "Data set:"
+    },
+    {
+      "name": "dlg_curve_range_from",
+      "value": "From row number"
+    },
+    {
+      "name": "dlg_curve_range_no_curve",
+      "value": "No curve selected"
+    },
+    {
+      "name": "dlg_curve_range_title",
+      "value": "Plot range"
+    },
+    {
+      "name": "dlg_curve_range_to",
+      "value": "To row number"
+    },
+    {
+      "name": "dlg_num_cols",
+      "value": "Number of columns:"
+    },
+    {
+      "name": "dlg_num_rows",
+      "value": "Number of rows:"
+    },
+    {
+      "name": "dlg_pw_add_curve_first",
+      "value": "You must add a new curve first!"
+    },
+    {
+      "name": "dlg_pw_columns",
+      "value": "Columns"
+    },
+    {
+      "name": "dlg_pw_curve_list",
+      "value": "Curve list"
+    },
+    {
+      "name": "dlg_pw_define_x_first",
+      "value": "You must define a X column first!"
+    },
+    {
+      "name": "dlg_pw_define_xy_first",
+      "value": "You must define X and Y columns first!"
+    },
+    {
+      "name": "dlg_pw_delete_curve",
+      "value": "Delete curve"
+    },
+    {
+      "name": "dlg_pw_err_already",
+      "value": "You have already defined an error-bars column!"
+    },
+    {
+      "name": "dlg_pw_err_no_z",
+      "value": "Error bars not compatible with Z curves"
+    },
+    {
+      "name": "dlg_pw_need_y",
+      "value": "Please define a Y column for the curve"
+    },
+    {
+      "name": "dlg_pw_new_curve",
+      "value": "New curve"
+    },
+    {
+      "name": "dlg_pw_title",
+      "value": "Select Columns to Plot"
+    },
+    {
+      "name": "dlg_pw_worksheet",
+      "value": "Worksheet"
+    },
+    {
+      "name": "dlg_pw_x_already",
+      "value": "You have already defined a X column!"
+    },
+    {
+      "name": "dlg_pw_y_already",
+      "value": "You have already defined a Y column!"
+    },
+    {
+      "name": "dlg_pw_z_already",
+      "value": "You have already defined a Z column!"
+    },
+    {
+      "name": "dlg_table_size",
+      "value": "Table Size"
+    },
+    {
+      "name": "file_new_3d_surface",
+      "value": "3D Surface Plot"
+    },
+    {
+      "name": "file_new_function_plot",
+      "value": "Function Plot"
+    },
+    {
+      "name": "fit_wizard",
+      "value": "Fit Wizard..."
+    },
+    {
+      "name": "format_axes",
+      "value": "Axes..."
+    },
+    {
+      "name": "format_grid",
+      "value": "Grid..."
+    },
+    {
+      "name": "format_plot",
+      "value": "Plot..."
+    },
+    {
+      "name": "format_scales",
+      "value": "Scales..."
+    },
+    {
+      "name": "format_title",
+      "value": "Title..."
+    },
+    {
+      "name": "menu_format",
+      "value": "Format"
+    },
+    {
+      "name": "menu_scripting",
+      "value": "Scripting"
+    },
+    {
+      "name": "menu_tools",
+      "value": "Tools"
+    },
+    {
+      "name": "plot_3d_submenu",
+      "value": "3D"
+    },
+    {
+      "name": "plot_panel",
+      "value": "Panel"
+    },
+    {
+      "name": "plot_special",
+      "value": "Special"
+    },
+    {
+      "name": "plot_statistical",
+      "value": "Statistical"
+    },
+    {
+      "name": "scripting_console",
+      "value": "Script Console..."
+    },
+    {
+      "name": "scripting_notes",
+      "value": "Execute Notes..."
+    },
+    {
+      "name": "tools_data_reader",
+      "value": "Data Reader"
+    },
+    {
+      "name": "tools_disable_tools",
+      "value": "Disable Tools"
+    },
+    {
+      "name": "tools_move_points",
+      "value": "Move Data Points"
+    },
+    {
+      "name": "tools_range",
+      "value": "Select Data Range"
+    },
+    {
+      "name": "tools_remove_bad",
+      "value": "Remove Bad Data Points"
+    },
+    {
+      "name": "tools_rescale",
+      "value": "Rescale"
+    },
+    {
+      "name": "tools_screen_reader",
+      "value": "Screen Reader"
+    },
+    {
+      "name": "tools_zoom_in",
+      "value": "Zoom In"
+    },
+    {
+      "name": "tools_zoom_out",
+      "value": "Zoom Out"
+    },
+    {
+      "name": "dlg_align_bottom",
+      "value": "Bottom"
+    },
+    {
+      "name": "dlg_align_center",
+      "value": "Center"
+    },
+    {
+      "name": "dlg_align_left",
+      "value": "Left"
+    },
+    {
+      "name": "dlg_align_right",
+      "value": "Right"
+    },
+    {
+      "name": "dlg_align_top",
+      "value": "Top"
+    },
+    {
+      "name": "dlg_alignment",
+      "value": "Alignment"
+    },
+    {
+      "name": "dlg_arrange_layers",
+      "value": "Arrange Layers"
+    },
+    {
+      "name": "dlg_arrow_end",
+      "value": "Arrow end"
+    },
+    {
+      "name": "dlg_arrow_start",
+      "value": "Arrow start"
+    },
+    {
+      "name": "dlg_auto_layout",
+      "value": "Auto Layout"
+    },
+    {
+      "name": "dlg_bg_color",
+      "value": "Background:"
+    },
+    {
+      "name": "dlg_calculate",
+      "value": "Calculate"
+    },
+    {
+      "name": "dlg_case_sensitive",
+      "value": "Case sensitive"
+    },
+    {
+      "name": "dlg_choose_symbol",
+      "value": "Choose symbol"
+    },
+    {
+      "name": "dlg_color",
+      "value": "Color:"
+    },
+    {
+      "name": "dlg_cols_gap",
+      "value": "Horizontal gap (%)"
+    },
+    {
+      "name": "dlg_columns_to_analyze",
+      "value": "Columns to analyze:"
+    },
+    {
+      "name": "dlg_end_point",
+      "value": "End point"
+    },
+    {
+      "name": "dlg_find",
+      "value": "Find:"
+    },
+    {
+      "name": "dlg_find_action",
+      "value": "Find"
+    },
+    {
+      "name": "dlg_find_ph",
+      "value": "Enter search text..."
+    },
+    {
+      "name": "dlg_find_title",
+      "value": "Find Window"
+    },
+    {
+      "name": "dlg_font",
+      "value": "Font:"
+    },
+    {
+      "name": "dlg_font_size",
+      "value": "Font size:"
+    },
+    {
+      "name": "dlg_frame",
+      "value": "Frame:"
+    },
+    {
+      "name": "dlg_frame_none",
+      "value": "None"
+    },
+    {
+      "name": "dlg_frame_rect",
+      "value": "Rect"
+    },
+    {
+      "name": "dlg_frame_shadow",
+      "value": "Shadow"
+    },
+    {
+      "name": "dlg_grid",
+      "value": "Grid"
+    },
+    {
+      "name": "dlg_head_angle",
+      "value": "Head angle"
+    },
+    {
+      "name": "dlg_head_filled",
+      "value": "Filled"
+    },
+    {
+      "name": "dlg_head_length",
+      "value": "Head length"
+    },
+    {
+      "name": "dlg_horizontal",
+      "value": "Horizontal"
+    },
+    {
+      "name": "dlg_image_file",
+      "value": "Image file:"
+    },
+    {
+      "name": "dlg_image_geometry",
+      "value": "Image geometry"
+    },
+    {
+      "name": "dlg_image_path_ph",
+      "value": "Select file..."
+    },
+    {
+      "name": "dlg_include_subfolders",
+      "value": "Include subfolders"
+    },
+    {
+      "name": "dlg_inserted_text",
+      "value": "Inserted text"
+    },
+    {
+      "name": "dlg_layer_canvas_size",
+      "value": "Canvas size"
+    },
+    {
+      "name": "dlg_layers",
+      "value": "Layers"
+    },
+    {
+      "name": "dlg_line_options",
+      "value": "Line Options"
+    },
+    {
+      "name": "dlg_margin_bottom",
+      "value": "Bottom margin"
+    },
+    {
+      "name": "dlg_margin_left",
+      "value": "Left margin"
+    },
+    {
+      "name": "dlg_margin_right",
+      "value": "Right margin"
+    },
+    {
+      "name": "dlg_margin_top",
+      "value": "Top margin"
+    },
+    {
+      "name": "dlg_number",
+      "value": "Number"
+    },
+    {
+      "name": "dlg_opacity",
+      "value": "Opacity:"
+    },
+    {
+      "name": "dlg_partial_match",
+      "value": "Partial match"
+    },
+    {
+      "name": "dlg_pixels",
+      "value": "Pixels"
+    },
+    {
+      "name": "dlg_recent_searches",
+      "value": "Recent searches"
+    },
+    {
+      "name": "dlg_rename_both",
+      "value": "Rename both"
+    },
+    {
+      "name": "dlg_rename_label",
+      "value": "Label:"
+    },
+    {
+      "name": "dlg_rename_name",
+      "value": "Name:"
+    },
+    {
+      "name": "dlg_rows_gap",
+      "value": "Vertical gap (%)"
+    },
+    {
+      "name": "dlg_scale_coords",
+      "value": "Scaled coordinates"
+    },
+    {
+      "name": "dlg_search_folder_names",
+      "value": "Folder names"
+    },
+    {
+      "name": "dlg_search_in",
+      "value": "Search in:"
+    },
+    {
+      "name": "dlg_search_window_labels",
+      "value": "Window labels"
+    },
+    {
+      "name": "dlg_search_window_names",
+      "value": "Window names"
+    },
+    {
+      "name": "dlg_spacing",
+      "value": "Spacing"
+    },
+    {
+      "name": "dlg_start_from",
+      "value": "Start from:"
+    },
+    {
+      "name": "dlg_start_point",
+      "value": "Start point"
+    },
+    {
+      "name": "dlg_stat_type",
+      "value": "Statistics type:"
+    },
+    {
+      "name": "dlg_style",
+      "value": "Style:"
+    },
+    {
+      "name": "dlg_tab_arrow_head",
+      "value": "Arrow Heads"
+    },
+    {
+      "name": "dlg_tab_geometry",
+      "value": "Geometry"
+    },
+    {
+      "name": "dlg_tab_options",
+      "value": "Options"
+    },
+    {
+      "name": "dlg_table_statistics",
+      "value": "Table Statistics"
+    },
+    {
+      "name": "dlg_text_color",
+      "value": "Text Color:"
+    },
+    {
+      "name": "dlg_text_content",
+      "value": "Content:"
+    },
+    {
+      "name": "dlg_text_options",
+      "value": "Text Options"
+    },
+    {
+      "name": "dlg_unit",
+      "value": "Unit:"
+    },
+    {
+      "name": "dlg_update_start_path",
+      "value": "Update start path"
+    },
+    {
+      "name": "dlg_width",
+      "value": "Width:"
+    },
+    {
+      "name": "dlg_window_title",
+      "value": "Rename Window"
+    },
+    {
+      "name": "graph_arrange_layers",
+      "value": "Arrange Layers..."
+    },
+    {
+      "name": "graph_associations",
+      "value": "Plot Associations..."
+    },
+    {
+      "name": "graph_curve_range",
+      "value": "Curve Range..."
+    },
+    {
+      "name": "graph_symbol",
+      "value": "Symbol..."
+    },
+    {
+      "name": "msg_enter_search_text",
+      "value": "Please enter search text."
+    },
+    {
+      "name": "msg_enter_text_content",
+      "value": "Please enter text content."
+    },
+    {
+      "name": "msg_enter_window_name",
+      "value": "Please enter a window name."
+    },
+    {
+      "name": "msg_select_image_file",
+      "value": "Please select an image file."
+    },
+    {
+      "name": "view_plot_wizard",
+      "value": "Plot Wizard..."
+    },
+    {
+      "name": "win_find",
+      "value": "Find Window..."
+    },
+    {
+      "name": "win_rename",
+      "value": "Rename Window..."
+    },
+    {
+      "name": "dlg_angle",
+      "value": "Angle"
+    },
+    {
+      "name": "dlg_img_height",
+      "value": "Height"
+    },
+    {
+      "name": "dlg_img_width",
+      "value": "Width"
+    },
+    {
+      "name": "dlg_keep_aspect",
+      "value": "Keep aspect ratio"
+    },
+    {
+      "name": "dlg_origin",
+      "value": "Origin"
+    },
+    {
+      "name": "dlg_results",
+      "value": "Results"
+    },
+    {
+      "name": "dlg_size",
+      "value": "Size"
+    },
+    {
+      "name": "dlg_vertical",
+      "value": "Vertical"
+    },
+    {
+      "name": "msg_no_column_selected",
+      "value": "No column selected"
+    },
+    {
+      "name": "sidebar_col_name",
+      "value": "Column Name"
+    },
+    {
+      "name": "sidebar_column_props",
+      "value": "Column Properties"
+    },
+    {
+      "name": "sidebar_columns",
+      "value": "Columns"
+    },
+    {
+      "name": "sidebar_description",
+      "value": "Description"
+    },
+    {
+      "name": "sidebar_format",
+      "value": "Format"
+    },
+    {
+      "name": "sidebar_formula",
+      "value": "Formula"
+    },
+    {
+      "name": "sidebar_plot_desig",
+      "value": "Plot Designation"
+    },
+    {
+      "name": "sidebar_properties",
+      "value": "Properties"
+    },
+    {
+      "name": "sidebar_type",
+      "value": "Type"
+    },
+    {
+      "name": "sidebar_type_numeric",
+      "value": "Numeric"
+    }
   ]
 }
