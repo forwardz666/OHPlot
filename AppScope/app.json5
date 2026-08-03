@@ -4,7 +4,7 @@
     // bound to org.scidavis.ohos.  Switch to org.ohplot.ohos once a new
     // signing profile is generated in DevEco Studio.
     "bundleName": "org.scidavis.ohos",
-    "vendor": "ohplot",
+    "vendor": "scidavis",
     "versionCode": 1000000,
     "versionName": "0.1.0",
     "icon": "$media:app_icon",

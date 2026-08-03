@@ -1,4 +1,4 @@
-# AGENTS.md — OHPlot (SciDAVis) OpenHarmony 移植
+﻿# AGENTS.md — SciDAVis for OpenHarmony 移植
 
 面向编码代理的路由与硬约束。**只列硬约束与去处，不复制正文**。
 详细规范见 [`docs/README.md`](docs/README.md)（文档总览）。
