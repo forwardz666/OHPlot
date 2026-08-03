@@ -1,13 +1,13 @@
 # AGENTS.md — OHPlot (SciDAVis) OpenHarmony 移植
 
 面向编码代理的路由与硬约束。**只列硬约束与去处，不复制正文**。
-详细规范见 [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md)。
+详细规范见 [`docs/README.md`](docs/README.md)（文档总览）。
 
 ## 路由
 
 | 主题 | 去处 |
 |------|------|
-| ArkTS / C++ / 构建 / 部署 / 调试完整规范 | `docs/DEVELOPMENT_GUIDE.md` |
+| ArkTS / C++ / 构建 / 部署 / 调试完整规范 | `docs/README.md`（开发规范目录见 `docs/开发规范/`） |
 | 冒烟验证入口 | `tools/verify_smoke.py`（收编 `verify_toolbar.py` / `verify_i18n.py`） |
 | 诊断入口（Qt 日志分类） | `tools/dump_logcats.ps1` |
 | 诊断产物存放 | `diagnostics/`（整体 `.gitignore`，不入库） |

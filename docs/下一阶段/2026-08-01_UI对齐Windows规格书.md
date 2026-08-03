@@ -9,6 +9,26 @@
 
 ## 一、Win 端 UI 规格盘点（源码级，A 源）
 
+> **⚠️ 2026-08-02 修正（源码实证）**：2.7.2 菜单栏是**动态菜单**（ApplicationWindow.cpp
+> `customMenu()` L1120-1230），非固定 13 菜单。结构 = **6 常驻 + 按激活窗口类型追加**：
+> - 常驻：File → Edit → View → Scripting → Windows → Help
+> - **Table 激活**：+ Plot（plot2D）→ Analysis（dataMenu，表格形态）→ Table（tableMenu）
+> - **MultiLayer 激活**：+ Graph（graph）→ **Tools（plotDataMenu，L1029 标题 "&Tools"）** →
+>   Analysis（calcul，图形态）→ Format（format）
+> - **Graph3D 激活**：+ Format（format）
+> - **Matrix 激活**：+ 3D Plot（plot3DMenu）→ Matrix（matrixMenu）
+> - **Note 激活**：无追加，Scripting 菜单扩展 Execute/Execute All/Evaluate
+> - **Tools 菜单存在（2.7.2）**：内部变量 `plotDataMenu`，显示标题 "&Tools"，仅 MultiLayer 激活时出现
+>   （L1148）。内容：Disable Tools / Zoom In / Zoom Out / Rescale to Show All · Screen Reader /
+>   Data Reader / Select Data Range · Move Data Points... / Remove Bad Data Points...
+> - **无 "Plot Data" 菜单**：`plotDataMenu` 仅是变量名，菜单栏显示为 "Tools"
+> - **两个 Analysis 菜单内容不同**：Table 态（dataMenu）= Statistics/FFT/Correlate/Convolute；
+>   Graph 态（calcul）= Translate▾/Differentiate/Integrate/Smooth▾/FFT Filter▾/Quick Fit▾
+> - **Windows 菜单项**（L1225）：Cascade / Tile / Next / Previous / Rename Window / Duplicate /
+>   Window Geometry... / Hide Window / Close Window / 窗口列表（截图实证）
+> - 参照现有截图：Table 态菜单栏 = File·Edit·View·Scripting·Plot·Analysis·Table·Windows·Help（9 个，
+>   `diagnostics/ui-alignment/1_菜单栏展开/` 18 张全部为此状态）
+
 ### 1.1 完整菜单树（ApplicationWindow.cpp: createActions 10304-10895 / initMainMenu 778-1023 / customMenu 1120-1230）
 
 **菜单栏顺序**：File → Edit → View → Scripting → [窗口类型相关菜单] → Windows → Help
@@ -93,20 +113,20 @@ MultiLayer 上下文 = **Translate▾** · Differentiate / Integrate · **Smooth
 
 ## 二、OHPlot ↔ Win 差异矩阵
 
-### 2.1 菜单差异（OH 现有 9 菜单 vs Win 13 菜单）
+### 2.1 菜单差异（OH 动态菜单 vs Win 动态菜单）
 
 | 差异项 | 现状 | 对齐动作 |
 |--------|------|---------|
 | **Scripting 菜单缺失** | OH 无 | 搭框架（脚本语言/控制台，可先灰显） |
-| **Format 菜单缺失** | OH 并入 Graph | 拆出 Format(Plot/Scales/Axes/Grid/Title)，GraphPropsDialog 展开为 AxesDialog 4 页 |
-| **Tools 菜单缺失** | OH 并入 Graph 工具栏 | 独立 Tools 菜单（Disable/Zoom/Reader/Range/Move/Remove） |
+| **Format 菜单缺失** | OH 并入 Graph | MultiLayer 激活时拆出 Format(Plot/Scales/Axes/Grid/Title)，GraphPropsDialog 展开为 AxesDialog 4 页 |
+| **Tools 菜单缺失（OH）** | OH 无独立 Tools 菜单（Zoom/Reader 工具在别处） | MultiLayer 激活态补 Tools 菜单（Disable Tools/Zoom In/Out/Rescale/Reader/Range/Move/Remove）——变量 `plotDataMenu` 标题即 "&Tools"，仅图形态出现 |
 | **QuickFit 子菜单拍平** | OH 单层 11 项 | 恢复子菜单层级（Quick Fit▾/Smooth▾/FFT Filter▾/Multi-peak▾） |
 | **View-Toolbars/PlotWizard/History 缺失** | OH 无 | 搭框架 |
 | **Plot 子菜单拍平** | OH 12 项平铺 | 恢复 Special/Statistical/Panel/3D 子菜单层级 |
 | **3D Plot 菜单禁用** | 远期 | 保持禁用（F-30 远期） |
 | **New 子菜单缺 3 项** | OH New 5 项 | 补 Function Plot / 3D Surface(禁用) |
-| **底部工具栏缺 Table 功能组** | OH BottomToolBar 仅 Plot+Plot3D 组 | 在 Plot 组旁加 Table 组（对齐 Win `table_tools`） |
-| **Windows/Help 基本对齐** | ✅ | 微调 |
+| **底部工具栏缺 Table 功能组** | OH BottomToolBar 仅 Plot+Plot3D 组 | 在 Plot 组旁加 Table 组（对齐 Win `table_tools`）✅ 已做（08-02） |
+| **Windows/Help 基本对齐** | ✅ | 微调（Win 实测含 Tile/Next/Previous/Rename/Duplicate/Window Geometry/Hide） |
 
 > **用户明确需求（2026-08-01）**：底部工具栏（下方一行）在已有图标旁边补加 "table" 功能图标。
 > 对齐 Win 端 `table_tools`（future_Table.cpp:1120-1128 fillProjectToolBar）：
@@ -146,6 +166,22 @@ MultiLayer 上下文 = **Translate▾** · Differentiate / Integrate · **Smooth
 ## 四、Win 端截屏清单（B 源，用户配合）
 
 > 在 Windows 电脑上启动 scidavis（建议中文界面，与鸿蒙版一致），逐项截屏。截图存 `ohos/diagnostics/ui-alignment/`（建子目录按菜单/对话框分类）。
+>
+> **采集状态（2026-08-02 盘点，已就位 70 张 / 待补拍）**：
+> - ✅ 菜单栏 **Table 态** 9 个常驻+Table 相关菜单 18 张（File 主/New▾/Recent▾、Edit、View 主/Toolbars▾、
+>   Scripting、Plot 主/Special▾/Statistical▾/Panel▾/3D▾、Analysis、Table 主/SetAs▾/Fill▾、Windows、Help）
+> - ✅ 对话框 33 张：ConfigDialog 全 5 页（Preference-1~13）、file 10 张、view 5 张、FFT、Set Table Dim、
+>   Export ASCII、Window Geometry、ScriptingLang、Help Files Not Found
+> - ✅ **补拍（17 张，2026-08-02）**：Graph 菜单（多段拼合）、Tools 菜单（图形态）、Format 菜单（图形态）、
+>   3D Plot 菜单、Matrix 菜单（矩阵态）、Analysis 菜单（图形态，顶层+QuickFit/MultiPeak/ExpDecay/FFT Filter/
+>   Translate/Smooth 子菜单展开）、File→New 级联
+> - ⬜ **待补拍**：
+>   - **Graph 菜单中段**（Vertical Steps 与 Vectors XYXY 之间）：Area / Pie / Vertical Bars / Horizontal Bars / Histogram 等绘图类型
+>   - **对话框全部未拍**（0 张）：P0 CurvesDialog/ErrDialog/FunctionDialog/AxesDialog(4 页)、P1 PlotDialog 核心页/
+>     TextDialog/LineDialog/ImageDialog/AssociationsDialog、P2 Fit Wizard/SmoothCurve/Interpolation/Int/Filter/
+>     PolynomFit、P3 LayerDialog/RenameWindowDialog/FindDialog/TableStatistics、Export Graph Image
+>   - 主窗口全貌（4.3，表格+图+项目浏览器+结果日志典型布局）
+> - 补齐方式：Win 端先新建 Graph/Matrix 窗口激活后截菜单；对话框须从对应菜单打开后截，放入对应子目录
 
 ### 4.1 菜单栏展开（每个菜单一张，含子菜单展开）
 File / Edit / View / Scripting / Graph / Format / Tools / Plot(含 4 个子菜单各展开一次) / Analysis(含 5 个子菜单) / Table / Matrix / Windows / Help

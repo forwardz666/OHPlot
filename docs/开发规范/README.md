@@ -17,6 +17,7 @@ OHPlot（SciDAVis OpenHarmony 适配版）开发规范文档，按编号排序�
 | 09 | [DevEco_Code三层子代理调用规范](09_DevEco_Code三层子代理调用规范.md) | 三层模型分工（Qoder / GLM-5.1 / deepseek-v4-flash）、并行委派、验收规则 |
 | 10 | [GitHub上传与仓库内容管理规范](10_GitHub上传与仓库内容管理规范.md) | 六项上传原则（涉密/临时/过程文件不入库）、大二进制处理、提交推送流程 |
 | 11 | [工具栏悬停提示规范](11_工具栏悬停提示规范.md) | onHover+bindPopup 悬停 tooltip、API 兼容性选型、tip 资源本地化（2026-07-29 新增） |
+| 12 | [DevEco_Code模型配置与视觉代理路由规范](12_DevEco_Code模型配置与视觉代理路由规范.md) | provider/模型配置、whitelist/blacklist、视觉 subagent 路由、provider 名与凭证一致性、多源 merge 坑（2026-08-03 新增） |
 
 ## 配套资源
 
